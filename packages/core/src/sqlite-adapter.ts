@@ -441,6 +441,14 @@ export type SqliteSaveDataStats = {
     removedRows: number;
     totalRows: number;
     settingsWritten: boolean;
+    /** Await time spent on BEGIN IMMEDIATE (long values point at writer-lock contention). */
+    beginMs: number;
+    /** Await time spent on COMMIT (long values point at fsync/checkpoint cost). */
+    commitMs: number;
+    /** Total await time across all SQL statements in this save, including begin/commit. */
+    sqlMs: number;
+    /** Number of SQL statements executed (per-statement average separates bridge latency from statement volume). */
+    sqlCount: number;
 };
 
 export class SqliteAdapter {
@@ -1301,9 +1309,24 @@ export class SqliteAdapter {
             removedRows: 0,
             totalRows: 0,
             settingsWritten: false,
+            beginMs: 0,
+            commitMs: 0,
+            sqlMs: 0,
+            sqlCount: 0,
+        };
+        const runTimed = async (sql: string, args?: unknown[]) => {
+            const statementStartedAt = Date.now();
+            try {
+                return await this.client.run(sql, args);
+            } finally {
+                stats.sqlMs += Date.now() - statementStartedAt;
+                stats.sqlCount += 1;
+            }
         };
         this.lastSavedFingerprints = null;
-        await this.client.run('BEGIN IMMEDIATE');
+        const beginStartedAt = Date.now();
+        await runTimed('BEGIN IMMEDIATE');
+        stats.beginMs = Date.now() - beginStartedAt;
         let saveStep = 'begin';
         try {
             const nowIso = new Date().toISOString();
@@ -1349,7 +1372,7 @@ export class SqliteAdapter {
                             return placeholders;
                         })
                         .join(', ');
-                    await this.client.run(
+                    await runTimed(
                         `INSERT INTO ${table} (${columnList}) VALUES ${valuePlaceholders} ON CONFLICT(id) DO UPDATE SET ${updateClause}`,
                         values
                     );
@@ -1367,24 +1390,24 @@ export class SqliteAdapter {
                     stats.removedRows += removedIds.length;
                     for (const batch of chunkArray(removedIds, SQLITE_ID_INSERT_BATCH_SIZE)) {
                         const placeholders = batch.map(() => '?').join(', ');
-                        await this.client.run(`DELETE FROM ${table} WHERE id IN (${placeholders})`, batch);
+                        await runTimed(`DELETE FROM ${table} WHERE id IN (${placeholders})`, batch);
                     }
                     return;
                 }
                 const tempTable = createTempIdTableName(table);
                 try {
-                    await this.client.run(`CREATE TEMP TABLE ${tempTable} (id TEXT PRIMARY KEY)`);
+                    await runTimed(`CREATE TEMP TABLE ${tempTable} (id TEXT PRIMARY KEY)`);
                     for (const batch of chunkArray(ids, SQLITE_ID_INSERT_BATCH_SIZE)) {
                         const placeholders = batch.map(() => '(?)').join(', ');
-                        await this.client.run(
+                        await runTimed(
                             `INSERT OR IGNORE INTO ${tempTable} (id) VALUES ${placeholders}`,
                             batch
                         );
                     }
-                    await this.client.run(`DELETE FROM ${table} WHERE id NOT IN (SELECT id FROM ${tempTable})`);
+                    await runTimed(`DELETE FROM ${table} WHERE id NOT IN (SELECT id FROM ${tempTable})`);
                 } finally {
                     try {
-                        await this.client.run(`DROP TABLE ${tempTable}`);
+                        await runTimed(`DROP TABLE ${tempTable}`);
                     } catch (dropError) {
                         logWarn(`Failed to drop temp table ${tempTable}`, {
                             scope: 'sqlite',
@@ -1678,14 +1701,16 @@ export class SqliteAdapter {
             nextSave.settingsJson = settingsJson;
             if (previousSave?.settingsJson !== settingsJson) {
                 stats.settingsWritten = true;
-                await this.client.run(
+                await runTimed(
                     'INSERT INTO settings (id, data) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET data=excluded.data',
                     [settingsJson]
                 );
             }
 
             saveStep = 'commit';
-            await this.client.run('COMMIT');
+            const commitStartedAt = Date.now();
+            await runTimed('COMMIT');
+            stats.commitMs = Date.now() - commitStartedAt;
             this.lastSavedFingerprints = nextSave;
             this.lastSaveDataStats = stats;
         } catch (error) {

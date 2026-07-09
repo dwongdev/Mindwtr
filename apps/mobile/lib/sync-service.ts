@@ -1428,6 +1428,7 @@ class MobileSyncRun {
     this.ensureLocalSnapshotFresh();
     // mergedData is exactly what the last writeLocal persisted, so refresh the
     // store from it directly instead of re-reading the full dataset from SQLite.
+    const refreshStartedAt = Date.now();
     await useTaskStore.getState().fetchData({ silent: true, preloadedData: mergedData });
     logSyncDiagnostic('Sync diagnostic complete', this.syncDiagnosticStartedAt, {
       backend,
@@ -1435,6 +1436,7 @@ class MobileSyncRun {
       status: syncResult.status,
       success: 'true',
       wroteLocal: String(this.wroteLocal),
+      refreshMs: String(Date.now() - refreshStartedAt),
       ...buildSyncDataDiagnostics(mergedData),
     });
     return { success: true, stats: syncResult.stats };

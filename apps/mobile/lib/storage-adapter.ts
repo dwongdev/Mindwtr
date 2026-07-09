@@ -646,6 +646,10 @@ const createStorage = (): StorageAdapter => {
                                     rowsTotal: String(stats.totalRows),
                                     incremental: String(stats.incremental),
                                     settingsWritten: String(stats.settingsWritten),
+                                    sqlMs: String(stats.sqlMs),
+                                    sqlCount: String(stats.sqlCount),
+                                    beginMs: String(stats.beginMs),
+                                    commitMs: String(stats.commitMs),
                                 }
                                 : {}),
                             ...(sqliteJournalDiagnostics ?? {}),
