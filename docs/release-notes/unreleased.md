@@ -120,3 +120,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 - perf(mobile): reminder rescheduling no longer re-scans all tasks after app updates that cannot affect reminders (sync status changes, loading states) — during active use with background sync this removes most of the repeated full-library scans. (#766)
 - fix(mobile): leaving a project's Task order mode no longer shows an empty task list until you scroll — the list now comes back at the position you left it. (#784)
 - fix(mobile): a project's task list no longer hiccups or shifts when you lift your finger after scrolling — the list now scrolls natively like the Projects list, staying exactly where you leave it, with the project details header scrolling along naturally. (#831)
+- fix(mobile): entering Select mode in a project no longer jumps the task list back to the top — selection starts on the tasks you were looking at. (#765)
