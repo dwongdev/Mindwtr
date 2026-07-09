@@ -234,7 +234,7 @@ describe('InboxProcessor', () => {
     });
 
     it('preselects the area already assigned to the inbox task', () => {
-        const { getByRole, getByLabelText } = renderInboxProcessor({
+        const { getByRole } = renderInboxProcessor({
             settings: {
                 gtd: {
                     inboxProcessing: {
@@ -250,11 +250,11 @@ describe('InboxProcessor', () => {
 
         // The dropdown must reflect what apply will save; resetting it to empty
         // silently dropped an area assigned while the task sat in the inbox.
-        expect((getByLabelText('taskEdit.areaLabel') as HTMLSelectElement).value).toBe('area-work');
+        expect(getByRole('button', { name: 'Work' })).toBeTruthy();
     });
 
     it('filters quick processing project choices by the selected area', () => {
-        const { getByRole, getByLabelText, queryByRole } = renderInboxProcessor({
+        const { getByRole, queryByRole } = renderInboxProcessor({
             settings: {
                 gtd: {
                     inboxProcessing: {
@@ -267,9 +267,8 @@ describe('InboxProcessor', () => {
         });
 
         fireEvent.click(getByRole('button', { name: /process\.btn/i }));
-        fireEvent.change(getByLabelText('taskEdit.areaLabel'), {
-            target: { value: 'area-work' },
-        });
+        fireEvent.click(getByRole('button', { name: 'projects.noArea' }));
+        fireEvent.click(getByRole('option', { name: 'Work' }));
         fireEvent.click(getByRole('button', { name: 'process.project' }));
 
         expect(getByRole('option', { name: 'Work Project' })).toBeTruthy();
@@ -277,7 +276,7 @@ describe('InboxProcessor', () => {
     });
 
     it('shows area before project in guided project-first processing and filters projects', () => {
-        const { container, getByRole, getByLabelText, queryByRole } = renderInboxProcessor({
+        const { container, getByRole, queryByRole } = renderInboxProcessor({
             settings: {
                 gtd: {
                     inboxProcessing: {
@@ -295,9 +294,8 @@ describe('InboxProcessor', () => {
             container.innerHTML.indexOf('taskEdit.projectLabel'),
         );
 
-        fireEvent.change(getByLabelText('taskEdit.areaLabel'), {
-            target: { value: 'area-work' },
-        });
+        fireEvent.click(getByRole('button', { name: 'projects.noArea' }));
+        fireEvent.click(getByRole('option', { name: 'Work' }));
         fireEvent.click(getByRole('button', { name: 'process.project' }));
 
         expect(getByRole('option', { name: 'Work Project' })).toBeTruthy();

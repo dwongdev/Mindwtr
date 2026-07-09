@@ -9,6 +9,7 @@ import {
     type InboxProcessingScheduleFieldsControls,
 } from './InboxProcessingScheduleFields';
 import { TokenAutocompleteInput } from './Task/TokenAutocompleteInput';
+import { AreaSelector } from './ui/AreaSelector';
 import { ProjectSelector } from './ui/ProjectSelector';
 import { QuickDateChips } from './QuickDateChips';
 
@@ -361,19 +362,17 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                         {showProjectInRefine && showAreaField && !selectedProjectId && (
                             <div className="space-y-1">
                                 <label className="text-[11px] text-muted-foreground font-medium">{t('taskEdit.areaLabel')}</label>
-                                <select
-                                    aria-label={t('taskEdit.areaLabel')}
+                                <AreaSelector
+                                    areas={areas}
                                     value={selectedAreaId ?? ''}
-                                    onChange={(event) => setSelectedAreaId(event.target.value || null)}
-                                    className="w-full bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/40 focus:outline-none"
-                                >
-                                    <option value="">{t('projects.noArea')}</option>
-                                    {areas.map((area) => (
-                                        <option key={area.id} value={area.id}>
-                                            {area.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={(value) => setSelectedAreaId(value || null)}
+                                    placeholder={t('projects.noArea')}
+                                    noAreaLabel={t('projects.noArea')}
+                                    searchPlaceholder={t('areas.search')}
+                                    noMatchesLabel={t('common.noMatches')}
+                                    controlClassName="rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                    menuClassName="text-sm"
+                                />
                             </div>
                         )}
                         {showProjectInRefine && showProjectField && (
@@ -895,19 +894,17 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                             {showAreaField ? (
                                 <div className="space-y-1">
                                     <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.areaLabel')}</label>
-                                    <select
-                                        aria-label={t('taskEdit.areaLabel')}
+                                    <AreaSelector
+                                        areas={areas}
                                         value={selectedAreaId ?? ''}
-                                        onChange={(event) => setSelectedAreaId(event.target.value || null)}
-                                        className="w-full bg-card border border-border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-                                    >
-                                        <option value="">{t('projects.noArea')}</option>
-                                        {areas.map((area) => (
-                                            <option key={area.id} value={area.id}>
-                                                {area.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        onChange={(value) => setSelectedAreaId(value || null)}
+                                        placeholder={t('projects.noArea')}
+                                        noAreaLabel={t('projects.noArea')}
+                                        searchPlaceholder={t('areas.search')}
+                                        noMatchesLabel={t('common.noMatches')}
+                                        controlClassName="bg-card rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                        menuClassName="text-sm"
+                                    />
                                 </div>
                             ) : null}
                             <div className="space-y-1">
@@ -978,19 +975,17 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                             {showAreaField ? (
                                 <div className="space-y-1">
                                     <label className="text-xs text-muted-foreground font-medium">{t('taskEdit.areaLabel')}</label>
-                                    <select
-                                        aria-label={t('taskEdit.areaLabel')}
+                                    <AreaSelector
+                                        areas={areas}
                                         value={selectedAreaId ?? ''}
-                                        onChange={(event) => setSelectedAreaId(event.target.value || null)}
-                                        className="w-full bg-card border border-border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-                                    >
-                                        <option value="">{t('projects.noArea')}</option>
-                                        {areas.map((area) => (
-                                            <option key={area.id} value={area.id}>
-                                                {area.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        onChange={(value) => setSelectedAreaId(value || null)}
+                                        placeholder={t('projects.noArea')}
+                                        noAreaLabel={t('projects.noArea')}
+                                        searchPlaceholder={t('areas.search')}
+                                        noMatchesLabel={t('common.noMatches')}
+                                        controlClassName="bg-card rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary/40 focus:outline-none"
+                                        menuClassName="text-sm"
+                                    />
                                 </div>
                             ) : null}
                             {showProjectField ? (

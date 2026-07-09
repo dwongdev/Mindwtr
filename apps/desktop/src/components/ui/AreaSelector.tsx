@@ -16,6 +16,8 @@ interface AreaSelectorProps {
     noMatchesLabel?: string;
     createAreaLabel?: string;
     className?: string;
+    controlClassName?: string;
+    menuClassName?: string;
 }
 
 export function AreaSelector({
@@ -29,6 +31,8 @@ export function AreaSelector({
     noMatchesLabel = 'No matches',
     createAreaLabel = 'Create area',
     className,
+    controlClassName,
+    menuClassName,
 }: AreaSelectorProps) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -146,7 +150,10 @@ export function AreaSelector({
                         closeDropdown();
                     }
                 }}
-                className="w-full flex items-center justify-between text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground"
+                className={cn(
+                    'w-full flex items-center justify-between text-xs bg-muted/50 border border-border rounded px-2 py-1 text-foreground',
+                    controlClassName,
+                )}
                 aria-haspopup="listbox"
                 aria-expanded={open}
             >
@@ -159,7 +166,10 @@ export function AreaSelector({
                         ref={dropdownRef}
                         data-selector-dropdown="true"
                         style={fixedDropdownStyle}
-                        className="z-[70] rounded-md border border-border bg-popover text-popover-foreground shadow-lg p-1 text-xs"
+                        className={cn(
+                            'z-[70] rounded-md border border-border bg-popover text-popover-foreground shadow-lg p-1 text-xs',
+                            menuClassName,
+                        )}
                         onKeyDown={handleDropdownKeyDown}
                     >
                         <input
