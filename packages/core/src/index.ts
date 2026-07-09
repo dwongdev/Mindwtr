@@ -1229,3 +1229,4 @@ export {
 
 export * from './focus-star';
 export * from './capture';
+export * from './session-restore';

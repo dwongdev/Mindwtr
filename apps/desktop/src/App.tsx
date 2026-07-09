@@ -54,6 +54,7 @@ import { SyncService } from './lib/sync-service';
 import type { ExternalSyncChange, ExternalSyncChangeResolution } from './lib/sync-service';
 import * as LocalDataWatcher from './lib/local-data-watcher';
 import { getInstallSourceOrFallback, isFlatpakRuntime, isTauriRuntime } from './lib/runtime';
+import { persistLastView, readRestorableLastView } from './lib/session-restore';
 import { logError, logInfo } from './lib/app-log';
 import { createDesktopAutoSyncController } from './lib/auto-sync-controller';
 import { canDesktopAutoSync } from './lib/desktop-auto-sync-eligibility';
@@ -213,8 +214,14 @@ const buildPromptTestReviewAnnouncement = (installSource: InstallSource | null):
 };
 
 function App() {
-    const [currentView, setCurrentView] = useState(DEFAULT_DESKTOP_VIEW);
-    const [activeView, setActiveView] = useState(DEFAULT_DESKTOP_VIEW);
+    // Reopening shortly after the app closed resumes the interrupted session on
+    // the same screen; a fresh session starts on the default view (#842).
+    const [restoredLastView] = useState(() => {
+        if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return null;
+        return readRestorableLastView();
+    });
+    const [currentView, setCurrentView] = useState(restoredLastView?.view ?? DEFAULT_DESKTOP_VIEW);
+    const [activeView, setActiveView] = useState(restoredLastView?.view ?? DEFAULT_DESKTOP_VIEW);
     const [settingsInitialPage, setSettingsInitialPage] = useState<SettingsPage | undefined>();
     const [settingsOnboardingHintPage, setSettingsOnboardingHintPage] = useState<
         SettingsOnboardingHintPage | undefined
@@ -931,6 +938,7 @@ function App() {
             setSettingsInitialPage(undefined);
             setSettingsOnboardingHintPage(undefined);
         }
+        persistLastView(nextView, useUiStore.getState().projectView.selectedProjectId);
         setCurrentView(nextView);
         if (nextView === 'settings') {
             beginSettingsOpenTrace('handleViewChange');
@@ -946,6 +954,29 @@ function App() {
         if (isObsidianEnabled || currentView !== 'obsidian') return;
         handleViewChange('settings');
     }, [currentView, handleViewChange, isObsidianEnabled]);
+
+    // Restore the project that was open when the interrupted session ended.
+    useEffect(() => {
+        if (restoredLastView?.view !== 'projects' || !restoredLastView.projectId) return;
+        useUiStore.getState().setProjectView({ selectedProjectId: restoredLastView.projectId });
+    }, []);
+
+    // The saved timestamp must reflect when the session ended, not the last
+    // in-app navigation: refresh it whenever the window hides or closes.
+    useEffect(() => {
+        const refreshLastView = () => {
+            persistLastView(currentView, useUiStore.getState().projectView.selectedProjectId);
+        };
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') refreshLastView();
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        window.addEventListener('beforeunload', refreshLastView);
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            window.removeEventListener('beforeunload', refreshLastView);
+        };
+    }, [currentView]);
 
     useEffect(() => {
         if (!hasHydratedSettings || isLoading) return;

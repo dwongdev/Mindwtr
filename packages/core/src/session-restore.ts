@@ -1,0 +1,16 @@
+/**
+ * Reopening the app within this window restores the last viewed screen —
+ * interruption recovery (OS killed the app, quick app switch, update restart).
+ * After a longer gap the app starts fresh on its home view, keeping the
+ * deliberate "orient on today's focus" behavior for new sessions (#842).
+ */
+export const SESSION_RESTORE_WINDOW_MS = 10 * 60 * 1000;
+
+// Small negative ages tolerate minor clock adjustments between save and read.
+const SESSION_RESTORE_CLOCK_SKEW_MS = 60 * 1000;
+
+export function shouldRestoreLastView(savedAtMs: unknown, nowMs: number = Date.now()): boolean {
+    if (typeof savedAtMs !== 'number' || !Number.isFinite(savedAtMs)) return false;
+    const age = nowMs - savedAtMs;
+    return age >= -SESSION_RESTORE_CLOCK_SKEW_MS && age <= SESSION_RESTORE_WINDOW_MS;
+}

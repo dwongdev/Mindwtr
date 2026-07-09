@@ -426,10 +426,11 @@ describe('mobile tab quick capture', () => {
     expect(headerTitle.props.maxFontSizeMultiplier).toBe(1.15);
   });
 
-  it('redirects root cold launch to Focus', () => {
+  it('redirects root cold launch to Focus when no recent session is stored', async () => {
     let tree!: ReturnType<typeof create>;
 
-    act(() => {
+    // Session restore reads storage asynchronously before redirecting.
+    await act(async () => {
       tree = create(<Index />);
     });
 

@@ -4,12 +4,12 @@ import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } fro
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import { Stack, usePathname, useRouter } from 'expo-router';
+import { Stack, useGlobalSearchParams, usePathname, useRouter } from 'expo-router';
 import 'react-native-reanimated';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { BackHandler, Platform, SafeAreaView, StatusBar, Text, View } from 'react-native';
+import { AppState, BackHandler, Platform, SafeAreaView, StatusBar, Text, View } from 'react-native';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { QuickCaptureProvider, type QuickCaptureOptions } from '../contexts/quick-capture-context';
 import { ToastProvider, useToast } from '../contexts/toast-context';
@@ -75,6 +75,7 @@ import {
 } from '@/lib/mobile-onboarding-events';
 import { SYNC_BACKEND_KEY } from '@/lib/sync-constants';
 import { coerceSupportedBackend, resolveBackend } from '@/lib/sync-service-utils';
+import { persistLastRoute } from '@/lib/session-restore';
 
 let coreLoggerBridgeInstalled = false;
 
@@ -489,6 +490,26 @@ function RootLayoutContentInner() {
     if (!breadcrumb) return;
     addBreadcrumb(breadcrumb);
   }, [pathname]);
+
+  // Remember the screen the user is on so a reopen shortly after the OS kills
+  // the app resumes there instead of resetting to Focus (#842).
+  const globalSearchParams = useGlobalSearchParams<{ projectId?: string }>();
+  const routeProjectId = typeof globalSearchParams.projectId === 'string' ? globalSearchParams.projectId : undefined;
+  const lastRouteRef = useRef<{ pathname: string; projectId?: string }>({ pathname });
+  useEffect(() => {
+    lastRouteRef.current = { pathname, projectId: routeProjectId };
+    void persistLastRoute(pathname, routeProjectId ? { projectId: routeProjectId } : undefined);
+  }, [pathname, routeProjectId]);
+  useEffect(() => {
+    // The snapshot timestamp must reflect when the session left the app, not
+    // the last navigation — refresh it whenever the app goes to background.
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'background' && state !== 'inactive') return;
+      const { pathname: lastPathname, projectId } = lastRouteRef.current;
+      void persistLastRoute(lastPathname, projectId ? { projectId } : undefined);
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== 'android' || isExpoGo) return;
