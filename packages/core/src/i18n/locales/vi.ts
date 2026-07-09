@@ -252,6 +252,7 @@ export const viOverrides: Record<string, string> = {
         'attachments.obsidianLinkInputHint': 'Dán liên kết ghi chú obsidian:// hoặc dùng "Tiêu đề | obsidian://...".',
         'attachments.fileNotSupported': 'Tệp đính kèm chỉ được hỗ trợ trên ứng dụng máy tính.',
         'attachments.fileTooLarge': 'Tệp quá lớn để tải lên.',
+        'attachments.fileNotReadable': 'Không thể đọc tệp này nên tệp chưa được đính kèm. Hãy chuyển tệp sang thư mục khác và thử lại.',
         'attachments.invalidFileType': 'Loại tệp không được hỗ trợ.',
         'attachments.invalidLink': 'Vui lòng nhập URL hợp lệ.',
         'attachments.photoUnavailableTitle': 'Bộ chọn ảnh không khả dụng',

@@ -258,6 +258,7 @@ export const en: Record<string, string> = {
         'attachments.obsidianLinkInputHint': 'Paste an obsidian:// note link, or use "Title | obsidian://...".',
         'attachments.fileNotSupported': 'File attachments are only supported in the desktop app.',
         'attachments.fileTooLarge': 'File is too large to upload.',
+        'attachments.fileNotReadable': 'Couldn\'t read this file, so it was not attached. Move it to a different folder and try again.',
         'attachments.invalidFileType': 'Unsupported file type.',
         'attachments.invalidLink': 'Please enter a valid URL.',
         'attachments.photoUnavailableTitle': 'Photo picker unavailable',

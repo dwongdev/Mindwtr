@@ -406,10 +406,12 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
                 return;
             }
         } catch (error) {
-            void logWarn('Failed to validate attachment size', {
+            void logWarn('Failed to read attachment file', {
                 scope: 'attachment',
                 extra: { error: error instanceof Error ? error.message : String(error) },
             });
+            setAttachmentError(t('attachments.fileNotReadable'));
+            return;
         }
         const now = new Date().toISOString();
         const title = selected.split(/[/\\]/).pop() || selected;

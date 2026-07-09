@@ -231,6 +231,7 @@ export const jaOverrides: Record<string, string> = {
         'attachments.obsidianLinkInputHint': 'obsidian:// のノートリンクを貼り付けるか、「タイトル | obsidian://...」を使用します。',
         'attachments.fileNotSupported': 'ファイルの添付はデスクトップ アプリでのみサポートされます。',
         'attachments.fileTooLarge': 'ファイルが大きすぎるのでアップロードできません。',
+        'attachments.fileNotReadable': 'このファイルを読み取れなかったため、添付されませんでした。別のフォルダーに移動してからもう一度お試しください。',
         'attachments.invalidFileType': 'サポートされていないファイル形式です。',
         'attachments.invalidLink': '有効な URL を入力してください。',
         'attachments.photoUnavailableTitle': '写真ピッカーは使用できません',

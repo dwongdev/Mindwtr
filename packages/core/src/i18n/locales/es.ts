@@ -225,6 +225,7 @@ export const esOverrides: Record<string, string> = {
         'attachments.obsidianLinkInputHint': 'Pega un enlace de nota obsidian:// o usa "Título | obsidian://...".',
         'attachments.fileNotSupported': 'Los archivos adjuntos solo están soportados en la app de escritorio.',
         'attachments.fileTooLarge': 'El archivo es demasiado grande para subirlo.',
+        'attachments.fileNotReadable': 'No se pudo leer este archivo, así que no se adjuntó. Muévelo a otra carpeta e inténtalo de nuevo.',
         'attachments.invalidFileType': 'Tipo de archivo no compatible.',
         'attachments.invalidLink': 'Introduce una URL válida.',
         'attachments.photoUnavailableTitle': 'La opción de seleccionar fotos no está disponible',

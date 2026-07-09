@@ -230,6 +230,7 @@ export const arOverrides: Record<string, string> = {
         'attachments.obsidianLinkInputHint': 'الصق رابط ملاحظة obsidian://، أو استخدم "العنوان | obsidian://...".',
         'attachments.fileNotSupported': 'مرفقات الملفات مدعومة فقط في تطبيق سطح المكتب.',
         'attachments.fileTooLarge': 'الملف كبير جدًا بحيث لا يمكن تحميله.',
+        'attachments.fileNotReadable': 'تعذّرت قراءة هذا الملف، لذا لم يتم إرفاقه. انقله إلى مجلد آخر وحاول مرة أخرى.',
         'attachments.invalidFileType': 'نوع الملف غير معتمد.',
         'attachments.invalidLink': 'الرجاء إدخال عنوان URL صالح.',
         'attachments.photoUnavailableTitle': 'منتقي الصور غير متاح',

@@ -227,6 +227,7 @@ export const ptOverrides: Record<string, string> = {
         'attachments.obsidianLinkInputHint': 'Cole um link de nota obsidian:// ou use "Título | obsidian://...".',
         'attachments.fileNotSupported': 'Anexos de arquivo são suportados apenas no aplicativo de desktop.',
         'attachments.fileTooLarge': 'O arquivo é muito grande para ser carregado.',
+        'attachments.fileNotReadable': 'Não foi possível ler este arquivo, então ele não foi anexado. Mova-o para outra pasta e tente novamente.',
         'attachments.invalidFileType': 'Tipo de arquivo não suportado.',
         'attachments.invalidLink': 'Insira um URL válido.',
         'attachments.photoUnavailableTitle': 'Seletor de fotos indisponível',

@@ -230,6 +230,7 @@ export const koOverrides: Record<string, string> = {
         'attachments.obsidianLinkInputHint': 'obsidian:// 노트 링크를 붙여넣거나 "제목 | obsidian://..."를 사용하세요.',
         'attachments.fileNotSupported': '파일 첨부는 데스크톱 앱에서만 지원됩니다.',
         'attachments.fileTooLarge': '파일이 너무 커서 업로드할 수 없습니다.',
+        'attachments.fileNotReadable': '이 파일을 읽을 수 없어 첨부되지 않았습니다. 파일을 다른 폴더로 옮긴 뒤 다시 시도하세요.',
         'attachments.invalidFileType': '지원되지 않는 파일 형식입니다.',
         'attachments.invalidLink': '유효한 URL을 입력하세요.',
         'attachments.photoUnavailableTitle': '사진 선택 도구를 사용할 수 없습니다.',

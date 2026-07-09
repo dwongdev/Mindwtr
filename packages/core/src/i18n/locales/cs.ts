@@ -256,6 +256,7 @@ export const csOverrides: Record<string, string> = {
         'attachments.obsidianLinkInputHint': 'Vložte odkaz na poznámku obsidian:// nebo použijte „Název | obsidian://...“.',
         'attachments.fileNotSupported': 'Souborové přílohy jsou podporovány jen v desktopové aplikaci.',
         'attachments.fileTooLarge': 'Soubor je na nahrání příliš velký.',
+        'attachments.fileNotReadable': 'Tento soubor se nepodařilo přečíst, proto nebyl připojen. Přesuňte jej do jiné složky a zkuste to znovu.',
         'attachments.invalidFileType': 'Nepodporovaný typ souboru.',
         'attachments.invalidLink': 'Zadejte prosím platnou URL.',
         'attachments.photoUnavailableTitle': 'Výběr fotek není dostupný',
