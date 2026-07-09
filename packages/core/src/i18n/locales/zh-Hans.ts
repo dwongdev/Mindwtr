@@ -224,6 +224,7 @@ export const zhHans: Record<string, string> = {
         'attachments.fileNotSupported': '文件附件仅在桌面应用中支持。',
         'attachments.fileTooLarge': '文件过大，无法上传。',
         'attachments.fileNotReadable': '无法读取此文件，因此未添加附件。请将文件移动到其他文件夹后重试。',
+        'attachments.linkToFile': '链接到文件…',
         'attachments.invalidFileType': '不支持的文件类型。',
         'attachments.invalidLink': '请输入有效的链接。',
         'attachments.photoUnavailableTitle': '图片选择不可用',

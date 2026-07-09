@@ -224,6 +224,7 @@ export const zhHant: Record<string, string> = {
         'attachments.fileNotSupported': '文件附件僅在桌面應用中支持。',
         'attachments.fileTooLarge': '文件過大，無法上傳。',
         'attachments.fileNotReadable': '無法讀取此文件，因此未加入附件。請將文件移至其他資料夾後再試一次。',
+        'attachments.linkToFile': '連結到文件…',
         'attachments.invalidFileType': '不支持的文件類型。',
         'attachments.invalidLink': '請輸入有效的鏈接。',
         'attachments.photoUnavailableTitle': '圖片選擇不可用',

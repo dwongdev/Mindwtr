@@ -257,6 +257,7 @@ export const deOverrides: Record<string, string> = {
         'attachments.fileNotSupported': 'Dateianhänge werden nur in der Desktop-App unterstützt.',
         'attachments.fileTooLarge': 'Die Datei ist zu groß für das Hochladen.',
         'attachments.fileNotReadable': 'Diese Datei konnte nicht gelesen werden und wurde daher nicht angehängt. Verschiebe sie in einen anderen Ordner und versuche es erneut.',
+        'attachments.linkToFile': 'Mit Datei verknüpfen…',
         'attachments.invalidFileType': 'Nicht unterstützter Dateientyp.',
         'attachments.invalidLink': 'Bitte eine gültige URL angeben.',
         'attachments.photoUnavailableTitle': 'Foto-Auswahl ist nicht verfügbar',

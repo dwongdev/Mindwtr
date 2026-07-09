@@ -235,6 +235,7 @@ export const trOverrides: Record<string, string> = {
         'attachments.fileNotSupported': 'Dosya ekleri yalnızca masaüstü uygulamasında desteklenir.',
         'attachments.fileTooLarge': 'Dosya yüklenemeyecek kadar büyük.',
         'attachments.fileNotReadable': 'Bu dosya okunamadığı için eklenmedi. Dosyayı başka bir klasöre taşıyıp yeniden deneyin.',
+        'attachments.linkToFile': 'Dosyaya bağlantı ver…',
         'attachments.invalidFileType': 'Desteklenmeyen dosya türü.',
         'attachments.invalidLink': 'Lütfen geçerli bir URL girin.',
         'attachments.photoUnavailableTitle': 'Fotoğraf seçici kullanılamıyor',

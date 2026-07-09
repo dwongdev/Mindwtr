@@ -232,6 +232,7 @@ export const hiOverrides: Record<string, string> = {
         'attachments.fileNotSupported': 'फ़ाइल अनुलग्नक केवल डेस्कटॉप ऐप में समर्थित हैं।',
         'attachments.fileTooLarge': 'फ़ाइल अपलोड करने के लिए बहुत बड़ी है.',
         'attachments.fileNotReadable': 'यह फ़ाइल पढ़ी नहीं जा सकी, इसलिए संलग्न नहीं हुई. इसे किसी अन्य फ़ोल्डर में ले जाकर पुनः प्रयास करें.',
+        'attachments.linkToFile': 'फ़ाइल से लिंक करें…',
         'attachments.invalidFileType': 'असमर्थित फ़ाइल प्रकार।',
         'attachments.invalidLink': 'क्रुपया मान्य यूआरएल दर्ज करें।',
         'attachments.photoUnavailableTitle': 'फ़ोटो पिकर अनुपलब्ध',

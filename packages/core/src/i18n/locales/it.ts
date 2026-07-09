@@ -279,6 +279,7 @@ export const itOverrides: Record<string, string> = {
         'attachments.fileNotSupported': 'Gli allegati file sono supportati solo nell\'app desktop.',
         'attachments.fileTooLarge': 'Il file è troppo grande per essere caricato.',
         'attachments.fileNotReadable': 'Impossibile leggere questo file, quindi non è stato allegato. Spostalo in un\'altra cartella e riprova.',
+        'attachments.linkToFile': 'Collega a file…',
         'attachments.invalidFileType': 'Tipo di file non supportato.',
         'attachments.invalidLink': 'Inserisci un URL valido.',
         'attachments.photoUnavailableTitle': 'Selettore foto non disponibile',

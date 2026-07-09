@@ -232,6 +232,7 @@ export const plOverrides: Record<string, string> = {
         'attachments.fileNotSupported': 'Załączniki plików są obsługiwane tylko w aplikacji komputerowej.',
         'attachments.fileTooLarge': 'Plik jest za duży, aby go przesłać.',
         'attachments.fileNotReadable': 'Nie udało się odczytać tego pliku, więc nie został załączony. Przenieś go do innego folderu i spróbuj ponownie.',
+        'attachments.linkToFile': 'Dowiąż do pliku…',
         'attachments.invalidFileType': 'Nieobsługiwany typ pliku.',
         'attachments.invalidLink': 'Proszę wprowadzić prawidłowy URL.',
         'attachments.photoUnavailableTitle': 'Selektor zdjęć niedostępny',

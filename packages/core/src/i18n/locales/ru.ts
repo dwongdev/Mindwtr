@@ -232,6 +232,7 @@ export const ruOverrides: Record<string, string> = {
         'attachments.fileNotSupported': 'Вложения файлов поддерживаются только в настольном приложении.',
         'attachments.fileTooLarge': 'Файл слишком велик для загрузки.',
         'attachments.fileNotReadable': 'Не удалось прочитать этот файл, поэтому он не был прикреплён. Переместите его в другую папку и попробуйте снова.',
+        'attachments.linkToFile': 'Ссылка на файл…',
         'attachments.invalidFileType': 'Неподдерживаемый тип файла.',
         'attachments.invalidLink': 'Введите действительный URL-адрес.',
         'attachments.photoUnavailableTitle': 'Выбор фотографий недоступен.',

@@ -1,7 +1,8 @@
-import { AlertTriangle, Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Paperclip, RotateCcw, Copy, MapPin, History, Hourglass, Play, Zap, MoreHorizontal } from 'lucide-react';
+import { AlertTriangle, Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Link2, Paperclip, RotateCcw, Copy, MapPin, History, Hourglass, Play, Zap, MoreHorizontal } from 'lucide-react';
 import type { Area, Attachment, Project, RangeSelectionOptions, Task, TaskStatus, RecurrenceRule, RecurrenceStrategy, Language } from '@mindwtr/core';
 import { DEFAULT_AREA_COLOR, formatRecurrenceLabel, formatTimeEstimateLabel, getChecklistProgress, getInlineMarkdownPreview, getRecurringTaskPreviewDate, getTaskAgeLabel, getTaskDateCoherenceIssues, getTaskStaleness, getTaskUrgency, hasTimeComponent, safeFormatDate, resolveTaskTextDirection, tFallback } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
+import { useBareFileReferenceCheck } from '../../lib/attachment-reference';
 import { getAttachmentDisplayTitle } from '../../lib/attachment-utils';
 import { getContextColor } from '../../lib/context-color';
 import { MetadataBadge } from '../ui/MetadataBadge';
@@ -159,6 +160,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         ? `${recurrenceLabel} · ${tFallback(t, 'recurrence.nextCalendarPreview', 'Next calendar preview')}: ${projectedRecurrenceDateLabel}`
         : recurrenceLabel;
     const ageLabel = getTaskAgeLabel(task.createdAt, language);
+    const isBareFileReference = useBareFileReferenceCheck();
     const showCompactMeta = compactMetaEnabled && !isViewOpen;
     const descriptionPreview = useMemo(
         () => getInlineMarkdownPreview(task.description ?? ''),
@@ -767,9 +769,11 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                                     ) : null}
                                     {otherAttachments.map((attachment) => {
                                         const displayTitle = getAttachmentDisplayTitle(attachment);
-                                        const fullTitle = attachment.kind === 'link' ? attachment.uri : attachment.title;
+                                        const isPointer = attachment.kind === 'link' || isBareFileReference(attachment);
+                                        const fullTitle = isPointer ? attachment.uri : attachment.title;
                                         return (
                                             <div key={attachment.id} className="flex items-center gap-2">
+                                                {isPointer && <Link2 className="w-3 h-3 shrink-0" aria-hidden="true" />}
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {

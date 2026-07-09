@@ -259,6 +259,7 @@ export const en: Record<string, string> = {
         'attachments.fileNotSupported': 'File attachments are only supported in the desktop app.',
         'attachments.fileTooLarge': 'File is too large to upload.',
         'attachments.fileNotReadable': 'Couldn\'t read this file, so it was not attached. Move it to a different folder and try again.',
+        'attachments.linkToFile': 'Link to file…',
         'attachments.invalidFileType': 'Unsupported file type.',
         'attachments.invalidLink': 'Please enter a valid URL.',
         'attachments.photoUnavailableTitle': 'Photo picker unavailable',

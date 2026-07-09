@@ -1,5 +1,6 @@
 import { BookOpen, Edit3, Link2, Paperclip } from 'lucide-react';
 import type { Attachment } from '@mindwtr/core';
+import { useBareFileReferenceCheck } from '../../../lib/attachment-reference';
 import { getAttachmentDisplayTitle } from '../../../lib/attachment-utils';
 import { isImageAttachment } from '../task-item-attachment-utils';
 import { AttachmentImage } from '../AttachmentImage';
@@ -30,6 +31,7 @@ export function AttachmentsField({
     openAttachment,
     removeAttachment,
 }: AttachmentsFieldProps) {
+    const isBareFileReference = useBareFileReferenceCheck();
     const imageAttachmentIds = new Set(
         visibleEditAttachments
             .filter((attachment) => (
@@ -146,21 +148,27 @@ export function AttachmentsField({
                     ) : null}
                     {otherAttachments.map((attachment) => {
                         const displayTitle = getAttachmentDisplayTitle(attachment);
-                        const fullTitle = attachment.kind === 'link' ? attachment.uri : attachment.title;
+                        const isPointer = attachment.kind === 'link' || isBareFileReference(attachment);
+                        const fullTitle = isPointer ? attachment.uri : attachment.title;
                         return (
                             <div key={attachment.id} className="flex items-center justify-between gap-2 text-xs">
-                                <button
-                                    type="button"
-                                    onClick={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        openAttachment(attachment);
-                                    }}
-                                    className="truncate text-primary hover:underline"
-                                    title={fullTitle || displayTitle}
-                                >
-                                    {displayTitle}
-                                </button>
+                                <div className="flex min-w-0 items-center gap-1.5">
+                                    {isPointer
+                                        ? <Link2 className="w-3 h-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                        : <Paperclip className="w-3 h-3 shrink-0 text-muted-foreground" aria-hidden="true" />}
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            openAttachment(attachment);
+                                        }}
+                                        className="truncate text-primary hover:underline"
+                                        title={fullTitle || displayTitle}
+                                    >
+                                        {displayTitle}
+                                    </button>
+                                </div>
                                 <div className="flex shrink-0 items-center gap-2">
                                     {attachment.kind === 'link' && (
                                         <button

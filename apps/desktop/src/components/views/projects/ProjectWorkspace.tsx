@@ -25,6 +25,8 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, ChevronRight, FileText, Folder, PanelLeftOpen, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 import { PromptModal } from '../../PromptModal';
+import { browseForLinkTarget } from '../../../lib/attachment-import';
+import { isTauriRuntime } from '../../../lib/runtime';
 import { TokenPickerModal } from '../../TokenPickerModal';
 import { TaskItem } from '../../TaskItem';
 import { useUiStore } from '../../../store/ui-store';
@@ -1781,6 +1783,8 @@ export function ProjectWorkspace({
                 description={t('attachments.linkInputHint')}
                 placeholder={t('attachments.linkPlaceholder')}
                 defaultValue=""
+                browseLabel={isTauriRuntime() ? t('attachments.linkToFile') : undefined}
+                onBrowse={isTauriRuntime() ? () => browseForLinkTarget(t('attachments.linkToFile')) : undefined}
                 confirmLabel={t('common.save')}
                 cancelLabel={t('common.cancel')}
                 onCancel={() => setShowLinkPrompt(false)}

@@ -11,6 +11,8 @@ interface PromptModalProps {
     defaultValue?: string;
     inputType?: 'text' | 'date' | 'datetime-local';
     allowEmptyConfirm?: boolean;
+    browseLabel?: string;
+    onBrowse?: () => Promise<string | null>;
     secondaryLabel?: string;
     onSecondary?: () => void;
     confirmLabel: string;
@@ -27,6 +29,8 @@ export function PromptModal({
     defaultValue,
     inputType = 'text',
     allowEmptyConfirm = false,
+    browseLabel,
+    onBrowse,
     secondaryLabel,
     onSecondary,
     confirmLabel,
@@ -111,6 +115,22 @@ export function PromptModal({
                         </p>
                     )}
                     <div className="flex justify-end gap-2">
+                        {browseLabel && onBrowse && (
+                            <Button
+                                variant="secondary"
+                                className="mr-auto"
+                                onClick={() => {
+                                    void onBrowse().then((picked) => {
+                                        if (typeof picked === 'string' && picked) {
+                                            setValue(picked);
+                                            setHasInteracted(true);
+                                        }
+                                    });
+                                }}
+                            >
+                                {browseLabel}
+                            </Button>
+                        )}
                         {secondaryLabel && onSecondary && (
                             <Button variant="secondary" onClick={onSecondary}>
                                 {secondaryLabel}

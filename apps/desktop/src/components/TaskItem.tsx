@@ -22,6 +22,8 @@ import {
     areDraftAttachmentsDirty,
     isTaskDraftDirty,
 } from '@mindwtr/core';
+import { browseForLinkTarget } from '../lib/attachment-import';
+import { isTauriRuntime } from '../lib/runtime';
 import { cn } from '../lib/utils';
 import { useObsidianStore } from '../store/obsidian-store';
 import { useLanguage } from '../contexts/language-context';
@@ -1547,6 +1549,12 @@ export const TaskItem = memo(function TaskItem({
                 linkPromptPlaceholder={linkPromptVariant === 'obsidian'
                     ? t('attachments.obsidianLinkPlaceholder')
                     : t('attachments.linkPlaceholder')}
+                linkPromptBrowseLabel={linkPromptVariant === 'link' && isTauriRuntime()
+                    ? t('attachments.linkToFile')
+                    : undefined}
+                onBrowseLinkFile={linkPromptVariant === 'link' && isTauriRuntime()
+                    ? () => browseForLinkTarget(t('attachments.linkToFile'))
+                    : undefined}
                 openWaitingAssignmentPrompt={showWaitingAssignmentPrompt}
                 onCancelWaitingAssignmentPrompt={closeWaitingAssignmentPrompt}
                 onConfirmWaitingAssignmentPrompt={applyWaitingAssignment}

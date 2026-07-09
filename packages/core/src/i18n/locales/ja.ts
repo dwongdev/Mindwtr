@@ -232,6 +232,7 @@ export const jaOverrides: Record<string, string> = {
         'attachments.fileNotSupported': 'ファイルの添付はデスクトップ アプリでのみサポートされます。',
         'attachments.fileTooLarge': 'ファイルが大きすぎるのでアップロードできません。',
         'attachments.fileNotReadable': 'このファイルを読み取れなかったため、添付されませんでした。別のフォルダーに移動してからもう一度お試しください。',
+        'attachments.linkToFile': 'ファイルにリンク…',
         'attachments.invalidFileType': 'サポートされていないファイル形式です。',
         'attachments.invalidLink': '有効な URL を入力してください。',
         'attachments.photoUnavailableTitle': '写真ピッカーは使用できません',
