@@ -1,10 +1,11 @@
 import React from 'react';
-import { Alert, Dimensions, Keyboard, KeyboardAvoidingView, Platform, ScrollView, TextInput } from 'react-native';
+import { Alert, Dimensions, Keyboard, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Project, Section, Task } from '@mindwtr/core';
 
 const mockScrollTo = vi.hoisted(() => vi.fn());
+const mockScrollToOffset = vi.hoisted(() => vi.fn());
 const mockFindNodeHandle = vi.hoisted(() => vi.fn(() => 9001));
 const mockMeasureInWindow = vi.hoisted(() => vi.fn());
 
@@ -90,10 +91,14 @@ vi.mock('../../components/task-list', async () => {
     return {
         TaskList: (props: any) => {
             taskListPropsSpy(props);
+            if (props.listRef) {
+                props.listRef.current = { scrollToOffset: mockScrollToOffset };
+            }
             return ReactModule.createElement(
                 ReactModule.Fragment,
                 null,
                 props.headerAccessory,
+                props.listHeaderComponent,
             );
         },
     };
@@ -615,8 +620,8 @@ describe('ProjectDetailModal task sorting', () => {
     });
 });
 
-describe('ProjectDetailModal project task virtualization', () => {
-    it('resets the static task list scroll window before reopening a project', () => {
+describe('ProjectDetailModal project task scrolling', () => {
+    it('scrolls the task list back to the top when reopening a project', () => {
         const selectedProject = { ...project('active'), supportNotes: 'Draft' };
         const selectedProjectTasks = Array.from({ length: 120 }, (_, index) => ({
             id: `project-task-${index + 1}`,
@@ -636,17 +641,9 @@ describe('ProjectDetailModal project task virtualization', () => {
         });
 
         act(() => {
-            tree.root.findByType(ScrollView).props.onScroll({
-                nativeEvent: {
-                    contentOffset: { y: 720 },
-                    layoutMeasurement: { height: 540 },
-                },
+            taskListPropsSpy.mock.calls.at(-1)?.[0].onListScroll({
+                nativeEvent: { contentOffset: { y: 720 } },
             });
-        });
-
-        expect(taskListPropsSpy.mock.calls.at(-1)?.[0].staticListVirtualization).toEqual({
-            scrollOffsetY: 720,
-            viewportHeight: 540,
         });
 
         taskListPropsSpy.mockClear();
@@ -660,6 +657,7 @@ describe('ProjectDetailModal project task virtualization', () => {
         });
 
         expect(taskListPropsSpy).not.toHaveBeenCalled();
+        mockScrollToOffset.mockClear();
 
         act(() => {
             tree.update(<ProjectDetailModal {...createProjectDetailModalProps({
@@ -668,26 +666,18 @@ describe('ProjectDetailModal project task virtualization', () => {
             })} />);
         });
 
-        expect(taskListPropsSpy.mock.calls.at(-1)?.[0].staticListVirtualization).toEqual({
-            scrollOffsetY: 0,
-            viewportHeight: 0,
-        });
+        expect(mockScrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: false });
     });
 
 
     it('restores the project task scroll offset after exiting reorder mode', () => {
-        let tree!: ReturnType<typeof create>;
-
         act(() => {
-            tree = create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
+            create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
         });
 
         act(() => {
-            tree.root.findByType(ScrollView).props.onScroll({
-                nativeEvent: {
-                    contentOffset: { y: 480 },
-                    layoutMeasurement: { height: 620 },
-                },
+            taskListPropsSpy.mock.calls.at(-1)?.[0].onListScroll({
+                nativeEvent: { contentOffset: { y: 480 } },
             });
         });
 
@@ -696,37 +686,29 @@ describe('ProjectDetailModal project task virtualization', () => {
         });
 
         expect(taskListPropsSpy.mock.calls.at(-1)?.[0].projectReorderMode).toBe(true);
-        mockScrollTo.mockClear();
+        mockScrollToOffset.mockClear();
 
         act(() => {
             taskListPropsSpy.mock.calls.at(-1)?.[0].onProjectReorderModeChange(false);
         });
 
-        expect(mockScrollTo).toHaveBeenCalledWith({ y: 480, animated: false });
-        expect(taskListPropsSpy.mock.calls.at(-1)?.[0].staticListVirtualization).toEqual({
-            scrollOffsetY: 480,
-            viewportHeight: 620,
-        });
+        expect(mockScrollToOffset).toHaveBeenCalledWith({ offset: 480, animated: false });
     });
 
     it('restores the project task scroll offset when the external bulk bar appears', () => {
-        let tree!: ReturnType<typeof create>;
-
         act(() => {
-            tree = create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
+            create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
         });
 
         act(() => {
-            tree.root.findByType(ScrollView).props.onScroll({
-                nativeEvent: {
-                    contentOffset: { y: 480 },
-                    layoutMeasurement: { height: 620 },
-                },
+            taskListPropsSpy.mock.calls.at(-1)?.[0].onListScroll({
+                nativeEvent: { contentOffset: { y: 480 } },
             });
         });
 
         const taskListProps = taskListPropsSpy.mock.calls.at(-1)?.[0];
         expect(typeof taskListProps.onBulkBarPropsChange).toBe('function');
+        mockScrollToOffset.mockClear();
 
         act(() => {
             taskListProps.onBulkBarPropsChange({
@@ -745,7 +727,7 @@ describe('ProjectDetailModal project task virtualization', () => {
             });
         });
 
-        expect(mockScrollTo).toHaveBeenCalledWith({ y: 480, animated: false });
+        expect(mockScrollToOffset).toHaveBeenCalledWith({ offset: 480, animated: false });
     });
 });
 
@@ -759,8 +741,6 @@ describe('ProjectDetailModal keyboard handling', () => {
         });
 
         expect(tree.root.findByType(KeyboardAvoidingView).props.behavior).toBe('height');
-        expect(tree.root.findByType(ScrollView).props.keyboardDismissMode).toBe('on-drag');
-        expect(tree.root.findByType(ScrollView).props.scrollsChildToFocus).toBe(false);
         expect(taskListPropsSpy).toHaveBeenCalled();
         expect(typeof taskListPropsSpy.mock.calls.at(-1)?.[0].onQuickAddInputFocus).toBe('function');
     });
@@ -778,19 +758,15 @@ describe('ProjectDetailModal keyboard handling', () => {
             listeners.set(eventName, listener);
             return { remove: () => listeners.delete(eventName) };
         }) as any);
-        let tree!: ReturnType<typeof create>;
-
         act(() => {
-            tree = create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
+            create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
         });
 
         act(() => {
             listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: 520 } });
         });
 
-        expect(tree.root.findByType(ScrollView).props.contentContainerStyle).toEqual(
-            expect.arrayContaining([expect.objectContaining({ paddingBottom: 304 })])
-        );
+        expect(taskListPropsSpy.mock.calls.at(-1)?.[0].contentPaddingBottom).toBe(292);
     });
 
     it('keeps the project quick-add row visible when Android resizes the modal before the keyboard event', () => {
@@ -821,18 +797,17 @@ describe('ProjectDetailModal keyboard handling', () => {
             }
             callback(0, scrollY, 390, scrollH);
         }) as any);
-        let tree!: ReturnType<typeof create>;
-
         act(() => {
-            tree = create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
+            create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
         });
+        mockScrollToOffset.mockClear();
 
         act(() => {
-            tree.root.findByType(ScrollView).props.onScroll({ nativeEvent: { contentOffset: { y: 360 } } });
+            taskListPropsSpy.mock.calls.at(-1)?.[0].onListScroll({ nativeEvent: { contentOffset: { y: 360 } } });
             taskListPropsSpy.mock.calls.at(-1)?.[0].onQuickAddInputFocus(42);
         });
 
-        expect(mockScrollTo).not.toHaveBeenCalled();
+        expect(mockScrollToOffset).not.toHaveBeenCalled();
 
         act(() => {
             listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: 520, height: 280 } });
@@ -842,10 +817,8 @@ describe('ProjectDetailModal keyboard handling', () => {
         const visibleHeight = visibleBottom - scrollY;
         const bottomClearance = visibleHeight * 0.18;
         const measuredOverlap = (targetY + targetH) - (visibleBottom - bottomClearance);
-        expect(tree.root.findByType(ScrollView).props.contentContainerStyle).toEqual(
-            expect.arrayContaining([expect.objectContaining({ paddingBottom: 304 })])
-        );
-        expect(mockScrollTo).toHaveBeenCalledWith({ y: 360 + measuredOverlap, animated: true });
+        expect(taskListPropsSpy.mock.calls.at(-1)?.[0].contentPaddingBottom).toBe(292);
+        expect(mockScrollToOffset).toHaveBeenCalledWith({ offset: 360 + measuredOverlap, animated: true });
     });
 });
 

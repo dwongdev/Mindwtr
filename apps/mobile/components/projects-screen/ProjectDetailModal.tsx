@@ -3,6 +3,7 @@ import {
     Alert,
     Dimensions,
     findNodeHandle,
+    type FlatList,
     Keyboard,
     Modal,
     KeyboardAvoidingView,
@@ -10,7 +11,6 @@ import {
     type NativeSyntheticEvent,
     Platform,
     ScrollView,
-    type ScrollViewProps,
     Text,
     TextInput,
     TouchableOpacity,
@@ -414,61 +414,23 @@ function ProjectSectionManagerModal({
 function ProjectDetailScrollFrame({
     backgroundColor,
     children,
-    keyboardBottomInset,
-    onScroll,
-    reorderOwnsScroll,
-    scrollRef,
 }: {
     backgroundColor: string;
     children: React.ReactNode;
-    keyboardBottomInset: number;
-    onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-    reorderOwnsScroll: boolean;
-    scrollRef: React.RefObject<ScrollView | null>;
 }) {
-    const androidScrollViewFocusProps: Partial<ScrollViewProps> & { scrollsChildToFocus?: boolean } = (
-        Platform.OS === 'android' ? { scrollsChildToFocus: false } : {}
-    );
-    const scrollProps = {
-        style: [{ flex: 1 }, { backgroundColor }],
-        contentContainerStyle: [
-            styles.projectDetailScroll,
-            { backgroundColor },
-            keyboardBottomInset > 0 ? { paddingBottom: 24 + keyboardBottomInset } : null,
-        ],
-        keyboardShouldPersistTaps: 'always' as const,
-    };
-
-    const scrollNode = reorderOwnsScroll ? (
-        // Reorder mode uses a single self-scrolling DraggableFlatList that owns the
-        // scroll, so the frame is a plain flex column instead of a nested scroll container.
-        <View style={[{ flex: 1 }, { backgroundColor }]}>
-            {children}
-        </View>
-    ) : (
-        // Normal mode stays on a plain ScrollView so Swipeable rows keep horizontal gestures.
-        <ScrollView
-            {...scrollProps}
-            ref={scrollRef}
-            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-            directionalLockEnabled
-            nestedScrollEnabled
-            onScroll={onScroll}
-            scrollEventThrottle={16}
-            {...androidScrollViewFocusProps}
-        >
-            {children}
-        </ScrollView>
-    );
-
+    // The task list (normal mode) or the reorder DraggableFlatList owns the
+    // scroll, so the frame is a plain flex column. The previous ScrollView +
+    // manually windowed list positioned rows from height estimates, which made
+    // the list shift as scrolls settled (#831).
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'android' ? 'height' : undefined}
             keyboardVerticalOffset={0}
             style={[{ flex: 1 }, { backgroundColor }]}
         >
-            {scrollNode}
+            <View style={[{ flex: 1 }, { backgroundColor }]}>
+                {children}
+            </View>
         </KeyboardAvoidingView>
     );
 }
@@ -545,14 +507,10 @@ export function ProjectDetailModal({
     const [projectSortModalVisible, setProjectSortModalVisible] = React.useState(false);
     const [projectTaskBulkBarProps, setProjectTaskBulkBarProps] = React.useState<TaskListBulkBarProps | null>(null);
     const [sectionManagerVisible, setSectionManagerVisible] = React.useState(false);
-    const projectDetailScrollRef = React.useRef<ScrollView | null>(null);
+    const projectDetailListRef = React.useRef<FlatList | null>(null);
     const projectDetailScrollOffsetRef = React.useRef(0);
     const pendingProjectDetailScrollRestoreRef = React.useRef<number | null>(null);
     const projectTaskBulkBarPropsRef = React.useRef<TaskListBulkBarProps | null>(null);
-    const [projectDetailScrollWindow, setProjectDetailScrollWindow] = React.useState({
-        offsetY: 0,
-        viewportHeight: 0,
-    });
     const projectDetailKeyboardTopRef = React.useRef(Dimensions.get('window').height);
     const projectDetailKeyboardVisibleRef = React.useRef(false);
     const projectDetailFocusedInputHandleRef = React.useRef<number | null>(null);
@@ -634,6 +592,9 @@ export function ProjectDetailModal({
         }
         projectTaskBulkBarPropsRef.current = props;
         setProjectTaskBulkBarProps(props);
+    }, []);
+    const handleProjectListScroll = React.useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        projectDetailScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
     }, []);
     const openProjectTaskSort = React.useCallback(() => {
         setProjectSortModalVisible(true);
@@ -803,18 +764,28 @@ export function ProjectDetailModal({
     const restoreProjectDetailScrollOffset = React.useCallback((offsetY: number) => {
         if (!Number.isFinite(offsetY) || offsetY <= 0) return;
         const scrollToOffset = () => {
-            projectDetailScrollRef.current?.scrollTo({ y: offsetY, animated: false });
+            projectDetailListRef.current?.scrollToOffset({ offset: offsetY, animated: false });
         };
         scrollToOffset();
         if (typeof requestAnimationFrame === 'function') {
             requestAnimationFrame(scrollToOffset);
         }
+        // A freshly mounted list clamps the jump until enough rows render, and
+        // each clamped jump renders more — keep retrying briefly, stopping as
+        // soon as the list reaches (or the user scrolls past) the target.
+        let attempts = 0;
+        const retry = () => {
+            if (projectDetailScrollOffsetRef.current >= offsetY - 1) return;
+            scrollToOffset();
+            attempts += 1;
+            if (attempts < 5) setTimeout(retry, 250);
+        };
+        setTimeout(retry, 250);
     }, []);
 
-    // Exiting reorder mode remounts the outer ScrollView at offset 0 while the
-    // virtualization window still holds the pre-reorder offset, which left the
-    // task list blank until the next scroll event (#784). Queue a restore to the
-    // saved offset so the viewport and the window agree again.
+    // Exiting reorder mode swaps the reorder list back to the task FlatList,
+    // which mounts at offset 0 (#784). Queue a restore so the list comes back
+    // at the position the user left it.
     const prevProjectReorderOwnsScrollRef = React.useRef(projectReorderOwnsScroll);
     React.useLayoutEffect(() => {
         const wasReordering = prevProjectReorderOwnsScrollRef.current;
@@ -832,20 +803,15 @@ export function ProjectDetailModal({
         restoreProjectDetailScrollOffset(offsetY);
     }, [projectReorderOwnsScroll, projectTaskBulkBarProps, restoreProjectDetailScrollOffset]);
 
-    const resetProjectDetailVirtualWindow = React.useCallback(() => {
+    const resetProjectDetailScroll = React.useCallback(() => {
         projectDetailScrollOffsetRef.current = 0;
         pendingProjectDetailScrollRestoreRef.current = null;
-        setProjectDetailScrollWindow((current) => {
-            if (current.offsetY === 0 && current.viewportHeight === 0) {
-                return current;
-            }
-            return { offsetY: 0, viewportHeight: 0 };
-        });
+        projectDetailListRef.current?.scrollToOffset({ offset: 0, animated: false });
     }, []);
 
     React.useEffect(() => {
-        resetProjectDetailVirtualWindow();
-    }, [resetProjectDetailVirtualWindow, selectedProject?.id]);
+        resetProjectDetailScroll();
+    }, [resetProjectDetailScroll, selectedProject?.id]);
 
     React.useEffect(() => {
         setProjectTaskReorderMode(false);
@@ -862,9 +828,9 @@ export function ProjectDetailModal({
         if (!Number.isFinite(targetHandle) || targetHandle <= 0) return;
         projectDetailFocusedInputHandleRef.current = targetHandle;
         if (!projectDetailKeyboardVisibleRef.current) return;
-        const scrollView = projectDetailScrollRef.current;
-        if (!scrollView) return;
-        const scrollHandle = findNodeHandle(scrollView);
+        const listView = projectDetailListRef.current;
+        if (!listView) return;
+        const scrollHandle = findNodeHandle(listView);
         if (!scrollHandle) return;
 
         const measureAndScroll = () => {
@@ -882,7 +848,7 @@ export function ProjectDetailModal({
                     if (targetBottom <= effectiveVisibleBottom) return;
                     const delta = targetBottom - effectiveVisibleBottom;
                     const nextOffset = Math.max(0, projectDetailScrollOffsetRef.current + delta);
-                    projectDetailScrollRef.current?.scrollTo({ y: nextOffset, animated: true });
+                    projectDetailListRef.current?.scrollToOffset({ offset: nextOffset, animated: true });
                 });
             });
         };
@@ -940,74 +906,10 @@ export function ProjectDetailModal({
         }
     }, [projectDetailKeyboardBottomInset, scrollProjectInputIntoView]);
 
-    return (
-        <Modal
-            visible={overlayVisible}
-            animationType="slide"
-            presentationStyle={presentationStyle}
-            transparent={false}
-            allowSwipeDismissal
-            onRequestClose={closeProjectDetail}
-        >
-            {/* Android Modal content needs its own gesture root; the screen root does not cover Modal.
-                https://docs.swmansion.com/react-native-gesture-handler/docs/fundamentals/installation/#android */}
-            <GestureHandlerRootView style={{ flex: 1 }}>
-                <KeyboardAccessoryHost backgroundColor={tc.bg}>
-                    <SafeAreaView style={[styles.projectDetailRoot, { backgroundColor: tc.bg }]} edges={safeAreaEdges}>
-                        {selectedProject ? (
-                            <>
-                                <View style={modalHeaderStyle}>
-                                    <TouchableOpacity
-                                        onPress={closeProjectDetail}
-                                        style={styles.backButton}
-                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                        accessibilityRole="button"
-                                        accessibilityLabel={t('common.back') || 'Back'}
-                                    >
-                                        <Ionicons name="chevron-back" size={24} color={tc.tint} />
-                                    </TouchableOpacity>
-                                    <TextInput
-                                        style={[styles.modalTitle, { color: tc.text, marginLeft: 8, flex: 1 }]}
-                                        value={selectedProject.title}
-                                        onChangeText={(text) => onSetSelectedProject({ ...selectedProject, title: text })}
-                                        onSubmitEditing={() => {
-                                            const title = selectedProject.title.trim();
-                                            if (!title) return;
-                                            updateProject(selectedProject.id, { title });
-                                            onSetSelectedProject({ ...selectedProject, title });
-                                        }}
-                                        onEndEditing={() => {
-                                            const title = selectedProject.title.trim();
-                                            if (!title) return;
-                                            updateProject(selectedProject.id, { title });
-                                            onSetSelectedProject({ ...selectedProject, title });
-                                        }}
-                                        returnKeyType="done"
-                                    />
-                                </View>
-                                {projectTaskPinnedToolbar}
-                                {projectTaskSelectionBulkBar}
-                                <ProjectDetailScrollFrame
-                                    backgroundColor={tc.bg}
-                                    keyboardBottomInset={projectDetailKeyboardBottomInset}
-                                    onScroll={(event) => {
-                                        const offsetY = event.nativeEvent.contentOffset.y;
-                                        const viewportHeight = event.nativeEvent.layoutMeasurement?.height
-                                            ?? projectDetailScrollWindow.viewportHeight;
-                                        projectDetailScrollOffsetRef.current = offsetY;
-                                        setProjectDetailScrollWindow((current) => {
-                                            if (
-                                                Math.abs(current.offsetY - offsetY) < 32
-                                                && Math.abs(current.viewportHeight - viewportHeight) < 1
-                                            ) {
-                                                return current;
-                                            }
-                                            return { offsetY, viewportHeight };
-                                        });
-                                    }}
-                                    reorderOwnsScroll={projectReorderOwnsScroll}
-                                    scrollRef={projectDetailScrollRef}
-                                >
+    // Scrolls away with the task rows as the list's ListHeaderComponent in
+    // normal mode; stays pinned above the self-scrolling reorder list in reorder mode.
+    const projectDetailListHeader = selectedProject ? (
+        <>
                                 <View style={[styles.detailsToggle, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                                     <TouchableOpacity
                                         style={styles.detailsToggleButton}
@@ -1532,8 +1434,60 @@ export function ProjectDetailModal({
                                         </View>
                                     </>
                                 )}
+        </>
+    ) : null;
 
-                                <View style={projectReorderOwnsScroll ? styles.projectReorderListFill : undefined}>
+    return (
+        <Modal
+            visible={overlayVisible}
+            animationType="slide"
+            presentationStyle={presentationStyle}
+            transparent={false}
+            allowSwipeDismissal
+            onRequestClose={closeProjectDetail}
+        >
+            {/* Android Modal content needs its own gesture root; the screen root does not cover Modal.
+                https://docs.swmansion.com/react-native-gesture-handler/docs/fundamentals/installation/#android */}
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardAccessoryHost backgroundColor={tc.bg}>
+                    <SafeAreaView style={[styles.projectDetailRoot, { backgroundColor: tc.bg }]} edges={safeAreaEdges}>
+                        {selectedProject ? (
+                            <>
+                                <View style={modalHeaderStyle}>
+                                    <TouchableOpacity
+                                        onPress={closeProjectDetail}
+                                        style={styles.backButton}
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('common.back') || 'Back'}
+                                    >
+                                        <Ionicons name="chevron-back" size={24} color={tc.tint} />
+                                    </TouchableOpacity>
+                                    <TextInput
+                                        style={[styles.modalTitle, { color: tc.text, marginLeft: 8, flex: 1 }]}
+                                        value={selectedProject.title}
+                                        onChangeText={(text) => onSetSelectedProject({ ...selectedProject, title: text })}
+                                        onSubmitEditing={() => {
+                                            const title = selectedProject.title.trim();
+                                            if (!title) return;
+                                            updateProject(selectedProject.id, { title });
+                                            onSetSelectedProject({ ...selectedProject, title });
+                                        }}
+                                        onEndEditing={() => {
+                                            const title = selectedProject.title.trim();
+                                            if (!title) return;
+                                            updateProject(selectedProject.id, { title });
+                                            onSetSelectedProject({ ...selectedProject, title });
+                                        }}
+                                        returnKeyType="done"
+                                    />
+                                </View>
+                                {projectTaskPinnedToolbar}
+                                {projectTaskSelectionBulkBar}
+                                <ProjectDetailScrollFrame backgroundColor={tc.bg}>
+                                {projectTaskReorderMode ? projectDetailListHeader : null}
+
+                                <View style={styles.projectReorderListFill}>
                                     <TaskList
                                         statusFilter="all"
                                         title={selectedProject.title}
@@ -1544,12 +1498,11 @@ export function ProjectDetailModal({
                                         projectId={selectedProject.id}
                                         taskSource={selectedProjectTasks}
                                         allowAdd={false}
-                                        staticList
                                         bulkBarPlacement="external"
-                                        staticListVirtualization={{
-                                            scrollOffsetY: projectDetailScrollWindow.offsetY,
-                                            viewportHeight: projectDetailScrollWindow.viewportHeight,
-                                        }}
+                                        listHeaderComponent={projectTaskReorderMode ? null : projectDetailListHeader}
+                                        listRef={projectDetailListRef}
+                                        onListScroll={handleProjectListScroll}
+                                        contentPaddingBottom={projectDetailKeyboardBottomInset > 0 ? projectDetailKeyboardBottomInset + 12 : 12}
                                         enableBulkActions
                                         enableProjectBulkOrganize={taskListOptions.allowAdd}
                                         onBulkBarPropsChange={handleProjectBulkBarPropsChange}

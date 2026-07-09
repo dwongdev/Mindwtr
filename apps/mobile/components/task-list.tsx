@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, FlatList, Text, TextInput, RefreshControl, Modal, Pressable, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { View, FlatList, Text, TextInput, RefreshControl, Modal, Pressable, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical } from 'lucide-react-native';
 import DraggableFlatList, { type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
@@ -176,6 +176,12 @@ export interface TaskListProps {
   onChangeGroupBy?: (value: ReferenceGroupBy) => void;
   getTaskSequenceCue?: (task: Task) => ProjectSequenceTaskCue | undefined;
   sequenceCueLabels?: Record<ProjectSequenceTaskCue, string>;
+  /** Element rendered inside the virtualized list, scrolling away with the rows (e.g. the project sheet's details/notes header). */
+  listHeaderComponent?: React.ReactElement | null;
+  /** Ref to the underlying FlatList (virtualized path only). */
+  listRef?: React.Ref<FlatList>;
+  /** Scroll events from the virtualized list (virtualized path only). */
+  onListScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
 
 // ... inside TaskList component
@@ -223,6 +229,9 @@ function TaskListComponent({
   onChangeGroupBy,
   getTaskSequenceCue,
   sequenceCueLabels,
+  listHeaderComponent,
+  listRef,
+  onListScroll,
 }: TaskListProps) {
   const { isDark } = useTheme();
   const { t, language } = useLanguage();
@@ -1905,9 +1914,13 @@ function TaskListComponent({
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={listItems}
           renderItem={renderListItem}
           keyExtractor={getVirtualizedListItemKey}
+          ListHeaderComponent={listHeaderComponent ?? undefined}
+          onScroll={onListScroll}
+          scrollEventThrottle={onListScroll ? 16 : undefined}
           style={styles.list}
           contentContainerStyle={listContentStyle}
           keyboardDismissMode="on-drag"
