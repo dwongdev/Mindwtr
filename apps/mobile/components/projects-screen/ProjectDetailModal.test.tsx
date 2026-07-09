@@ -675,6 +675,40 @@ describe('ProjectDetailModal project task virtualization', () => {
     });
 
 
+    it('restores the project task scroll offset after exiting reorder mode', () => {
+        let tree!: ReturnType<typeof create>;
+
+        act(() => {
+            tree = create(<ProjectDetailModal {...createProjectDetailModalProps()} />);
+        });
+
+        act(() => {
+            tree.root.findByType(ScrollView).props.onScroll({
+                nativeEvent: {
+                    contentOffset: { y: 480 },
+                    layoutMeasurement: { height: 620 },
+                },
+            });
+        });
+
+        act(() => {
+            taskListPropsSpy.mock.calls.at(-1)?.[0].onProjectReorderModeChange(true);
+        });
+
+        expect(taskListPropsSpy.mock.calls.at(-1)?.[0].projectReorderMode).toBe(true);
+        mockScrollTo.mockClear();
+
+        act(() => {
+            taskListPropsSpy.mock.calls.at(-1)?.[0].onProjectReorderModeChange(false);
+        });
+
+        expect(mockScrollTo).toHaveBeenCalledWith({ y: 480, animated: false });
+        expect(taskListPropsSpy.mock.calls.at(-1)?.[0].staticListVirtualization).toEqual({
+            scrollOffsetY: 480,
+            viewportHeight: 620,
+        });
+    });
+
     it('restores the project task scroll offset when the external bulk bar appears', () => {
         let tree!: ReturnType<typeof create>;
 

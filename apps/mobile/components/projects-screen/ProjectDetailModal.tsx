@@ -811,6 +811,19 @@ export function ProjectDetailModal({
         }
     }, []);
 
+    // Exiting reorder mode remounts the outer ScrollView at offset 0 while the
+    // virtualization window still holds the pre-reorder offset, which left the
+    // task list blank until the next scroll event (#784). Queue a restore to the
+    // saved offset so the viewport and the window agree again.
+    const prevProjectReorderOwnsScrollRef = React.useRef(projectReorderOwnsScroll);
+    React.useLayoutEffect(() => {
+        const wasReordering = prevProjectReorderOwnsScrollRef.current;
+        prevProjectReorderOwnsScrollRef.current = projectReorderOwnsScroll;
+        if (wasReordering && !projectReorderOwnsScroll && projectDetailScrollOffsetRef.current > 0) {
+            pendingProjectDetailScrollRestoreRef.current = projectDetailScrollOffsetRef.current;
+        }
+    }, [projectReorderOwnsScroll]);
+
     React.useLayoutEffect(() => {
         const offsetY = pendingProjectDetailScrollRestoreRef.current;
         if (offsetY === null) return;
