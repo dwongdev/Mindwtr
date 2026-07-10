@@ -384,7 +384,16 @@ const normalizeTaskUpdateForStore = ({
             orderNum: normalizedOrder,
         };
     }
-    if (hasOwnField(updates, 'startTime') && isTaskFutureStart({ startTime: adjustedUpdates.startTime })) {
+    // A schedule edit that defers the task (future start, or a recurring task
+    // hidden until its due/review date, #843) drops the Today star with it:
+    // the row leaves Focus either way, and a star surviving invisibly would
+    // resurface unasked when the deferral ends. Evaluated on the merged task so
+    // e.g. clearing the start of a recurring due-later task also unstars.
+    const editsSchedule = hasOwnField(updates, 'startTime')
+        || hasOwnField(updates, 'dueDate')
+        || hasOwnField(updates, 'reviewAt')
+        || hasOwnField(updates, 'recurrence');
+    if (editsSchedule && isTaskFutureStart({ ...task, ...adjustedUpdates })) {
         adjustedUpdates = {
             ...adjustedUpdates,
             isFocusedToday: false,

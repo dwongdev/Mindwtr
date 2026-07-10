@@ -881,6 +881,30 @@ describe('TaskStore', () => {
         expect(useTaskStore.getState().getDerivedState().focusedCount).toBe(0);
     });
 
+    it('clears today focus when a schedule edit defers a starred recurring task on its due date', async () => {
+        vi.setSystemTime(new Date('2026-05-02T10:00:00.000Z'));
+        const { addTask, updateTask } = useTaskStore.getState();
+        const result = await addTask('Weekly chore', {
+            status: 'next',
+            isFocusedToday: true,
+            startTime: '2026-05-02',
+            dueDate: '2026-05-09',
+            recurrence: { rule: 'weekly' },
+        });
+        expect(result.success).toBe(true);
+        const taskId = result.id;
+        expect(taskId).toBeTruthy();
+
+        // Clearing the start defers the recurring task on its due date (#843);
+        // the Today star must not survive invisibly until then.
+        await expect(updateTask(taskId!, { startTime: undefined })).resolves.toEqual({ success: true });
+
+        const task = useTaskStore.getState()._tasksById.get(taskId!);
+        expect(task?.startTime).toBeUndefined();
+        expect(task?.isFocusedToday).toBe(false);
+        expect(useTaskStore.getState().getDerivedState().focusedCount).toBe(0);
+    });
+
     it('derives date-coherence issues from updateTask without auto-mutating dates', async () => {
         const { addTask, updateTask } = useTaskStore.getState();
         const result = await addTask('Conflicting dates', { status: 'next', dueDate: '2026-04-24' });
