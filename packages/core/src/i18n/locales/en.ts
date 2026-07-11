@@ -106,6 +106,7 @@ export const en: Record<string, string> = {
         'keybindings.list.edit': 'Edit selected task',
         'keybindings.list.cancelEdit': 'Cancel edit',
         'keybindings.list.saveEdit': 'Save edit',
+        'keybindings.list.open': 'Open selected task',
         'keybindings.list.toggleDone': 'Toggle done',
         'keybindings.list.delete': 'Delete selected task',
         'keybindings.list.newTask': 'Focus add-task input',

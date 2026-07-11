@@ -35,8 +35,10 @@ type TaskListScope = {
     selectFirst: () => void;
     selectLast: () => void;
     editSelected: () => void;
+    openSelected: () => void;
     openQuickActions: () => void;
     toggleDoneSelected: () => void;
+    toggleSelectSelected: () => void;
     deleteSelected: () => void;
     focusAddInput: () => void;
 };
@@ -343,6 +345,15 @@ export function useListSelection({
         editTrigger?.click();
     }, [filteredTasks, selectedIndex]);
 
+    const openSelected = useCallback(() => {
+        const task = filteredTasks[selectedIndex];
+        if (!task) return;
+        const toggle = document.querySelector(
+            `[data-task-id="${task.id}"] [data-task-view-toggle]`,
+        ) as HTMLElement | null;
+        toggle?.click();
+    }, [filteredTasks, selectedIndex]);
+
     const toggleDoneSelected = useCallback(() => {
         const task = filteredTasks[selectedIndex];
         if (!task) return;
@@ -389,6 +400,23 @@ export function useListSelection({
         setPendingDeleteTask(task);
     }, [filteredTasks, selectedIndex]);
 
+    // Keyboard multi-select: entering selection mode on first select and
+    // leaving it when the selection empties keeps the mode invisible unless
+    // it is actually in use.
+    const toggleSelectSelected = useCallback(() => {
+        const task = filteredTasks[selectedIndex];
+        if (!task) return;
+        const result = updateRangeSelection({
+            anchorId: multiSelectAnchorIdRef.current,
+            selectedIds: multiSelectedIds,
+            targetId: task.id,
+            visibleIds: filteredTaskIds,
+        });
+        multiSelectAnchorIdRef.current = result.anchorId;
+        setMultiSelectedIds(result.selectedIds);
+        setSelectionMode(result.selectedIds.size > 0);
+    }, [filteredTaskIds, filteredTasks, multiSelectedIds, selectedIndex]);
+
     const openQuickActionsSelected = useCallback(() => {
         const task = filteredTasks[selectedIndex];
         if (!task) return;
@@ -413,8 +441,10 @@ export function useListSelection({
             selectFirst,
             selectLast,
             editSelected,
+            openSelected,
             openQuickActions: openQuickActionsSelected,
             toggleDoneSelected,
+            toggleSelectSelected,
             deleteSelected,
             focusAddInput: () => {
                 if (addInputRef.current) {
@@ -434,6 +464,7 @@ export function useListSelection({
         editSelected,
         isProcessing,
         openQuickActionsSelected,
+        openSelected,
         registerTaskListScope,
         selectFirst,
         selectLast,
@@ -441,6 +472,7 @@ export function useListSelection({
         selectPrev,
         showViewFilterInput,
         toggleDoneSelected,
+        toggleSelectSelected,
         viewFilterInputRef,
     ]);
 

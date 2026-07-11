@@ -24,8 +24,10 @@ export interface TaskListScope {
     selectFirst: () => void;
     selectLast: () => void;
     editSelected: () => void;
+    openSelected?: () => void;
     openQuickActions?: () => void;
     toggleDoneSelected: () => void;
+    toggleSelectSelected?: () => void;
     deleteSelected: () => void;
     focusAddInput?: () => void;
 }
@@ -50,6 +52,17 @@ function isEditableTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
     const tag = target.tagName.toLowerCase();
     return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+}
+
+// Enter must keep activating whatever control actually has focus (buttons,
+// menu items, links); the list-level Enter binding only fires when nothing
+// interactive is focused.
+function hasInteractiveFocus(): boolean {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return false;
+    return Boolean(active.closest(
+        'button, a[href], input, select, textarea, [role="button"], [role="menuitem"], [role="menuitemcheckbox"], [role="option"], [role="link"], [contenteditable="true"]'
+    ));
 }
 
 function moveSidebarFocus(target: EventTarget | null, direction: 'next' | 'prev'): boolean {
@@ -266,9 +279,11 @@ export function KeybindingProvider({
             taskElement.scrollIntoView({ block: 'nearest' });
         }
         taskElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        const focusTarget = taskElement.querySelector<HTMLElement>(
-            'button[aria-expanded], button[data-task-edit-trigger], button, [tabindex]:not([tabindex="-1"])'
-        );
+        // A comma selector returns the first match in document order, which is
+        // the done/next button — Enter would then complete the task (#847).
+        // Prefer the title toggle so Enter opens the task instead.
+        const focusTarget = taskElement.querySelector<HTMLElement>('[data-task-view-toggle]')
+            ?? taskElement.querySelector<HTMLElement>('button, [tabindex]:not([tabindex="-1"])');
         focusTarget?.focus();
     }, []);
 
@@ -347,6 +362,13 @@ export function KeybindingProvider({
         }
         editTrigger.focus();
         editTrigger.click();
+    }, [pickFallbackTaskElement]);
+
+    const fallbackOpenSelected = useCallback(() => {
+        const selectedElement = pickFallbackTaskElement();
+        if (!selectedElement) return;
+        const toggle = selectedElement.querySelector<HTMLElement>('[data-task-view-toggle]');
+        toggle?.click();
     }, [pickFallbackTaskElement]);
 
     const fallbackOpenQuickActionsSelected = useCallback(() => {
@@ -430,6 +452,7 @@ export function KeybindingProvider({
         selectFirst: fallbackSelectFirst,
         selectLast: fallbackSelectLast,
         editSelected: fallbackEditSelected,
+        openSelected: fallbackOpenSelected,
         openQuickActions: fallbackOpenQuickActionsSelected,
         toggleDoneSelected: fallbackToggleDoneSelected,
         deleteSelected: fallbackDeleteSelected,
@@ -437,6 +460,7 @@ export function KeybindingProvider({
         fallbackDeleteSelected,
         fallbackEditSelected,
         fallbackOpenQuickActionsSelected,
+        fallbackOpenSelected,
         fallbackSelectFirst,
         fallbackSelectLast,
         fallbackSelectNext,
@@ -584,6 +608,11 @@ export function KeybindingProvider({
                     e.preventDefault();
                     scope?.toggleDoneSelected();
                     break;
+                case 'Enter':
+                    if (hasInteractiveFocus()) break;
+                    e.preventDefault();
+                    scope?.openSelected?.();
+                    break;
                 case '/':
                     e.preventDefault();
                     triggerGlobalSearch();
@@ -613,6 +642,13 @@ export function KeybindingProvider({
             if (editingTaskIdRef.current) return;
             if (isEditableTarget(e.target)) return;
             const scope = getActiveScope();
+
+            if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key === 'Enter') {
+                if (hasInteractiveFocus()) return;
+                e.preventDefault();
+                scope?.openSelected?.();
+                return;
+            }
 
             if (e.altKey && !e.ctrlKey && !e.metaKey) {
                 const view = emacsAltMap[e.key];

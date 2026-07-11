@@ -657,6 +657,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                     ) : (
                     <button
                         type="button"
+                        data-task-view-toggle
                         onClick={handleTitleClick}
                         onDoubleClick={handleTitleDoubleClick}
                         className={cn(

@@ -69,6 +69,7 @@ export function KeybindingHelpModal({
     const vimList: HelpItem[] = [
         { keys: 'j / k / ↑ / ↓', labelKey: 'keybindings.list.nextPrev' },
         { keys: 'gg / G', labelKey: 'keybindings.list.firstLast' },
+        { keys: 'Enter', labelKey: 'keybindings.list.open', fallbackLabel: 'Open selected task' },
         { keys: 'e', labelKey: 'keybindings.list.edit' },
         { keys: '.', labelKey: 'taskEdit.moreOptions' },
         { keys: 'Ctrl+Enter / Cmd+Enter', labelKey: 'keybindings.list.saveEdit' },
@@ -98,6 +99,7 @@ export function KeybindingHelpModal({
 
     const emacsList: HelpItem[] = [
         { keys: 'Ctrl-n / Ctrl-p / ↑ / ↓', labelKey: 'keybindings.list.nextPrev' },
+        { keys: 'Enter', labelKey: 'keybindings.list.open', fallbackLabel: 'Open selected task' },
         { keys: 'Ctrl-e', labelKey: 'keybindings.list.edit' },
         { keys: 'Ctrl-.', labelKey: 'taskEdit.moreOptions' },
         { keys: 'Ctrl+Enter / Cmd+Enter', labelKey: 'keybindings.list.saveEdit' },

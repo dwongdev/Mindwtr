@@ -8,7 +8,7 @@ import { useKeybindings } from './keybinding-context';
 import { useUiStore } from '../store/ui-store';
 import { AREA_FILTER_ALL } from '@mindwtr/core';
 
-const DummyList = ({ focusAddInput }: { focusAddInput?: () => void } = {}) => {
+const DummyList = ({ focusAddInput, openSelected }: { focusAddInput?: () => void; openSelected?: () => void } = {}) => {
     const { registerTaskListScope } = useKeybindings();
     const [selectedIndex, setSelectedIndex] = useState(0);
     const ids = ['1', '2'];
@@ -32,12 +32,13 @@ const DummyList = ({ focusAddInput }: { focusAddInput?: () => void } = {}) => {
             selectFirst,
             selectLast,
             editSelected: vi.fn(),
+            openSelected,
             toggleDoneSelected: vi.fn(),
             deleteSelected: vi.fn(),
             focusAddInput,
         });
         return () => registerTaskListScope(null);
-    }, [focusAddInput, registerTaskListScope, selectNext, selectPrev, selectFirst, selectLast]);
+    }, [focusAddInput, openSelected, registerTaskListScope, selectNext, selectPrev, selectFirst, selectLast]);
 
     return (
         <div>
@@ -399,6 +400,62 @@ describe('KeybindingProvider (vim)', () => {
         await waitFor(() => {
             expect(useTaskStore.getState().settings?.filters?.areaId).toBe(AREA_FILTER_ALL);
         });
+    });
+
+    it('opens the selected task with Enter when nothing interactive is focused', () => {
+        const openSelected = vi.fn();
+
+        render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="inbox" onNavigate={vi.fn()}>
+                    <DummyList openSelected={openSelected} />
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        (document.activeElement as HTMLElement | null)?.blur?.();
+        fireEvent.keyDown(window, { key: 'Enter' });
+
+        expect(openSelected).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves Enter alone while a button has focus', () => {
+        const openSelected = vi.fn();
+
+        render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="inbox" onNavigate={vi.fn()}>
+                    <DummyList openSelected={openSelected} />
+                    <button type="button">Focused control</button>
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        (document.querySelector('button') as HTMLButtonElement).focus();
+        fireEvent.keyDown(window, { key: 'Enter' });
+
+        expect(openSelected).not.toHaveBeenCalled();
+    });
+
+    it('focuses the title toggle, not the done button, when fallback navigation activates a row', () => {
+        render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="projects" onNavigate={vi.fn()}>
+                    <div data-main-content tabIndex={-1}>
+                        <div data-task-id="1" ref={setVisibleRect}>
+                            <button type="button" aria-label="Done">Done circle</button>
+                            <button type="button" data-task-view-toggle aria-expanded={false}>
+                                Task 1
+                            </button>
+                        </div>
+                    </div>
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        fireEvent.keyDown(window, { key: 'j' });
+
+        expect(document.activeElement).toBe(document.querySelector('[data-task-view-toggle]'));
     });
 
     it('falls back to visible task cards in views without registered scope', () => {
