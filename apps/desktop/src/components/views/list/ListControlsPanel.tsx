@@ -203,11 +203,9 @@ export function ListControlsPanel({
                 t={t}
             />
 
-            {(isProcessing || isBatchDeleting) && (
+            {isBatchDeleting && (
                 <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                    {isBatchDeleting
-                        ? (t('bulk.deleting') || 'Deleting selected tasks...')
-                        : (t('common.loading') || 'Loading...')}
+                    {t('bulk.deleting') || 'Deleting selected tasks...'}
                 </div>
             )}
 
