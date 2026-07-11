@@ -10,6 +10,8 @@ English | [中文](./README_zh.md)
 
 _Mindwtr = "mind like water": the calm you get when nothing is rattling around in your head._
 
+_New to GTD? [GTD in 15 minutes](https://hamberg.no/gtd) is a friendly introduction to the method behind Mindwtr._
+
 [Getting Started](https://docs.mindwtr.app/start/getting-started) · [FAQ](https://docs.mindwtr.app/start/faq) · [Docs](https://docs.mindwtr.app/) · [Data & Sync](https://docs.mindwtr.app/data-sync/) · [Cloud Deployment](https://docs.mindwtr.app/data-sync/cloud-deployment) · [MCP Server](https://docs.mindwtr.app/power-users/mcp)
 
 [![CI](https://github.com/dongdongbh/Mindwtr/actions/workflows/ci.yml/badge.svg)](https://github.com/dongdongbh/Mindwtr/actions/workflows/ci.yml)
@@ -84,6 +86,15 @@ _Mindwtr = "mind like water": the calm you get when nothing is rattling around i
   </p>
 </div>
 
+## Sound familiar?
+
+- **"I'll remember it." You won't.** One hotkey, type it, forget it safely. That's capture.
+- **Your to-do list has 80 items, so you avoid it.** Focus shows only the few things you can do right now.
+- **"Plan Mom's birthday" has been stuck for weeks.** Turn it into a project of small steps, so the next one is always obvious.
+- **You asked a coworker for something and you both forgot.** Waiting For tracks it so you remember to follow up.
+- **"Learn guitar someday" guilt-trips you from the list.** Park it in Someday/Maybe: kept, not nagging.
+- **Sunday night, everything feels out of control.** A guided weekly review puts you back in charge.
+
 ## How it works
 
 Your head is for having ideas, not for holding them (David Allen, who wrote the book on this). Mindwtr holds them for you:
@@ -93,7 +104,7 @@ Your head is for having ideas, not for holding them (David Allen, who wrote the 
 3. **Do it.** Open Focus and see only what you can act on right now. Everything else stays out of sight.
 4. **Reset weekly.** A guided review catches loose ends, so the list stays trustworthy and your head stays clear.
 
-If you know GTD: that is Capture, Clarify, Organize, Engage, and Reflect, end to end. New to it? [GTD in 15 minutes](https://hamberg.no/gtd) is a good primer, and Mindwtr guides you through each step anyway.
+If you know GTD: that is Capture, Clarify, Organize, Engage, and Reflect, end to end. If you don't, no problem: Mindwtr walks you through each step.
 
 ## Philosophy
 

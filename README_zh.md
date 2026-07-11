@@ -10,6 +10,8 @@
 
 *Mindwtr 取自 "mind like water"（心静如水）：脑子里不再惦记一堆事，人自然就静了。项目统一使用 Mindwtr 作为正式名称；中文社区也可以亲切地简称为「如水」。*
 
+*不了解 GTD？[15 分钟入门 GTD](https://hamberg.no/gtd) 是了解 Mindwtr 背后方法的友好入门。*
+
 [快速开始](https://docs.mindwtr.app/start/getting-started) · [常见问题](https://docs.mindwtr.app/start/faq) · [文档](https://docs.mindwtr.app/) · [数据与同步](https://docs.mindwtr.app/data-sync/) · [云端部署](https://docs.mindwtr.app/data-sync/cloud-deployment) · [MCP 服务器](https://docs.mindwtr.app/power-users/mcp)
 
 [![CI](https://github.com/dongdongbh/Mindwtr/actions/workflows/ci.yml/badge.svg)](https://github.com/dongdongbh/Mindwtr/actions/workflows/ci.yml)
@@ -84,6 +86,15 @@
   </p>
 </div>
 
+## 这些场景，是不是很熟悉？
+
+- **「这事我记得住。」其实记不住。** 一个快捷键，敲下来，就能放心忘掉。这就是收集。
+- **清单上躺着 80 件事，你干脆不打开它。** 「聚焦」只显示你现在能做的那几件。
+- **「筹备妈妈的生日」卡了好几周。** 把它拆成一小步一小步的项目，下一步永远清清楚楚。
+- **拜托同事的事，你俩都忘了。** 放进「等待中」，到时候记得去催。
+- **「有空学吉他」一直在清单里让你内疚。** 放进「将来/也许」：留着，但不再烦你。
+- **周日晚上，感觉一切都失控了。** 跟着每周回顾走一遍，重新掌控局面。
+
 ## 怎么用
 
 大脑是用来产生想法的，不是用来存放它们的（David Allen 说的，GTD 这本书就是他写的）。存放的活儿，交给 Mindwtr：
@@ -93,7 +104,7 @@
 3. **去做。** 打开「聚焦」，只看现在能做的几件事，其他一概不出现。
 4. **每周清一次。** 每周回顾向导帮你收拾漏网的事，让清单一直可信、脑子一直清爽。
 
-熟悉 GTD 的话：这就是完整的收集、澄清、组织、执行、回顾。还不熟悉？可以看看 [15 分钟入门 GTD](https://hamberg.no/gtd)，而且 Mindwtr 每一步都有引导。
+熟悉 GTD 的话：这就是完整的收集、澄清、组织、执行、回顾。不熟悉也没关系：Mindwtr 每一步都有引导。
 
 ## 理念
 
