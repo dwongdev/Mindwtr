@@ -41,6 +41,7 @@ vi.mock('@mindwtr/core', async () => {
   return {
   buildCaptureTaskProps: actual.buildCaptureTaskProps,
   applyCapturedProject: actual.applyCapturedProject,
+  getPersonOptionNames: actual.getPersonOptionNames,
   createAIProvider: vi.fn(),
   DEFAULT_PROJECT_COLOR: '#94a3b8',
   getQuickAddProjectInitialProps: (props: any, fallbackAreaId?: string | null) => {
