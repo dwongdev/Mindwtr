@@ -295,7 +295,7 @@ When updating translations:
 If you are unsure about scope or implementation details:
 
 - Open a GitHub issue with a short proposal
-- Join community chat on Discord: https://discord.gg/ahhFxuDBb4
+- Join community chat on Discord: https://discord.gg/gc4h5t58PR
 - Ask for maintainer feedback before implementing large changes
 
 Thanks again for contributing to Mindwtr.
