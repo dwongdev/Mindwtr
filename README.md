@@ -10,8 +10,6 @@ English | [中文](./README_zh.md)
 
 _Mindwtr = "mind like water": the calm you get when nothing is rattling around in your head._
 
-_New to GTD? [GTD in 15 minutes](https://hamberg.no/gtd) is a friendly introduction to the method behind Mindwtr._
-
 [Getting Started](https://docs.mindwtr.app/start/getting-started) · [FAQ](https://docs.mindwtr.app/start/faq) · [Docs](https://docs.mindwtr.app/) · [Data & Sync](https://docs.mindwtr.app/data-sync/) · [Cloud Deployment](https://docs.mindwtr.app/data-sync/cloud-deployment) · [MCP Server](https://docs.mindwtr.app/power-users/mcp)
 
 [![CI](https://github.com/dongdongbh/Mindwtr/actions/workflows/ci.yml/badge.svg)](https://github.com/dongdongbh/Mindwtr/actions/workflows/ci.yml)
@@ -104,7 +102,7 @@ Your head is for having ideas, not for holding them (David Allen, who wrote the 
 3. **Do it.** Open Focus and see only what you can act on right now. Everything else stays out of sight.
 4. **Reset weekly.** A guided review catches loose ends, so the list stays trustworthy and your head stays clear.
 
-If you know GTD: that is Capture, Clarify, Organize, Engage, and Reflect, end to end. If you don't, no problem: Mindwtr walks you through each step.
+If you know GTD: that is Capture, Clarify, Organize, Engage, and Reflect, end to end. If you don't, no problem: Mindwtr walks you through each step, and [GTD in 15 minutes](https://hamberg.no/gtd) is a friendly introduction whenever you're curious.
 
 ## Philosophy
 

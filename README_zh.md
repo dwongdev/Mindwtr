@@ -10,8 +10,6 @@
 
 *Mindwtr 取自 "mind like water"（心静如水）：脑子里不再惦记一堆事，人自然就静了。项目统一使用 Mindwtr 作为正式名称；中文社区也可以亲切地简称为「如水」。*
 
-*不了解 GTD？[15 分钟入门 GTD](https://hamberg.no/gtd) 是了解 Mindwtr 背后方法的友好入门。*
-
 [快速开始](https://docs.mindwtr.app/start/getting-started) · [常见问题](https://docs.mindwtr.app/start/faq) · [文档](https://docs.mindwtr.app/) · [数据与同步](https://docs.mindwtr.app/data-sync/) · [云端部署](https://docs.mindwtr.app/data-sync/cloud-deployment) · [MCP 服务器](https://docs.mindwtr.app/power-users/mcp)
 
 [![CI](https://github.com/dongdongbh/Mindwtr/actions/workflows/ci.yml/badge.svg)](https://github.com/dongdongbh/Mindwtr/actions/workflows/ci.yml)
@@ -104,7 +102,7 @@
 3. **去做。** 打开「聚焦」，只看现在能做的几件事，其他一概不出现。
 4. **每周清一次。** 每周回顾向导帮你收拾漏网的事，让清单一直可信、脑子一直清爽。
 
-熟悉 GTD 的话：这就是完整的收集、澄清、组织、执行、回顾。不熟悉也没关系：Mindwtr 每一步都有引导。
+熟悉 GTD 的话：这就是完整的收集、澄清、组织、执行、回顾。不熟悉也没关系：Mindwtr 每一步都有引导，想深入了解可以读读 [15 分钟入门 GTD](https://hamberg.no/gtd)。
 
 ## 理念
 
