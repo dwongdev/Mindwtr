@@ -151,7 +151,7 @@ type CloudServerConfig = {
   cloudUrl: string;
   cloudToken: string;
   allowInsecureHttp: boolean;
-  readonly: true;
+  readonly: boolean;
   keepAlive: boolean;
 };
 
@@ -169,14 +169,13 @@ export const resolveServerConfig = (
   flags: Record<string, string | boolean>,
   env: ServerEnv = process.env,
 ): ServerConfig => {
-  const { allowWrite, readonly, keepAlive } = resolveServerModeFlags(flags);
+  const { readonly, keepAlive } = resolveServerModeFlags(flags);
   const cloudUrl = readStringFlag(flags, 'cloud-url', 'cloudUrl') ?? env.MINDWTR_MCP_CLOUD_URL;
   const cloudToken = readStringFlag(flags, 'cloud-token', 'cloudToken') ?? env.MINDWTR_MCP_CLOUD_TOKEN;
 
   if (cloudUrl || cloudToken) {
     if (!cloudUrl) throw new ValidationError('Cloud URL is required for Cloud MCP mode');
     if (!cloudToken) throw new ValidationError('Cloud token is required for Cloud MCP mode');
-    if (allowWrite) throw new ValidationError('Cloud MCP mode is read-only; remove --write.');
     return {
       backend: 'cloud',
       cloudUrl,
@@ -186,7 +185,7 @@ export const resolveServerConfig = (
         ?? flags.cloudAllowInsecureHttp
         ?? env.MINDWTR_MCP_CLOUD_ALLOW_INSECURE_HTTP
       ) ?? false,
-      readonly: true,
+      readonly,
       keepAlive,
     };
   }
@@ -796,7 +795,7 @@ export async function startMcpServer(argv: string[] = process.argv.slice(2)) {
 
   registerMindwtrTools(server, service, config.readonly, {
     readonlyMessage: config.backend === 'cloud'
-      ? 'Cloud MCP mode is read-only. Use the local database backend with --write for edits.'
+      ? 'Cloud MCP mode is read-only by default. Start the server with --write to enable edits.'
       : undefined,
   });
 

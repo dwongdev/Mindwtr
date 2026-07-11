@@ -145,7 +145,7 @@ describe('mcp server index', () => {
     });
   });
 
-  test('resolves self-hosted Cloud backend as read-only', () => {
+  test('resolves self-hosted Cloud backend as read-only by default and writable with --write', () => {
     expect(resolveServerConfig(
       parseArgs(['--cloud-url', 'https://mindwtr.example.com', '--cloud-token', 'secret', '--cloud-allow-insecure-http=false']),
       {}
@@ -157,10 +157,17 @@ describe('mcp server index', () => {
       keepAlive: true,
       readonly: true,
     });
-    expect(() => resolveServerConfig(
+    expect(resolveServerConfig(
       parseArgs(['--cloud-url', 'https://mindwtr.example.com', '--write']),
       { MINDWTR_MCP_CLOUD_TOKEN: 'secret' }
-    )).toThrow('Cloud MCP mode is read-only');
+    )).toEqual({
+      backend: 'cloud',
+      cloudUrl: 'https://mindwtr.example.com',
+      cloudToken: 'secret',
+      allowInsecureHttp: false,
+      keepAlive: true,
+      readonly: false,
+    });
   });
 
   test('registers all mindwtr tools', () => {

@@ -1,6 +1,12 @@
-import { cloudGetJson, normalizeCloudUrl, type AppData } from '@mindwtr/core';
+import { CloudHttpError, cloudGetJson, cloudRequestJson, normalizeCloudUrl, type AppData } from '@mindwtr/core';
 
-import { NotFoundError, ReadOnlyError, ValidationError } from './errors.js';
+import { NotFoundError, ValidationError } from './errors.js';
+import {
+  MAX_TASK_QUICK_ADD_LENGTH,
+  MAX_TASK_TITLE_LENGTH,
+  normalizeNullableTaskTokens,
+  normalizeOptionalTaskTokens,
+} from './input-validation.js';
 import type {
   AddAreaInput,
   AddPersonInput,
@@ -38,8 +44,6 @@ export type CloudServiceOptions = {
   fetcher?: typeof fetch;
   timeoutMs?: number;
 };
-
-const CLOUD_READONLY_MESSAGE = 'Cloud MCP mode is read-only. Use the local database backend with --write for edits.';
 
 type CloudData = AppData & { people: NonNullable<AppData['people']> };
 
@@ -127,8 +131,28 @@ const mapSection = (section: AppData['sections'][number]): Section => section;
 const mapPerson = (person: CloudData['people'][number]): Person => person;
 const mapTask = (task: AppData['tasks'][number]): TaskRow => task;
 
-const readOnly = async (): Promise<never> => {
-  throw new ReadOnlyError(CLOUD_READONLY_MESSAGE);
+const filterUndefined = <T extends Record<string, unknown>>(obj: T): Partial<T> => {
+  const result: Partial<T> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      (result as Record<string, unknown>)[key] = value;
+    }
+  }
+  return result;
+};
+
+const mapCloudError = (error: unknown): unknown => {
+  if (error instanceof CloudHttpError) {
+    if (error.status === 404) return new NotFoundError(error.message);
+    if (error.status === 400 || error.status === 413 || error.status === 422) {
+      return new ValidationError(error.message);
+    }
+  }
+  return error;
+};
+
+const personWritesUnsupported = (): never => {
+  throw new ValidationError('The Mindwtr cloud API does not support person edits yet. Use the local database backend for person changes.');
 };
 
 export const createCloudService = (options: CloudServiceOptions): MindwtrService => {
@@ -137,13 +161,37 @@ export const createCloudService = (options: CloudServiceOptions): MindwtrService
   if (!url) throw new ValidationError('Cloud URL is required');
   if (!token) throw new ValidationError('Cloud token is required');
   const dataUrl = normalizeCloudUrl(url);
-
-  const readData = async (): Promise<CloudData> => normalizeCloudData(await cloudGetJson<AppData>(dataUrl, {
+  // normalizeCloudUrl always yields a URL ending in /data; the REST resources live beside it.
+  const apiBase = dataUrl.replace(/\/data$/i, '');
+  const requestOptions = {
     token,
     allowInsecureHttp: options.allowInsecureHttp,
     fetcher: options.fetcher,
     timeoutMs: options.timeoutMs,
-  }));
+  };
+
+  const readData = async (): Promise<CloudData> => normalizeCloudData(await cloudGetJson<AppData>(dataUrl, requestOptions));
+
+  const request = async <T>(method: 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> => {
+    try {
+      return await cloudRequestJson<T>(method, `${apiBase}${path}`, body, requestOptions) as T;
+    } catch (error) {
+      throw mapCloudError(error);
+    }
+  };
+
+  const deleteEntity = async <T extends SoftDeleted & { id: string }>(
+    path: string,
+    id: string,
+    pickCollection: (data: CloudData) => T[],
+    label: string,
+  ): Promise<T> => {
+    await request('DELETE', `${path}/${encodeURIComponent(id)}`);
+    const data = await readData();
+    const entity = pickCollection(data).find((item) => item.id === id);
+    if (!entity) throw new NotFoundError(`${label} not found: ${id}`);
+    return entity;
+  };
 
   const findTask = async (input: GetTaskInput): Promise<TaskRow> => {
     const data = await readData();
@@ -223,24 +271,140 @@ export const createCloudService = (options: CloudServiceOptions): MindwtrService
     getProject: findProject,
     getSection: findSection,
     getPerson: findPerson,
-    addTask: (_input: AddTaskInput) => readOnly(),
-    updateTask: (_input: UpdateTaskInput) => readOnly(),
-    completeTask: (_id: string) => readOnly(),
-    deleteTask: (_id: string) => readOnly(),
-    restoreTask: (_id: string) => readOnly(),
-    addProject: (_input: AddProjectInput) => readOnly(),
-    updateProject: (_input: UpdateProjectInput) => readOnly(),
-    deleteProject: (_id: string) => readOnly(),
-    addSection: (_input: AddSectionInput) => readOnly(),
-    updateSection: (_input: UpdateSectionInput) => readOnly(),
-    deleteSection: (_id: string) => readOnly(),
-    addArea: (_input: AddAreaInput) => readOnly(),
-    updateArea: (_input: UpdateAreaInput) => readOnly(),
-    deleteArea: (_id: string) => readOnly(),
-    addPerson: (_input: AddPersonInput) => readOnly(),
-    updatePerson: (_input: UpdatePersonInput) => readOnly(),
-    renamePerson: (_input: RenamePersonInput) => readOnly(),
-    deletePerson: (_id: string) => readOnly(),
+    addTask: async (input: AddTaskInput) => {
+      const hasTitle = typeof input.title === 'string' && input.title.trim().length > 0;
+      const hasQuickAdd = typeof input.quickAdd === 'string' && input.quickAdd.trim().length > 0;
+      if (!hasTitle && !hasQuickAdd) throw new ValidationError('Either title or quickAdd is required');
+      if (hasTitle && hasQuickAdd) throw new ValidationError('Provide either title or quickAdd, not both');
+      if (hasTitle && input.title!.trim().length > MAX_TASK_TITLE_LENGTH) {
+        throw new ValidationError(`Task title too long (max ${MAX_TASK_TITLE_LENGTH} characters)`);
+      }
+      if (hasQuickAdd && input.quickAdd!.trim().length > MAX_TASK_QUICK_ADD_LENGTH) {
+        throw new ValidationError(`Quick-add input too long (max ${MAX_TASK_QUICK_ADD_LENGTH} characters)`);
+      }
+      const props = filterUndefined({
+        status: input.status,
+        projectId: input.projectId,
+        sectionId: input.sectionId,
+        dueDate: input.dueDate,
+        startTime: input.startTime,
+        contexts: normalizeOptionalTaskTokens('contexts', input.contexts),
+        tags: normalizeOptionalTaskTokens('tags', input.tags),
+        description: input.description,
+        priority: input.priority,
+        energyLevel: input.energyLevel,
+        assignedTo: input.assignedTo,
+        timeEstimate: input.timeEstimate,
+      });
+      const body = hasQuickAdd ? { input: input.quickAdd, props } : { title: input.title, props };
+      const result = await request<{ task: AppData['tasks'][number] }>('POST', '/tasks', body);
+      return mapTask(result.task);
+    },
+    updateTask: async (input: UpdateTaskInput) => {
+      // null clears a field on the cloud API (undefined keys are dropped by JSON), so pass nulls through.
+      const patch: Record<string, unknown> = {};
+      if (input.title !== undefined) patch.title = input.title;
+      if (input.status !== undefined) patch.status = input.status;
+      if (input.projectId !== undefined) patch.projectId = input.projectId;
+      if (input.sectionId !== undefined) patch.sectionId = input.sectionId;
+      if (input.dueDate !== undefined) patch.dueDate = input.dueDate;
+      if (input.startTime !== undefined) patch.startTime = input.startTime;
+      if (input.contexts !== undefined) patch.contexts = normalizeNullableTaskTokens('contexts', input.contexts) ?? [];
+      if (input.tags !== undefined) patch.tags = normalizeNullableTaskTokens('tags', input.tags) ?? [];
+      if (input.description !== undefined) patch.description = input.description;
+      if (input.priority !== undefined) patch.priority = input.priority;
+      if (input.energyLevel !== undefined) patch.energyLevel = input.energyLevel;
+      if (input.assignedTo !== undefined) patch.assignedTo = input.assignedTo;
+      if (input.timeEstimate !== undefined) patch.timeEstimate = input.timeEstimate;
+      if (input.reviewAt !== undefined) patch.reviewAt = input.reviewAt;
+      if (input.isFocusedToday !== undefined) patch.isFocusedToday = input.isFocusedToday;
+      const result = await request<{ task: AppData['tasks'][number] }>('PATCH', `/tasks/${encodeURIComponent(input.id)}`, patch);
+      return mapTask(result.task);
+    },
+    completeTask: async (id: string) => {
+      const result = await request<{ task: AppData['tasks'][number] }>('POST', `/tasks/${encodeURIComponent(id)}/complete`);
+      return mapTask(result.task);
+    },
+    deleteTask: async (id: string) => deleteEntity('/tasks', id, (data) => data.tasks, 'Task'),
+    restoreTask: async (_id: string) => {
+      throw new ValidationError('The Mindwtr cloud API does not support restoring deleted tasks. Restore it from a Mindwtr app or use the local database backend.');
+    },
+    addProject: async (input: AddProjectInput) => {
+      const result = await request<{ project: AppData['projects'][number] }>('POST', '/projects', {
+        title: input.title,
+        props: filterUndefined({
+          color: input.color,
+          status: input.status,
+          areaId: input.areaId ?? undefined,
+          isSequential: input.isSequential,
+          isFocused: input.isFocused,
+          dueDate: input.dueDate ?? undefined,
+          reviewAt: input.reviewAt ?? undefined,
+          supportNotes: input.supportNotes ?? undefined,
+        }),
+      });
+      return mapProject(result.project);
+    },
+    updateProject: async (input: UpdateProjectInput) => {
+      const patch: Record<string, unknown> = {};
+      if (input.title !== undefined) patch.title = input.title;
+      if (input.color !== undefined) patch.color = input.color;
+      if (input.status !== undefined) patch.status = input.status;
+      if (input.areaId !== undefined) patch.areaId = input.areaId;
+      if (input.isSequential !== undefined) patch.isSequential = input.isSequential;
+      if (input.isFocused !== undefined) patch.isFocused = input.isFocused;
+      if (input.dueDate !== undefined) patch.dueDate = input.dueDate;
+      if (input.reviewAt !== undefined) patch.reviewAt = input.reviewAt;
+      if (input.supportNotes !== undefined) patch.supportNotes = input.supportNotes;
+      const result = await request<{ project: AppData['projects'][number] }>('PATCH', `/projects/${encodeURIComponent(input.id)}`, patch);
+      return mapProject(result.project);
+    },
+    deleteProject: async (id: string) => mapProject(await deleteEntity('/projects', id, (data) => data.projects, 'Project')),
+    addSection: async (input: AddSectionInput) => {
+      const result = await request<{ section: AppData['sections'][number] }>('POST', '/sections', {
+        title: input.title,
+        projectId: input.projectId,
+        props: filterUndefined({
+          description: input.description ?? undefined,
+          order: input.order,
+          isCollapsed: input.isCollapsed,
+        }),
+      });
+      return mapSection(result.section);
+    },
+    updateSection: async (input: UpdateSectionInput) => {
+      const patch: Record<string, unknown> = {};
+      if (input.title !== undefined) patch.title = input.title;
+      if (input.description !== undefined) patch.description = input.description;
+      if (input.order !== undefined) patch.order = input.order;
+      if (input.isCollapsed !== undefined) patch.isCollapsed = input.isCollapsed;
+      const result = await request<{ section: AppData['sections'][number] }>('PATCH', `/sections/${encodeURIComponent(input.id)}`, patch);
+      return mapSection(result.section);
+    },
+    deleteSection: async (id: string) => deleteEntity('/sections', id, (data) => data.sections, 'Section'),
+    addArea: async (input: AddAreaInput) => {
+      const result = await request<{ area: AppData['areas'][number] }>('POST', '/areas', {
+        name: input.name,
+        props: filterUndefined({
+          color: input.color,
+          icon: input.icon,
+        }),
+      });
+      return mapArea(result.area);
+    },
+    updateArea: async (input: UpdateAreaInput) => {
+      const patch: Record<string, unknown> = {};
+      if (input.name !== undefined) patch.name = input.name;
+      if (input.color !== undefined) patch.color = input.color;
+      if (input.icon !== undefined) patch.icon = input.icon;
+      const result = await request<{ area: AppData['areas'][number] }>('PATCH', `/areas/${encodeURIComponent(input.id)}`, patch);
+      return mapArea(result.area);
+    },
+    deleteArea: async (id: string) => deleteEntity('/areas', id, (data) => data.areas, 'Area'),
+    addPerson: async (_input: AddPersonInput) => personWritesUnsupported(),
+    updatePerson: async (_input: UpdatePersonInput) => personWritesUnsupported(),
+    renamePerson: async (_input: RenamePersonInput) => personWritesUnsupported(),
+    deletePerson: async (_id: string) => personWritesUnsupported(),
     close: async () => undefined,
   };
 };

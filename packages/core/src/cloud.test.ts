@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cloudDeleteFile, cloudGetFile, cloudGetJson, cloudHeadJson, cloudPutJson } from './cloud';
+import { CloudHttpError, cloudDeleteFile, cloudGetFile, cloudGetJson, cloudHeadJson, cloudPutJson, cloudRequestJson } from './cloud';
 
 const okResponse = (text: string) =>
     ({
@@ -66,6 +66,59 @@ describe('cloud sync http helpers', () => {
             fetcher,
             allowInsecureHttp: true,
         })).rejects.toThrow('Cloud sync requires HTTPS for public URLs');
+        expect(fetcher).not.toHaveBeenCalled();
+    });
+
+    it('sends auth, method, and body on request json', async () => {
+        const fetcher = vi.fn(async () => okResponse(JSON.stringify({ task: { id: 't1' } })));
+        const result = await cloudRequestJson<{ task: { id: string } }>(
+            'POST',
+            'https://example.com/v1/tasks',
+            { title: 'hi' },
+            { fetcher, token: 'abc123' },
+        );
+        expect(result).toEqual({ task: { id: 't1' } });
+        const [, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+        expect(init.method).toBe('POST');
+        expect((init.headers as Record<string, string>).Authorization).toBe('Bearer abc123');
+        expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+        expect(JSON.parse(String(init.body))).toEqual({ title: 'hi' });
+    });
+
+    it('omits body and content type on request json without a body', async () => {
+        const fetcher = vi.fn(async () => okResponse(JSON.stringify({ ok: true })));
+        await cloudRequestJson('DELETE', 'https://example.com/v1/tasks/t1', undefined, { fetcher });
+        const [, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+        expect(init.method).toBe('DELETE');
+        expect(init.body).toBeUndefined();
+        expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined();
+    });
+
+    it('surfaces server error messages with status on request json failures', async () => {
+        const fetcher = vi.fn(async () => ({
+            ok: false,
+            status: 404,
+            statusText: 'Not Found',
+            text: async () => JSON.stringify({ error: 'Task not found' }),
+        } as unknown as Response));
+        const failure = cloudRequestJson('PATCH', 'https://example.com/v1/tasks/missing', { title: 'x' }, { fetcher });
+        await expect(failure).rejects.toThrow('Task not found');
+        await expect(failure).rejects.toBeInstanceOf(CloudHttpError);
+        await expect(failure).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('falls back to the status line when the error body is not json', async () => {
+        const fetcher = vi.fn(async () => errorResponse(500, 'Internal Server Error'));
+        await expect(
+            cloudRequestJson('POST', 'https://example.com/v1/tasks', {}, { fetcher }),
+        ).rejects.toThrow('Cloud POST failed (500): Internal Server Error');
+    });
+
+    it('enforces the https policy on request json', async () => {
+        const fetcher = vi.fn(async () => okResponse('{}'));
+        await expect(
+            cloudRequestJson('POST', 'http://example.com/v1/tasks', {}, { fetcher }),
+        ).rejects.toThrow('Cloud sync requires HTTPS for public URLs');
         expect(fetcher).not.toHaveBeenCalled();
     });
 

@@ -137,6 +137,53 @@ export async function cloudGetJson<T>(
     }
 }
 
+export async function cloudRequestJson<T>(
+    method: 'POST' | 'PATCH' | 'DELETE',
+    url: string,
+    body?: unknown,
+    options: CloudOptions = {},
+): Promise<T | null> {
+    assertCloudUrl(url, options);
+    const fetcher = options.fetcher ?? fetch;
+    const headers = buildHeaders(options);
+    if (body !== undefined) {
+        headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    }
+    const res = await fetchWithTimeout(
+        url,
+        {
+            method,
+            headers,
+            ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+            signal: options.signal,
+        },
+        options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        fetcher,
+        CLOUD_TIMEOUT_ERROR,
+    );
+
+    const text = await res.text().catch(() => '');
+    if (!res.ok) {
+        let serverMessage = '';
+        try {
+            const parsed = JSON.parse(text) as Record<string, unknown>;
+            if (typeof parsed.error === 'string') serverMessage = parsed.error;
+        } catch {
+            // Non-JSON error body; fall back to the status line.
+        }
+        throw new CloudHttpError(
+            serverMessage || `Cloud ${method} failed (${res.status}): ${res.statusText}`,
+            res.status,
+        );
+    }
+    if (!text.trim()) return null;
+    try {
+        return JSON.parse(text) as T;
+    } catch (error) {
+        throw new Error(`Cloud ${method} failed: invalid JSON (${(error as Error).message})`);
+    }
+}
+
 export async function cloudHeadJson(
     url: string,
     options: CloudOptions = {},

@@ -806,12 +806,14 @@ export type {
 } from './webdav';
 
 export {
+    CloudHttpError,
     cloudDeleteFile,
     cloudGetFile,
     cloudGetJson,
     cloudHeadJson,
     cloudPutFile,
     cloudPutJson,
+    cloudRequestJson,
 } from './cloud';
 export type {
     CloudJsonWriteResult,

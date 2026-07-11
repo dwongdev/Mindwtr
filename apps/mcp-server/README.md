@@ -1,6 +1,6 @@
 # Mindwtr MCP Server
 
-MCP server for Mindwtr. Connect MCP clients (Claude Desktop, etc.) to either your local Mindwtr SQLite database or a self-hosted Mindwtr Cloud endpoint in read-only mode.
+MCP server for Mindwtr. Connect MCP clients (Claude Desktop, etc.) to either your local Mindwtr SQLite database or a self-hosted Mindwtr Cloud endpoint.
 
 This is a **stdio** server (no hosted HTTP endpoint). MCP clients launch it as a subprocess and talk over JSON-RPC on stdin/stdout.
 
@@ -21,7 +21,7 @@ On desktop, the app shows the exact local data path in **Settings -> Sync -> Loc
 - Node.js 18+ (for the MCP client that spawns the server)
 - npm package installs use better-sqlite3, a native SQLite addon. If no prebuilt binary is available for your platform, npm needs a working C/C++ build toolchain and Python for node-gyp.
 - Bun (recommended for development in this repo)
-- A local Mindwtr database (`mindwtr.db`) for local mode, or a self-hosted Mindwtr Cloud URL and bearer token for read-only Cloud mode
+- A local Mindwtr database (`mindwtr.db`) for local mode, or a self-hosted Mindwtr Cloud URL and bearer token for Cloud mode
 
 Default database locations:
 - Linux: `~/.local/share/mindwtr/mindwtr.db`
@@ -74,11 +74,11 @@ Or let an MCP client launch it through npx:
 }
 ```
 
-The npm package is read-only by default. Add `--write` only when you explicitly want add/update/complete/delete tools enabled against a local database.
+The npm package is read-only by default. Add `--write` only when you explicitly want add/update/complete/delete tools enabled.
 
-### Read-only self-hosted Cloud mode
+### Self-hosted Cloud mode
 
-Use Cloud mode when you run your own Mindwtr Cloud server and want MCP read tools without pointing the helper at a local SQLite database:
+Use Cloud mode when you run your own Mindwtr Cloud server and want MCP tools without pointing the helper at a local SQLite database:
 
 ```bash
 npx -y mindwtr-mcp \
@@ -94,7 +94,7 @@ MINDWTR_MCP_CLOUD_TOKEN="$MINDWTR_TOKEN" \
 npx -y mindwtr-mcp
 ```
 
-Cloud mode uses the self-hosted Cloud API and is always read-only. It reads the current `/v1/data` snapshot, exposes task/project/section/area/person read tools through MCP, and returns `read_only` for write tools. Do not pass `--write` with `--cloud-url`.
+Cloud mode uses the self-hosted Cloud API. Reads come from the current `/v1/data` snapshot; with `--write`, task/project/section/area writes go through the Cloud server's per-resource REST endpoints (`POST /v1/tasks`, `PATCH /v1/tasks/:id`, and so on), so they get the same validation and revision stamping as any other client. Without `--write`, write tools return `read_only`. Person edits and restoring deleted tasks are not available in Cloud mode yet.
 
 This does not make Mindwtr Cloud itself a hosted MCP server. It is still the same stdio helper, backed by a Cloud URL that you operate.
 

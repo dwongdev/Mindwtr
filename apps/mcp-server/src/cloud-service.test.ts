@@ -156,14 +156,134 @@ describe('cloud-backed MCP service', () => {
     expect(deletedPeople.map((item) => item.id)).toEqual(['person-1', 'person-deleted']);
   });
 
-  test('rejects write methods because Cloud MCP mode is read-only', async () => {
+  test('routes writes through the per-resource REST endpoints', async () => {
+    const requests: Array<{ method: string; url: string; body: unknown }> = [];
+    const fetcher: typeof fetch = async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      requests.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+      if (method === 'GET') return new Response(JSON.stringify(cloudData), { status: 200 });
+      if (method === 'DELETE') return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      if (url.endsWith('/v1/tasks')) {
+        return new Response(JSON.stringify({ task: { ...cloudData.tasks[0], id: 'task-new', title: 'Created' } }), { status: 201 });
+      }
+      if (url.endsWith('/complete')) {
+        return new Response(JSON.stringify({ task: { ...cloudData.tasks[0], status: 'done' } }), { status: 200 });
+      }
+      if (url.includes('/v1/tasks/')) {
+        return new Response(JSON.stringify({ task: { ...cloudData.tasks[0], title: 'Patched' } }), { status: 200 });
+      }
+      if (url.includes('/v1/projects')) {
+        return new Response(JSON.stringify({ project: cloudData.projects[0] }), { status: 200 });
+      }
+      if (url.includes('/v1/sections')) {
+        return new Response(JSON.stringify({ section: cloudData.sections?.[0] }), { status: 200 });
+      }
+      if (url.includes('/v1/areas')) {
+        return new Response(JSON.stringify({ area: cloudData.areas?.[0] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: 'Unexpected route' }), { status: 500 });
+    };
+    const service = createCloudService({
+      url: 'https://mindwtr.example.com',
+      token: 'cloud-token',
+      fetcher,
+    });
+
+    const created = await service.addTask({ quickAdd: 'Buy milk @errands' });
+    expect(created.id).toBe('task-new');
+    expect(requests[0]).toMatchObject({
+      method: 'POST',
+      url: 'https://mindwtr.example.com/v1/tasks',
+      body: { input: 'Buy milk @errands' },
+    });
+
+    const patched = await service.updateTask({ id: 'task-next', title: 'Patched', dueDate: null });
+    expect(patched.title).toBe('Patched');
+    expect(requests[1]).toMatchObject({
+      method: 'PATCH',
+      url: 'https://mindwtr.example.com/v1/tasks/task-next',
+      body: { title: 'Patched', dueDate: null },
+    });
+
+    const completed = await service.completeTask('task-next');
+    expect(completed.status).toBe('done');
+    expect(requests[2]).toMatchObject({
+      method: 'POST',
+      url: 'https://mindwtr.example.com/v1/tasks/task-next/complete',
+    });
+
+    const deleted = await service.deleteTask('task-deleted');
+    expect(deleted.id).toBe('task-deleted');
+    expect(requests[3]).toMatchObject({
+      method: 'DELETE',
+      url: 'https://mindwtr.example.com/v1/tasks/task-deleted',
+    });
+    expect(requests[4]?.method).toBe('GET');
+
+    await service.addProject({ title: 'New project', areaId: 'area-1' });
+    expect(requests[5]).toMatchObject({
+      method: 'POST',
+      url: 'https://mindwtr.example.com/v1/projects',
+      body: { title: 'New project', props: { areaId: 'area-1' } },
+    });
+
+    await service.updateArea({ id: 'area-1', color: null });
+    expect(requests[6]).toMatchObject({
+      method: 'PATCH',
+      url: 'https://mindwtr.example.com/v1/areas/area-1',
+      body: { color: null },
+    });
+
+    await service.addSection({ projectId: 'project-1', title: 'New section' });
+    expect(requests[7]).toMatchObject({
+      method: 'POST',
+      url: 'https://mindwtr.example.com/v1/sections',
+      body: { title: 'New section', projectId: 'project-1' },
+    });
+  });
+
+  test('maps cloud API errors onto MCP error types', async () => {
+    const service = createCloudService({
+      url: 'https://mindwtr.example.com',
+      token: 'cloud-token',
+      fetcher: async (_input, init) => {
+        if ((init?.method ?? 'GET') === 'PATCH') {
+          return new Response(JSON.stringify({ error: 'Task not found' }), { status: 404 });
+        }
+        return new Response(JSON.stringify({ error: 'Invalid task status' }), { status: 400 });
+      },
+    });
+
+    await expect(service.updateTask({ id: 'missing', title: 'x' })).rejects.toMatchObject({
+      name: 'NotFoundError',
+      message: 'Task not found',
+    });
+    await expect(service.addTask({ title: 'x', status: 'bogus' as never })).rejects.toMatchObject({
+      name: 'ValidationError',
+      message: 'Invalid task status',
+    });
+  });
+
+  test('rejects unsupported cloud writes with clear errors', async () => {
     const service = createCloudService({
       url: 'https://mindwtr.example.com',
       token: 'cloud-token',
       fetcher: async () => new Response(JSON.stringify(cloudData), { status: 200 }),
     });
 
-    await expect(service.addTask({ title: 'Write' })).rejects.toThrow('Cloud MCP mode is read-only');
-    await expect(service.deleteProject('project-1')).rejects.toThrow('Cloud MCP mode is read-only');
+    await expect(service.addPerson({ name: 'Alex' })).rejects.toThrow('does not support person edits');
+    await expect(service.restoreTask('task-deleted')).rejects.toThrow('does not support restoring');
+  });
+
+  test('requires either title or quickAdd when adding a task', async () => {
+    const service = createCloudService({
+      url: 'https://mindwtr.example.com',
+      token: 'cloud-token',
+      fetcher: async () => new Response(JSON.stringify(cloudData), { status: 200 }),
+    });
+
+    await expect(service.addTask({})).rejects.toThrow('Either title or quickAdd is required');
+    await expect(service.addTask({ title: 'a', quickAdd: 'b' })).rejects.toThrow('not both');
   });
 });
