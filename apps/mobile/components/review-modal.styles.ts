@@ -193,6 +193,21 @@ export const styles = StyleSheet.create({
     taskList: {
         flex: 1,
     },
+    scheduledSection: {
+        marginTop: 12,
+    },
+    scheduledToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingVertical: 8,
+    },
+    scheduledToggleText: {
+        fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
     aiItemRow: {
         flexDirection: 'row',
         gap: 12,

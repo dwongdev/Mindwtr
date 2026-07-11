@@ -509,6 +509,8 @@ export {
     DEFAULT_REVIEW_ADVANCE_DAYS,
     getAdvancedReviewDate,
     getStaleItems,
+    partitionByReviewDate,
+    type ReviewSchedulePartition,
 } from './review-utils';
 
 export {

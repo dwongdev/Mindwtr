@@ -47,6 +47,7 @@ type ReviewLabelKey =
     | 'contextsDesc'
     | 'contextsEmpty'
     | 'nothingWaiting'
+    | 'notDueYet'
     | 'projectsDesc'
     | 'projectsGuide'
     | 'noActiveProjects'
@@ -116,6 +117,7 @@ const defaultReviewLabels: ReviewLabels = {
     contextsDesc: 'Review your contexts and make sure each one has clear next actions.',
     contextsEmpty: 'No contexts with active tasks.',
     nothingWaiting: 'Nothing waiting - all clear!',
+    notDueYet: 'Not due yet',
     projectsDesc: 'Review Your Projects',
     projectsGuide: 'Each active project needs a clear next action. Projects without next actions get stuck!',
     noActiveProjects: 'No active projects',
@@ -182,6 +184,7 @@ const reviewLabelTranslationKeys: Record<ReviewLabelKey, string> = {
     contextsDesc: 'review.contextsStepDesc',
     contextsEmpty: 'review.contextsEmpty',
     nothingWaiting: 'review.waitingEmpty',
+    notDueYet: 'review.notDueYet',
     projectsDesc: 'review.projectsStep',
     projectsGuide: 'review.projectsHint',
     noActiveProjects: 'review.noActiveTasks',

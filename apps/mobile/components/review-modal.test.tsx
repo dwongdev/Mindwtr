@@ -96,6 +96,7 @@ vi.mock('@mindwtr/core', () => ({
         template.replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, (match, key) => String(values[key] ?? match))),
     getStaleItems: vi.fn(() => []),
     isDueForReview: vi.fn(() => false),
+    partitionByReviewDate: vi.fn((items: unknown[]) => ({ due: [], scheduled: [], unscheduled: items })),
     isTaskInActiveProject: vi.fn(() => true),
     safeFormatDate: vi.fn(() => '2026-03-15'),
     safeParseDate: vi.fn((value?: string) => (value ? new Date(value) : null)),

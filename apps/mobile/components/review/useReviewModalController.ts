@@ -5,6 +5,7 @@ import {
     getStaleItems,
     isTaskInActiveProject,
     isDueForReview,
+    partitionByReviewDate,
     safeParseDate,
     safeParseDueDate,
     type AIProviderId,
@@ -353,30 +354,18 @@ export function useReviewModalController({
         )),
         [projectById, tasks],
     );
-    const waitingDue = useMemo(
-        () => waitingTasks.filter((task) => isDueForReview(task.reviewAt)),
-        [waitingTasks],
+    const waitingGroups = useMemo(() => partitionByReviewDate(waitingTasks), [waitingTasks]);
+    const visibleWaitingTasks = useMemo(
+        () => [...waitingGroups.due, ...waitingGroups.unscheduled],
+        [waitingGroups],
     );
-    const waitingFuture = useMemo(
-        () => waitingTasks.filter((task) => !isDueForReview(task.reviewAt)),
-        [waitingTasks],
+    const scheduledWaitingTasks = waitingGroups.scheduled;
+    const somedayGroups = useMemo(() => partitionByReviewDate(somedayTasks), [somedayTasks]);
+    const visibleSomedayTasks = useMemo(
+        () => [...somedayGroups.due, ...somedayGroups.unscheduled],
+        [somedayGroups],
     );
-    const orderedWaitingTasks = useMemo(
-        () => [...waitingDue, ...waitingFuture],
-        [waitingDue, waitingFuture],
-    );
-    const somedayDue = useMemo(
-        () => somedayTasks.filter((task) => isDueForReview(task.reviewAt)),
-        [somedayTasks],
-    );
-    const somedayFuture = useMemo(
-        () => somedayTasks.filter((task) => !isDueForReview(task.reviewAt)),
-        [somedayTasks],
-    );
-    const orderedSomedayTasks = useMemo(
-        () => [...somedayDue, ...somedayFuture],
-        [somedayDue, somedayFuture],
-    );
+    const scheduledSomedayTasks = somedayGroups.scheduled;
     const activeProjects = useMemo(
         () => projects.filter((project) => project.status === 'active' && !project.deletedAt),
         [projects],
@@ -497,14 +486,14 @@ export function useReviewModalController({
         ];
         list.push(
             { id: 'calendar', title: labels.calendar, Icon: CalendarIcon, hasWork: calendarHasWork },
-            { id: 'waiting', title: labels.waiting, Icon: Clock, hasWork: waitingTasks.length > 0 },
+            { id: 'waiting', title: labels.waiting, Icon: Clock, hasWork: visibleWaitingTasks.length > 0 },
         );
         if (includeContextStep) {
             list.push({ id: 'contexts', title: labels.contexts, Icon: Tag, hasWork: contextReviewGroups.length > 0 });
         }
         list.push(
             { id: 'projects', title: labels.projects, Icon: FolderOpen, hasWork: projectReviewEntries.length > 0 },
-            { id: 'someday', title: labels.someday, Icon: Lightbulb, hasWork: somedayTasks.length > 0 },
+            { id: 'someday', title: labels.someday, Icon: Lightbulb, hasWork: visibleSomedayTasks.length > 0 },
             { id: 'completed', title: labels.done, Icon: CheckCircle2, hasWork: true },
         );
         return list;
@@ -517,9 +506,9 @@ export function useReviewModalController({
         includeContextStep,
         labels,
         projectReviewEntries.length,
-        somedayTasks.length,
         staleItems.length,
-        waitingTasks.length,
+        visibleSomedayTasks.length,
+        visibleWaitingTasks.length,
     ]);
     const activeSteps = useMemo(
         () => steps.filter((step) => step.hasWork || step.id === 'completed'),
@@ -605,8 +594,6 @@ export function useReviewModalController({
         nextStep,
         openProjectTaskPrompt,
         openReviewQuickAdd,
-        orderedSomedayTasks,
-        orderedWaitingTasks,
         prevStep,
         progress,
         projectReviewEntries,
@@ -614,6 +601,8 @@ export function useReviewModalController({
         projectTaskTitle,
         runAiAnalysis,
         safeStepIndex,
+        scheduledSomedayTasks,
+        scheduledWaitingTasks,
         setProjectTaskTitle,
         showEditModal,
         somedayTasks,
@@ -627,6 +616,8 @@ export function useReviewModalController({
         toggleExpandedProject,
         toggleExternalDayExpanded,
         toggleSuggestion,
+        visibleSomedayTasks,
+        visibleWaitingTasks,
         waitingTasks,
     };
 }

@@ -8,6 +8,7 @@ import {
     isDueForReview,
     isTaskInActiveProject,
     parseQuickAddDateCommands,
+    partitionByReviewDate,
     safeFormatDate,
     safeParseDate,
     safeParseDueDate,
@@ -20,7 +21,7 @@ import {
     type TaskStatus,
     type AIProviderId,
 } from '@mindwtr/core';
-import { Archive, ArrowRight, Calendar, Check, CheckSquare, ChevronLeft, History, Layers, MapPin, RefreshCw, X, type LucideIcon } from 'lucide-react';
+import { Archive, ArrowRight, Calendar, Check, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, History, Layers, MapPin, RefreshCw, X, type LucideIcon } from 'lucide-react';
 
 import { TaskItem } from '../../TaskItem';
 import { ModalPortal } from '../../ModalPortal';
@@ -65,6 +66,8 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
     const [isProcessing, setIsProcessing] = useState(false);
     const [expandedExternalDays, setExpandedExternalDays] = useState<Set<string>>(new Set());
     const [expandedContextGroups, setExpandedContextGroups] = useState<Set<string>>(new Set());
+    const [showScheduledWaiting, setShowScheduledWaiting] = useState(false);
+    const [showScheduledSomeday, setShowScheduledSomeday] = useState(false);
     const [projectTaskPrompt, setProjectTaskPrompt] = useState<{ projectId: string; projectTitle: string } | null>(null);
     const { tasks, projects, areas, settings, addProject, updateProject, updateTask, deleteTask, batchUpdateTasks } = useTaskStore(
         (state) => ({
@@ -206,15 +209,13 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
         && !task.deletedAt
         && isTaskInActiveProject(task, projectMap)
     )), [projectMap, tasks]);
-    const waitingDue = useMemo(() => waitingTasks.filter((task) => isDueForReview(task.reviewAt)), [waitingTasks]);
-    const waitingFuture = useMemo(() => waitingTasks.filter((task) => !isDueForReview(task.reviewAt)), [waitingTasks]);
+    const waitingGroups = useMemo(() => partitionByReviewDate(waitingTasks), [waitingTasks]);
     const somedayTasks = useMemo(() => tasks.filter((task) => (
         task.status === 'someday'
         && !task.deletedAt
         && isTaskInActiveProject(task, projectMap)
     )), [projectMap, tasks]);
-    const somedayDue = useMemo(() => somedayTasks.filter((task) => isDueForReview(task.reviewAt)), [somedayTasks]);
-    const somedayFuture = useMemo(() => somedayTasks.filter((task) => !isDueForReview(task.reviewAt)), [somedayTasks]);
+    const somedayGroups = useMemo(() => partitionByReviewDate(somedayTasks), [somedayTasks]);
     const activeProjects = useMemo(
         () => projects.filter((project) => project.status === 'active' && !project.deletedAt),
         [projects],
@@ -233,14 +234,14 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
         ];
         list.push(
             { id: 'calendar', title: t('review.calendarStep'), description: t('review.calendarStepDesc'), icon: Calendar, hasWork: calendarHasWork },
-            { id: 'waiting', title: t('review.waitingStep'), description: t('review.waitingStepDesc'), icon: ArrowRight, hasWork: waitingTasks.length > 0 },
+            { id: 'waiting', title: t('review.waitingStep'), description: t('review.waitingStepDesc'), icon: ArrowRight, hasWork: waitingGroups.due.length + waitingGroups.unscheduled.length > 0 },
         );
         if (includeContextStep) {
             list.push({ id: 'contexts', title: t('review.contexts'), description: t('review.contextsStepDesc'), icon: MapPin, hasWork: contextReviewGroups.length > 0 });
         }
         list.push(
             { id: 'projects', title: t('review.projectsStep'), description: t('review.projectsStepDesc'), icon: Layers, hasWork: orderedProjects.length > 0 },
-            { id: 'someday', title: t('review.somedayStep'), description: t('review.somedayStepDesc'), icon: Archive, hasWork: somedayTasks.length > 0 },
+            { id: 'someday', title: t('review.somedayStep'), description: t('review.somedayStepDesc'), icon: Archive, hasWork: somedayGroups.due.length + somedayGroups.unscheduled.length > 0 },
             { id: 'completed', title: t('review.allDone'), description: t('review.allDoneDesc'), icon: Check, hasWork: true },
         );
         return list;
@@ -252,10 +253,10 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
         inboxTasks.length,
         includeContextStep,
         orderedProjects.length,
-        somedayTasks.length,
+        somedayGroups,
         staleItems.length,
         t,
-        waitingTasks.length,
+        waitingGroups,
     ]);
     const activeSteps = useMemo(
         () => steps.filter((step) => step.hasWork || step.id === 'completed'),
@@ -704,15 +705,20 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                                 </div>
                             ) : (
                                 <>
-                                    {waitingDue.length > 0 && waitingDue.map((task) => (
+                                    {[...waitingGroups.due, ...waitingGroups.unscheduled].map((task) => (
                                         <TaskItem key={task.id} task={task} showProjectBadgeInActions={false} />
                                     ))}
-                                    {waitingFuture.length > 0 && (
+                                    {waitingGroups.scheduled.length > 0 && (
                                         <div className="pt-4">
-                                            <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-                                                {t('review.notDueYet')}
-                                            </h4>
-                                            {waitingFuture.map((task) => (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowScheduledWaiting((prev) => !prev)}
+                                                className="mb-2 flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                                            >
+                                                {showScheduledWaiting ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                                {t('review.notDueYet')} ({waitingGroups.scheduled.length})
+                                            </button>
+                                            {showScheduledWaiting && waitingGroups.scheduled.map((task) => (
                                                 <TaskItem key={task.id} task={task} showProjectBadgeInActions={false} />
                                             ))}
                                         </div>
@@ -957,15 +963,20 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                                 </div>
                             ) : (
                                 <>
-                                    {somedayDue.length > 0 && somedayDue.map((task) => (
+                                    {[...somedayGroups.due, ...somedayGroups.unscheduled].map((task) => (
                                         <TaskItem key={task.id} task={task} showProjectBadgeInActions={false} />
                                     ))}
-                                    {somedayFuture.length > 0 && (
+                                    {somedayGroups.scheduled.length > 0 && (
                                         <div className="pt-4">
-                                            <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-                                                {t('review.notDueYet')}
-                                            </h4>
-                                            {somedayFuture.map((task) => (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowScheduledSomeday((prev) => !prev)}
+                                                className="mb-2 flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                                            >
+                                                {showScheduledSomeday ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                                {t('review.notDueYet')} ({somedayGroups.scheduled.length})
+                                            </button>
+                                            {showScheduledSomeday && somedayGroups.scheduled.map((task) => (
                                                 <TaskItem key={task.id} task={task} showProjectBadgeInActions={false} />
                                             ))}
                                         </div>

@@ -6,6 +6,8 @@ import {
     Brain,
     Calendar as CalendarIcon,
     CheckCircle2,
+    ChevronDown,
+    ChevronRight,
     Clock,
     FolderOpen,
     History,
@@ -20,6 +22,7 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useLanguage } from '../contexts/language-context';
+import { AppPressable } from './app-pressable';
 import { CompactText } from './compact-text';
 import { SwipeableTaskItem } from './swipeable-task-item';
 import { TaskEditModal } from './task-edit-modal';
@@ -47,6 +50,8 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
     const filledButton = useFilledButtonColors();
     const [showInboxProcessing, setShowInboxProcessing] = useState(false);
     const [showMindSweep, setShowMindSweep] = useState(false);
+    const [showScheduledWaiting, setShowScheduledWaiting] = useState(false);
+    const [showScheduledSomeday, setShowScheduledSomeday] = useState(false);
     const {
         aiEnabled,
         aiError,
@@ -82,8 +87,6 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
         nextStep,
         openProjectTaskPrompt,
         openReviewQuickAdd,
-        orderedSomedayTasks,
-        orderedWaitingTasks,
         prevStep,
         progress,
         projectReviewEntries,
@@ -93,6 +96,8 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
         staleProjectItems,
         staleTasks,
         safeStepIndex,
+        scheduledSomedayTasks,
+        scheduledWaitingTasks,
         setProjectTaskTitle,
         showEditModal,
         somedayTasks,
@@ -104,6 +109,8 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
         toggleExpandedProject,
         toggleExternalDayExpanded,
         toggleSuggestion,
+        visibleSomedayTasks,
+        visibleWaitingTasks,
         waitingTasks,
     } = useReviewModalController({ visible, onClose });
     const closeLabel = t('common.close');
@@ -204,7 +211,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
         </ScrollView>
     );
 
-    const renderTaskList = (taskList: Task[]) => (
+    const renderTaskList = (taskList: Task[], footer?: React.ReactElement | null) => (
         <FlatList
             data={taskList}
             renderItem={({ item: task }) => (
@@ -219,6 +226,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
             )}
             keyExtractor={(task) => task.id}
             style={styles.taskList}
+            ListFooterComponent={footer ?? null}
             initialNumToRender={12}
             maxToRenderPerBatch={12}
             windowSize={5}
@@ -227,6 +235,37 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
             showsVerticalScrollIndicator={false}
         />
     );
+
+    const renderScheduledGroup = (scheduled: Task[], expanded: boolean, onToggle: () => void) => {
+        if (scheduled.length === 0) return null;
+        const Chevron = expanded ? ChevronDown : ChevronRight;
+        return (
+            <View style={styles.scheduledSection}>
+                <AppPressable
+                    style={styles.scheduledToggle}
+                    onPress={onToggle}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${labels.notDueYet} (${scheduled.length})`}
+                >
+                    <Chevron size={14} color={tc.secondaryText} strokeWidth={2.2} />
+                    <Text style={[styles.scheduledToggleText, { color: tc.secondaryText }]}>
+                        {labels.notDueYet} ({scheduled.length})
+                    </Text>
+                </AppPressable>
+                {expanded && scheduled.map((task) => (
+                    <SwipeableTaskItem
+                        key={task.id}
+                        task={task}
+                        isDark={isDark}
+                        tc={tc}
+                        onPress={() => handleTaskPress(task)}
+                        onStatusChange={(status) => handleStatusChange(task.id, status)}
+                        onDelete={() => handleDelete(task.id)}
+                    />
+                ))}
+            </View>
+        );
+    };
 
     const renderExternalCalendarList = (days: ExternalCalendarDaySummary[]) => {
         if (externalCalendarLoading) {
@@ -580,7 +619,14 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                                 </Text>
                             </View>
                         ) : (
-                            renderTaskList(orderedWaitingTasks)
+                            renderTaskList(
+                                visibleWaitingTasks,
+                                renderScheduledGroup(
+                                    scheduledWaitingTasks,
+                                    showScheduledWaiting,
+                                    () => setShowScheduledWaiting((prev) => !prev),
+                                ),
+                            )
                         )}
                     </View>
                 );
@@ -709,7 +755,14 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                                 </Text>
                             </View>
                         ) : (
-                            renderTaskList(orderedSomedayTasks)
+                            renderTaskList(
+                                visibleSomedayTasks,
+                                renderScheduledGroup(
+                                    scheduledSomedayTasks,
+                                    showScheduledSomeday,
+                                    () => setShowScheduledSomeday((prev) => !prev),
+                                ),
+                            )
                         )}
                     </View>
                 );

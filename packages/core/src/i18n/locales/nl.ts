@@ -445,6 +445,7 @@ export const nlOverrides: Record<string, string> = {
         'review.staleStep': 'Stilgevallen items',
         'review.staleStepDesc': 'Geen recente activiteit. Werk bij, rond af of laat los.',
         'review.staleDaysInactive': '{{days}} dagen inactief',
+        'review.notDueYet': 'Nog niet aan de beurt',
         'review.advanceWeek': 'Over 1 week bekijken',
         'review.advanceWeekDone': 'Volgende review over 1 week',
         'settings.aiBaseUrlHint': 'Leave blank for official OpenAI. Set this for local or third-party OpenAI-compatible APIs such as Ollama, LM Studio, GLM, or vLLM.',

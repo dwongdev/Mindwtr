@@ -2,7 +2,7 @@ import { addDays, format } from 'date-fns';
 
 import type { ReviewSnapshotItem } from './ai/types';
 import type { Project, Task } from './types';
-import { hasTimeComponent, safeParseDate } from './date';
+import { hasTimeComponent, isDueForReview, safeParseDate } from './date';
 import { isTaskInActiveProject } from './project-utils';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -30,6 +30,42 @@ export function getAdvancedReviewDate(
     return format(target, 'yyyy-MM-dd');
 }
 
+function isFutureDate(value: string | undefined | null, now: Date): boolean {
+    if (!value) return false;
+    const date = safeParseDate(value);
+    return date ? date.getTime() > now.getTime() : false;
+}
+
+export type ReviewSchedulePartition<T> = {
+    due: T[];
+    scheduled: T[];
+    unscheduled: T[];
+};
+
+/**
+ * Splits reviewable items by review date: `due` (review date reached),
+ * `scheduled` (explicitly deferred to a future review date), `unscheduled`
+ * (no review date set).
+ */
+export function partitionByReviewDate<T extends { reviewAt?: string | null }>(
+    items: T[],
+    now: Date = new Date(),
+): ReviewSchedulePartition<T> {
+    const due: T[] = [];
+    const scheduled: T[] = [];
+    const unscheduled: T[] = [];
+    items.forEach((item) => {
+        if (isDueForReview(item.reviewAt, now)) {
+            due.push(item);
+        } else if (isFutureDate(item.reviewAt, now)) {
+            scheduled.push(item);
+        } else {
+            unscheduled.push(item);
+        }
+    });
+    return { due, scheduled, unscheduled };
+}
+
 export function getStaleItems(
     tasks: Task[],
     projects: Project[],
@@ -43,6 +79,8 @@ export function getStaleItems(
         if (task.deletedAt) return;
         if (task.status !== 'next' && task.status !== 'waiting') return;
         if (!isTaskInActiveProject(task, projectMap)) return;
+        // An explicit future review or start date outranks the staleness heuristic.
+        if (isFutureDate(task.reviewAt, now) || isFutureDate(task.startTime, now)) return;
         const updated = new Date(task.updatedAt || task.createdAt);
         if (Number.isNaN(updated.getTime())) return;
         const daysStale = Math.ceil((now.getTime() - updated.getTime()) / DAY_MS);
@@ -61,6 +99,7 @@ export function getStaleItems(
     projects.forEach((project) => {
         if (project.deletedAt) return;
         if (project.status !== 'active') return;
+        if (isFutureDate(project.reviewAt, now)) return;
         const updated = new Date(project.updatedAt || project.createdAt);
         if (Number.isNaN(updated.getTime())) return;
         const daysStale = Math.ceil((now.getTime() - updated.getTime()) / DAY_MS);

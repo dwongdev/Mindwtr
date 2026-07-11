@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAdvancedReviewDate, getStaleItems } from './review-utils';
+import { getAdvancedReviewDate, getStaleItems, partitionByReviewDate } from './review-utils';
 import type { Project, Task } from './types';
 
 const staleUpdatedAt = '2026-01-01T00:00:00.000Z';
@@ -31,13 +31,13 @@ const createProject = (overrides: Partial<Project> = {}): Project => ({
 describe('getStaleItems', () => {
     it('includes task and project scheduling dates in stale review snapshots', () => {
         const task = createTask({
-            startTime: '2026-09-01T09:00:00.000Z',
+            startTime: '2026-01-05T09:00:00.000Z',
             dueDate: '2026-09-05T17:00:00.000Z',
-            reviewAt: '2026-08-15T09:00:00.000Z',
+            reviewAt: '2026-02-15T09:00:00.000Z',
         });
         const project = createProject({
             dueDate: '2026-12-01',
-            reviewAt: '2026-11-01T09:00:00.000Z',
+            reviewAt: '2026-02-01T09:00:00.000Z',
         });
 
         const items = getStaleItems([task], [project], 14, now);
@@ -55,6 +55,57 @@ describe('getStaleItems', () => {
                 reviewAt: project.reviewAt,
             }),
         ]));
+    });
+
+    it('skips tasks explicitly deferred with a future review or start date', () => {
+        const futureReview = createTask({ id: 'task-review', reviewAt: '2026-11-01' });
+        const futureStart = createTask({ id: 'task-start', startTime: '2026-11-01T09:00:00.000Z' });
+        const undated = createTask({ id: 'task-undated' });
+
+        const items = getStaleItems([futureReview, futureStart, undated], [], 14, now);
+
+        expect(items.map((item) => item.id)).toEqual(['task-undated']);
+    });
+
+    it('does not treat a future due date as a deferral', () => {
+        const task = createTask({ id: 'task-due', dueDate: '2026-11-01' });
+
+        const items = getStaleItems([task], [], 14, now);
+
+        expect(items.map((item) => item.id)).toEqual(['task-due']);
+    });
+
+    it('skips projects explicitly deferred with a future review date', () => {
+        const deferred = createProject({ id: 'project-deferred', reviewAt: '2026-11-01' });
+        const undated = createProject({ id: 'project-undated' });
+
+        const items = getStaleItems([], [deferred, undated], 14, now);
+
+        expect(items.map((item) => item.id)).toEqual(['project:project-undated']);
+    });
+});
+
+describe('partitionByReviewDate', () => {
+    it('splits items into due, scheduled, and unscheduled groups', () => {
+        const due = createTask({ id: 'task-due', reviewAt: '2026-02-01' });
+        const scheduled = createTask({ id: 'task-scheduled', reviewAt: '2026-11-01' });
+        const unscheduled = createTask({ id: 'task-unscheduled' });
+
+        const groups = partitionByReviewDate([due, scheduled, unscheduled], now);
+
+        expect(groups.due.map((task) => task.id)).toEqual(['task-due']);
+        expect(groups.scheduled.map((task) => task.id)).toEqual(['task-scheduled']);
+        expect(groups.unscheduled.map((task) => task.id)).toEqual(['task-unscheduled']);
+    });
+
+    it('treats an unparsable review date as unscheduled', () => {
+        const broken = createTask({ id: 'task-broken', reviewAt: 'not a date' });
+
+        const groups = partitionByReviewDate([broken], now);
+
+        expect(groups.unscheduled.map((task) => task.id)).toEqual(['task-broken']);
+        expect(groups.due).toEqual([]);
+        expect(groups.scheduled).toEqual([]);
     });
 });
 
