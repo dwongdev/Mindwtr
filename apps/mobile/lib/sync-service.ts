@@ -1574,7 +1574,21 @@ class MobileSyncRun {
   }
 }
 
+// A follow-up cycle (requeued after mid-cycle edits or a lifecycle abort) waits at
+// least as long as the finished cycle took (capped at a minute) so slow devices get
+// breathing room for user interactions instead of back-to-back sync cycles (#766).
+const MIN_FOLLOW_UP_DELAY_MS = 1_000;
+const MAX_FOLLOW_UP_DELAY_MS = 60_000;
+
 const mobileSyncOrchestrator = createSyncOrchestrator<MobileSyncRequest | undefined, MobileSyncResult>({
+  getFollowUpDelayMs: (lastCycleDurationMs) => {
+    const delayMs = Math.min(Math.max(lastCycleDurationMs, MIN_FOLLOW_UP_DELAY_MS), MAX_FOLLOW_UP_DELAY_MS);
+    logSyncInfo('Sync follow-up scheduled', {
+      delayMs: String(delayMs),
+      lastCycleDurationMs: String(lastCycleDurationMs),
+    });
+    return delayMs;
+  },
   runCycle: async (request, { requestFollowUp }) => {
     const rawBackend = (await getCachedConfigValue(SYNC_BACKEND_KEY))?.trim() ?? null;
     const backend: SyncBackend = getSupportedBackend(rawBackend);

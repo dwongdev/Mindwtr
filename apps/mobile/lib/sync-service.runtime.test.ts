@@ -763,7 +763,9 @@ describe('mobile sync-service runtime', () => {
     expect(coreMocks.cloudPutJson).toHaveBeenCalledTimes(1);
     expect(coreMocks.cloudHeadJson).not.toHaveBeenCalled();
     expect(asyncStorageMocks.setItem.mock.calls.some(([key]) => key === '@mindwtr_fast_sync_state_v1')).toBe(false);
-    await vi.waitFor(() => expect(coreMocks.performSyncCycle).toHaveBeenCalledTimes(2));
+    // The follow-up cycle is paced by at least MIN_FOLLOW_UP_DELAY_MS (1s) after the
+    // first cycle completes, so give it room beyond vi.waitFor's 1s default.
+    await vi.waitFor(() => expect(coreMocks.performSyncCycle).toHaveBeenCalledTimes(2), { timeout: 5_000 });
     syncServiceModule.__mobileSyncTestUtils.reset();
     vi.clearAllMocks();
   });

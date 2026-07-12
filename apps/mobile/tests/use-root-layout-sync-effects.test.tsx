@@ -344,6 +344,89 @@ describe('useRootLayoutSyncEffects', () => {
     vi.useRealTimers();
   });
 
+  it('skips the payload fingerprint entirely when lastDataChangeAt is unchanged', async () => {
+    const storeListeners: Array<(state: { lastDataChangeAt: number }, prevState: { lastDataChangeAt: number }) => void> = [];
+    storeSubscribe.mockImplementation((...args: unknown[]) => {
+      const callback = args[0] as (state: { lastDataChangeAt: number }, prevState: { lastDataChangeAt: number }) => void;
+      storeListeners.push(callback);
+      return vi.fn();
+    });
+
+    let tree: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<TestHarness />);
+      await flushMicrotasks();
+    });
+    computeSyncPayloadFingerprint.mockClear();
+    const storeListener = storeListeners.find((callback) => callback.length >= 2);
+    expect(storeListener).toBeTypeOf('function');
+
+    await act(async () => {
+      storeListener?.({ lastDataChangeAt: 1 }, { lastDataChangeAt: 1 });
+      await flushMicrotasks();
+    });
+
+    expect(computeSyncPayloadFingerprint).not.toHaveBeenCalled();
+
+    await act(async () => {
+      tree.unmount();
+    });
+  });
+
+  it('stretches the auto-sync interval after a slow sync cycle', async () => {
+    vi.useFakeTimers();
+    const storeListeners: Array<(state: { lastDataChangeAt: number }, prevState: { lastDataChangeAt: number }) => void> = [];
+    storeSubscribe.mockImplementation((...args: unknown[]) => {
+      const callback = args[0] as (state: { lastDataChangeAt: number }, prevState: { lastDataChangeAt: number }) => void;
+      storeListeners.push(callback);
+      return vi.fn();
+    });
+    let fingerprintVersion = 0;
+    computeSyncPayloadFingerprint.mockImplementation(() => `sync-payload:${fingerprintVersion}`);
+    // Each sync cycle takes 20s, so the adaptive interval becomes 40s from cycle end.
+    performMobileSync.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve({ success: true }), 20_000)),
+    );
+
+    let tree: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(<TestHarness />);
+      await flushMicrotasks();
+    });
+    performMobileSync.mockClear();
+    const storeListener = storeListeners.find((callback) => callback.length >= 2);
+    expect(storeListener).toBeTypeOf('function');
+
+    await act(async () => {
+      fingerprintVersion += 1;
+      storeListener?.({ lastDataChangeAt: 2 }, { lastDataChangeAt: 1 });
+      // Debounce (2s) + throttle to the 5s remote min interval + 20s cycle duration.
+      await vi.advanceTimersByTimeAsync(26_000);
+      await flushMicrotasks();
+    });
+    expect(performMobileSync).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fingerprintVersion += 1;
+      storeListener?.({ lastDataChangeAt: 3 }, { lastDataChangeAt: 2 });
+      // Well past the 5s base interval, but within the 40s adaptive interval.
+      await vi.advanceTimersByTimeAsync(20_000);
+      await flushMicrotasks();
+    });
+    expect(performMobileSync).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(45_000);
+      await flushMicrotasks();
+    });
+    expect(performMobileSync).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      tree.unmount();
+    });
+    vi.useRealTimers();
+  });
+
   it('does not queue duplicate foreground syncs for repeated active AppState events', async () => {
     vi.useFakeTimers();
     let tree: ReturnType<typeof create>;

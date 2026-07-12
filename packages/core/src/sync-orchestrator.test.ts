@@ -97,6 +97,62 @@ describe('sync orchestrator', () => {
         expect(calls).toBe(2);
     });
 
+    it('delays a queued follow-up by getFollowUpDelayMs instead of re-running immediately', async () => {
+        vi.useFakeTimers();
+        try {
+            const calls: number[] = [];
+            const orchestrator = createSyncOrchestrator<undefined, number>({
+                getFollowUpDelayMs: () => 5_000,
+                runCycle: async (_arg, { requestFollowUp }) => {
+                    calls.push(calls.length + 1);
+                    if (calls.length === 1) {
+                        requestFollowUp();
+                    }
+                    return calls.length;
+                },
+            });
+
+            await orchestrator.run(undefined);
+            expect(calls).toHaveLength(1);
+
+            await vi.advanceTimersByTimeAsync(4_999);
+            expect(calls).toHaveLength(1);
+
+            await vi.advanceTimersByTimeAsync(1);
+            expect(calls).toHaveLength(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('lets a direct run during the follow-up delay absorb the queued cycle', async () => {
+        vi.useFakeTimers();
+        try {
+            const calls: Array<string | undefined> = [];
+            const orchestrator = createSyncOrchestrator<string | undefined, number>({
+                getFollowUpDelayMs: () => 5_000,
+                runCycle: async (arg, { requestFollowUp }) => {
+                    calls.push(arg);
+                    if (calls.length === 1) {
+                        requestFollowUp();
+                    }
+                    return calls.length;
+                },
+            });
+
+            await orchestrator.run('first');
+            expect(calls).toHaveLength(1);
+
+            await orchestrator.run('manual');
+            expect(calls).toHaveLength(2);
+
+            await vi.advanceTimersByTimeAsync(10_000);
+            expect(calls).toHaveLength(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('treats synchronous re-entrant calls as queued while the first cycle is in flight', async () => {
         const args: Array<string | undefined> = [];
         const nestedCallStates: Array<{ inFlight: boolean; queued: boolean }> = [];

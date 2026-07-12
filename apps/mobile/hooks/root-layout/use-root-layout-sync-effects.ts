@@ -47,6 +47,11 @@ type SyncUiCopy = {
 
 const AUTO_SYNC_BACKEND_CACHE_TTL_MS = 5_000;
 const APP_STATE_TRIGGER_DEDUPE_MS = 1_000;
+// Auto-sync pacing adapts to how long cycles actually take on this device/dataset:
+// the idle gap after a cycle is at least twice the cycle duration (capped), so slow
+// cycles cannot occupy the app back-to-back while the user is working (#766).
+const ADAPTIVE_SYNC_DURATION_MULTIPLIER = 2;
+const MAX_ADAPTIVE_SYNC_INTERVAL_MS = 5 * 60_000;
 const AUTO_SYNC_CADENCE_FILE: AutoSyncCadence = {
     minIntervalMs: 30_000,
     debounceFirstChangeMs: 8_000,
@@ -134,6 +139,7 @@ export function useRootLayoutSyncEffects({
 }: UseRootLayoutSyncEffectsParams) {
     const appState = useRef(AppState.currentState);
     const lastAutoSyncAt = useRef(0);
+    const lastSyncDurationMs = useRef(0);
     const syncDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const syncThrottleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const widgetRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -212,9 +218,17 @@ export function useRootLayoutSyncEffects({
     }, []);
 
     const runSync = useCallback((minIntervalMs?: number) => {
-        const effectiveMinIntervalMs = typeof minIntervalMs === 'number'
+        const requestedMinIntervalMs = typeof minIntervalMs === 'number'
             ? minIntervalMs
             : syncCadenceRef.current.minIntervalMs;
+        // Explicit 0 (manual sync, app-state transitions) bypasses pacing entirely;
+        // auto triggers stretch the interval when cycles run long on this device.
+        const effectiveMinIntervalMs = requestedMinIntervalMs > 0
+            ? Math.max(
+                requestedMinIntervalMs,
+                Math.min(lastSyncDurationMs.current * ADAPTIVE_SYNC_DURATION_MULTIPLIER, MAX_ADAPTIVE_SYNC_INTERVAL_MS),
+            )
+            : requestedMinIntervalMs;
         if (!isActive.current) return;
         if (syncInFlight.current && appState.current !== 'active') {
             backgroundSyncPending.current = true;
@@ -238,6 +252,7 @@ export function useRootLayoutSyncEffects({
         lastAutoSyncAt.current = now;
         syncPending.current = false;
 
+        const syncStartedAt = now;
         const appStateAtSyncStart = appState.current;
         syncInFlight.current = (async () => {
             await flushPendingSave().catch(logAppError);
@@ -287,6 +302,10 @@ export function useRootLayoutSyncEffects({
             }
         })().finally(() => {
             syncInFlight.current = null;
+            // Measure the pacing interval from cycle END: a cycle that runs longer
+            // than the interval must not roll straight into the next one (#766).
+            lastSyncDurationMs.current = Date.now() - syncStartedAt;
+            lastAutoSyncAt.current = Date.now();
             if (appStateAtSyncStart !== 'active' && backgroundSyncPending.current) {
                 backgroundSyncPending.current = false;
                 syncPending.current = true;
@@ -314,12 +333,15 @@ export function useRootLayoutSyncEffects({
         reconcileBackgroundSyncTask();
         lastAutoSyncPayloadFingerprint.current = readCurrentSyncPayloadFingerprint();
         const unsubscribe = useTaskStore.subscribe((state, prevState) => {
+            // Cheap check first: the fingerprint is a full-dataset serialize and must
+            // not run on every store update (#766). Data writes always bump
+            // lastDataChangeAt, so skipping the fingerprint here is safe.
+            if (state.lastDataChangeAt === prevState.lastDataChangeAt) return;
             const currentFingerprint = readCurrentSyncPayloadFingerprint();
             const previousFingerprint = lastAutoSyncPayloadFingerprint.current;
             if (currentFingerprint) {
                 lastAutoSyncPayloadFingerprint.current = currentFingerprint;
             }
-            if (state.lastDataChangeAt === prevState.lastDataChangeAt) return;
             if (currentFingerprint && previousFingerprint && currentFingerprint === previousFingerprint) return;
             const cadence = syncCadenceRef.current;
             const hadTimer = !!syncDebounceTimer.current;
