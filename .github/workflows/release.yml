@@ -694,6 +694,21 @@ jobs:
     with:
       tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
+  # Stable releases also land in the beta repos (matching the Flathub beta
+  # branch behavior) so beta-repo users pick stable back up after a test
+  # cycle. Runs after the stable repo publish: both jobs push to gh-pages and
+  # would race otherwise.
+  update-linux-repos-beta:
+    needs: [release, update-linux-repos]
+    if: ${{ always() && needs.update-linux-repos.result == 'success' && !contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish-repo.yml
+    secrets: inherit
+    with:
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      channel: beta
+
   publish-chocolatey:
     needs: release
     runs-on: windows-2025-vs2026

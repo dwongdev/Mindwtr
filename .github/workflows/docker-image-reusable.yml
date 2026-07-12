@@ -136,9 +136,13 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          # Every version tag (RC and stable) moves the floating `beta` tag so
+          # beta-tag users track RCs and still pick stable back up without
+          # switching tags; `latest` stays on stable semver only.
           tags: |
             type=semver,pattern={{version}}
             type=ref,event=branch
+            type=raw,value=beta,enable=${{ startsWith(inputs.tag != '' && inputs.tag || github.ref_name, 'v') }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}

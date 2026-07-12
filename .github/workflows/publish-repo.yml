@@ -8,11 +8,24 @@ on:
         description: "Release tag to publish (e.g. v0.6.3)"
         required: true
         type: string
+      channel:
+        description: "Repo channel to publish into (stable = deb/rpm, beta = deb-beta/rpm-beta)"
+        required: false
+        default: stable
+        type: choice
+        options:
+          - stable
+          - beta
   workflow_call:
     inputs:
       tag:
         description: "Release tag to publish (e.g. v0.6.3)"
         required: false
+        type: string
+      channel:
+        description: "Repo channel to publish into (stable = deb/rpm, beta = deb-beta/rpm-beta)"
+        required: false
+        default: stable
         type: string
 
 permissions:
@@ -29,6 +42,9 @@ jobs:
   build-repo:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
+    env:
+      REPO_CHANNEL: ${{ inputs.channel == 'beta' && 'beta' || 'stable' }}
+      REPO_DIR_SUFFIX: ${{ inputs.channel == 'beta' && '-beta' || '' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -91,16 +107,18 @@ jobs:
       - name: Prepare Repo Directories
         run: |
           set -euo pipefail
-          mkdir -p build_repo/deb build_repo/rpm
+          # Beta packages live in sibling deb-beta/rpm-beta trees so RC installs
+          # are opt-in; the stable deb/rpm trees are never touched by RC runs.
+          mkdir -p "build_repo/deb${REPO_DIR_SUFFIX}" "build_repo/rpm${REPO_DIR_SUFFIX}"
           shopt -s nullglob
           debs=( *.deb )
           rpms=( *.rpm )
-          if (( ${#debs[@]} > 0 )); then mv -- "${debs[@]}" build_repo/deb/; fi
-          if (( ${#rpms[@]} > 0 )); then mv -- "${rpms[@]}" build_repo/rpm/; fi
+          if (( ${#debs[@]} > 0 )); then mv -- "${debs[@]}" "build_repo/deb${REPO_DIR_SUFFIX}/"; fi
+          if (( ${#rpms[@]} > 0 )); then mv -- "${rpms[@]}" "build_repo/rpm${REPO_DIR_SUFFIX}/"; fi
           gpg --armor --export > build_repo/mindwtr.gpg.key
 
       - name: Build DEB Repo
-        working-directory: build_repo/deb
+        working-directory: build_repo/deb${{ inputs.channel == 'beta' && '-beta' || '' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y apt-utils
@@ -110,7 +128,7 @@ jobs:
           gpg --batch --yes -abs -o Release.gpg Release
 
       - name: Build RPM Repo
-        working-directory: build_repo/rpm
+        working-directory: build_repo/rpm${{ inputs.channel == 'beta' && '-beta' || '' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y createrepo-c
@@ -159,5 +177,5 @@ jobs:
             exit 0
           fi
 
-          git -C "$pages_dir" commit -m "Publish Linux repos for ${RELEASE_TAG:-${GITHUB_REF_NAME}}"
+          git -C "$pages_dir" commit -m "Publish Linux ${REPO_CHANNEL} repos for ${RELEASE_TAG:-${GITHUB_REF_NAME}}"
           git -C "$pages_dir" push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages

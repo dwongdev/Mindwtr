@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       tag:
-        description: 'RC tag to publish to mindwtr-bin-beta (e.g., v1.0.5-rc.1)'
+        description: 'RC or stable tag to publish to mindwtr-bin-beta (e.g., v1.0.5-rc.1 or v1.0.5)'
         required: true
         type: string
     secrets:
@@ -48,8 +48,10 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           set -euo pipefail
-          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
-            echo "mindwtr-bin-beta must be updated from an RC tag like v1.0.5-rc.1; got: $TAG" >&2
+          # Stable tags are allowed too: every stable release also lands in the
+          # beta channels so beta users never have to hop back to stay current.
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]; then
+            echo "mindwtr-bin-beta must be updated from an RC or stable tag like v1.0.5-rc.1 or v1.0.5; got: $TAG" >&2
             exit 1
           fi
 

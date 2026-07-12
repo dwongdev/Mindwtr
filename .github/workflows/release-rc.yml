@@ -40,6 +40,11 @@ on:
         required: false
         default: true
         type: boolean
+      run_linux_repos_beta:
+        description: 'Publish the RC deb/rpm packages to the beta apt/rpm repos'
+        required: false
+        default: true
+        type: boolean
       testflight_group:
         description: 'External TestFlight group used only when manual distribution is enabled'
         required: false
@@ -491,4 +496,16 @@ jobs:
     uses: ./.github/workflows/update-aur-beta.yml
     with:
       tag: ${{ needs.validate.outputs.tag }}
+    secrets: inherit
+
+  linux-repos-beta:
+    if: ${{ always() && needs.validate.outputs.retag_recovery != 'true' && needs.prerelease.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.run_linux_repos_beta) }}
+    needs: [validate, prerelease]
+    name: Update Linux Beta Repos
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish-repo.yml
+    with:
+      tag: ${{ needs.validate.outputs.tag }}
+      channel: beta
     secrets: inherit
