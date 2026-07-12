@@ -355,6 +355,12 @@ export const createAreaActions = ({
                 return state;
             }
             const deviceState = ensureDeviceId(state.settings);
+            // deleteArea DETACHES children (clears areaId, keeps them live), so
+            // under the current model nothing below ever matches this timestamp.
+            // The cascade-restore sweep exists only for data written by old app
+            // versions whose area delete cascaded deletedAt onto children — do
+            // not read it as the current delete model (see P2: detach, never
+            // cascade).
             const cascadeDeletedAt = area.deletedAt;
             const newAllAreas = state._allAreas
                 .map((item) => (
