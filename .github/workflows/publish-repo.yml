@@ -34,8 +34,11 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+# All repo publishes serialize on one group regardless of tag: every run pushes
+# to the same gh-pages branch, and two runs on different refs (an RC and a
+# hotfix, say) would otherwise race the push.
 concurrency:
-  group: publish-repo-${{ github.ref }}
+  group: publish-repo-gh-pages
   cancel-in-progress: false
 
 jobs:
@@ -214,17 +217,51 @@ jobs:
             find "$pages_dir" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           fi
 
-          rsync -a ./build_repo/ "$pages_dir"/
-          touch "$pages_dir/.nojekyll"
-
           git -C "$pages_dir" config user.name "GitHub Actions"
           git -C "$pages_dir" config user.email "actions@github.com"
-          git -C "$pages_dir" add -A
 
-          if git -C "$pages_dir" diff --cached --quiet; then
-            echo "No gh-pages changes to publish."
-            exit 0
-          fi
+          stage_repo() {
+            # Each publish regenerates its channel's index from scratch, so the
+            # channel dir must mirror this release exactly: --delete drops
+            # superseded pool packages and stale repodata that would otherwise
+            # accumulate unindexed forever. Other channels' dirs and root files
+            # (GPG key) are left untouched.
+            local channel_dir name
+            for channel_dir in ./build_repo/*/; do
+              name="$(basename "$channel_dir")"
+              mkdir -p "$pages_dir/$name"
+              rsync -a --delete "$channel_dir" "$pages_dir/$name/"
+            done
+            rsync -a --exclude='*/' ./build_repo/ "$pages_dir"/
+            touch "$pages_dir/.nojekyll"
+          }
 
-          git -C "$pages_dir" commit -m "Publish Linux ${REPO_CHANNEL} repos for ${RELEASE_TAG:-${GITHUB_REF_NAME}}"
-          git -C "$pages_dir" push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages
+          for attempt in 1 2 3; do
+            if [ "$attempt" -gt 1 ]; then
+              echo "Retrying gh-pages publish (attempt ${attempt}/3) on the latest branch tip"
+              sleep $((attempt * 5))
+              if git fetch origin gh-pages:refs/remotes/origin/gh-pages 2>/dev/null; then
+                git -C "$pages_dir" reset --hard origin/gh-pages
+              fi
+            fi
+
+            stage_repo
+            git -C "$pages_dir" add -A
+
+            if ! git -C "$pages_dir" diff --cached --quiet; then
+              git -C "$pages_dir" commit -m "Publish Linux ${REPO_CHANNEL} repos for ${RELEASE_TAG:-${GITHUB_REF_NAME}}"
+            fi
+
+            if git -C "$pages_dir" rev-parse --verify --quiet refs/remotes/origin/gh-pages >/dev/null \
+              && [ "$(git -C "$pages_dir" rev-parse HEAD)" = "$(git -C "$pages_dir" rev-parse refs/remotes/origin/gh-pages)" ]; then
+              echo "gh-pages already up to date."
+              exit 0
+            fi
+
+            if git -C "$pages_dir" push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages; then
+              exit 0
+            fi
+          done
+
+          echo "Failed to publish gh-pages after 3 attempts." >&2
+          exit 1
