@@ -1,5 +1,5 @@
 import { safeParseDate } from './date';
-import { logWarn } from './logger';
+import { logInfo, logWarn } from './logger';
 import { purgeExpiredTombstones } from './sync';
 import { markCoreStartupPhase, measureCoreStartupPhase } from './startup-profiler';
 import { normalizeTaskForLoad } from './task-status';
@@ -46,6 +46,8 @@ const TASK_EDITOR_LEAN_DEFAULT_HIDDEN: TaskEditorFieldId[] = [
     'location',
 ];
 const STORAGE_TIMEOUT_MS = 15_000;
+// Runtime diagnostic threshold: loads slower than this get a phase-breakdown log line.
+const SLOW_FETCH_LOG_THRESHOLD_MS = 1_000;
 const getFetchDataErrorMessage = (error: unknown): string => {
     const detail = error instanceof Error ? error.message : String(error ?? '');
     const trimmed = detail.trim();
@@ -579,10 +581,16 @@ export const createSettingsActions = ({
      */
     fetchData: async (options) => {
         markCoreStartupPhase('core.fetch_data.start');
+        const fetchInvokedAt = Date.now();
+        let flushMs = 0;
+        let storageReadMs = 0;
+        let setStateMs = 0;
         if (hasPendingSaveWork()) {
+            const flushStartedAt = Date.now();
             await measureCoreStartupPhase('core.fetch_data.flush_pending_save', async () => {
                 await flushPendingSave();
             });
+            flushMs = Date.now() - flushStartedAt;
         } else {
             markCoreStartupPhase('core.fetch_data.flush_pending_save.skipped', { reason: 'no_pending_work' });
         }
@@ -608,10 +616,12 @@ export const createSettingsActions = ({
             // document sync just wrote); it skips the storage read but runs the exact
             // same load pipeline, and the lastDataChangeAt guard below still discards
             // it if local edits landed in the meantime.
+            const storageReadStartedAt = Date.now();
             const data = options?.preloadedData
                 ?? await measureCoreStartupPhase('core.fetch_data.storage_get_data', async () =>
                     withTimeout(getStorage().getData(), STORAGE_TIMEOUT_MS, 'Storage request timed out')
                 );
+            storageReadMs = options?.preloadedData ? 0 : Date.now() - storageReadStartedAt;
             const postProcessStartedAt = Date.now();
             markCoreStartupPhase('core.fetch_data.post_process:start');
             const rawTasks = Array.isArray(data.tasks) ? data.tasks : [];
@@ -1066,8 +1076,10 @@ export const createSettingsActions = ({
                     });
                 }
             }
-            markCoreStartupPhase('core.fetch_data.post_process:end', { durationMs: Date.now() - postProcessStartedAt });
+            const postProcessMs = Date.now() - postProcessStartedAt;
+            markCoreStartupPhase('core.fetch_data.post_process:end', { durationMs: postProcessMs });
             let skippedDueToConcurrentLocalChange = false;
+            const setStateStartedAt = Date.now();
             await measureCoreStartupPhase('core.fetch_data.zustand_set_state', async () => {
                 set((state) => {
                     if (state.lastDataChangeAt > fetchStartedAt) {
@@ -1116,6 +1128,26 @@ export const createSettingsActions = ({
                     };
                 });
             });
+            setStateMs = Date.now() - setStateStartedAt;
+            const totalFetchMs = Date.now() - fetchInvokedAt;
+            // Runtime diagnostic for shared beta logs: break the load pipeline down so a
+            // slow refresh can be attributed to save-flush, storage read, or JS processing.
+            if (totalFetchMs >= SLOW_FETCH_LOG_THRESHOLD_MS) {
+                logInfo('Slow data load pipeline', {
+                    scope: 'store',
+                    category: 'storage',
+                    context: {
+                        totalMs: totalFetchMs,
+                        flushMs,
+                        storageReadMs,
+                        postProcessMs,
+                        setStateMs,
+                        preloaded: Boolean(options?.preloadedData),
+                        taskCount: allTasks.length,
+                        skippedByLocalChange: skippedDueToConcurrentLocalChange,
+                    },
+                });
+            }
             if (skippedDueToConcurrentLocalChange) {
                 markCoreStartupPhase('core.fetch_data.skipped_local_change');
                 logWarn('Skipped fetch result because local data changed during fetch', {

@@ -93,7 +93,7 @@ const logStorageError = (message: string, error?: unknown) => {
 
 const warnPreferJsonBackup = () => {
     if (didWarnPreferJsonBackup) return;
-    logStorageWarn('[Storage] SQLite unavailable; using JSON backup for reads until restart.');
+    logStorageWarn('[Storage] SQLite unavailable; using JSON backup for reads until SQLite recovers.');
     didWarnPreferJsonBackup = true;
 };
 
@@ -624,14 +624,26 @@ const createStorage = (): StorageAdapter => {
             }
         },
         saveData: async (data: AppData): Promise<void> => {
+            const enqueuedAtMs = Date.now();
             return enqueueSave(async () => {
                 markStartupPhase('mobile.storage.save_data.start');
+                const queueWaitMs = Date.now() - enqueuedAtMs;
                 const queuedWriteStartedAtMs = markQueuedWriteStarted();
                 try {
                     if (!shouldUseSqlite) {
                         throw new Error('SQLite disabled in Expo Go');
                     }
                     const { adapter } = await measureStartupPhase('mobile.storage.save_data.sqlite_get_state', async () => getSqliteState());
+                    // Sample JS-thread congestion alongside the write: a setTimeout(0)
+                    // that resolves late means the thread is starved, which inflates every
+                    // awaited SQL statement (large beginMs) without SQLite being at fault.
+                    // Not awaited, so it never delays the write; it has always resolved by
+                    // the time a save is slow enough to hit the log threshold.
+                    let eventLoopLagMs = -1;
+                    const lagProbeStartedAt = Date.now();
+                    setTimeout(() => {
+                        eventLoopLagMs = Date.now() - lagProbeStartedAt;
+                    }, 0);
                     const writeStartedAt = Date.now();
                     await measureStartupPhase('mobile.storage.save_data.sqlite_write', async () => adapter.saveData(data));
                     const writeMs = Date.now() - writeStartedAt;
@@ -639,6 +651,8 @@ const createStorage = (): StorageAdapter => {
                         const stats = adapter.getLastSaveDataStats?.();
                         logStorageInfo('[Storage] Slow SQLite save', {
                             writeMs: String(writeMs),
+                            queueWaitMs: String(queueWaitMs),
+                            eventLoopLagMs: String(eventLoopLagMs),
                             ...(stats
                                 ? {
                                     rowsWritten: String(stats.writtenRows),
