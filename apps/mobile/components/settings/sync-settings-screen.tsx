@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+    listMergeConflictSamples,
     summarizeMergeStats,
+    translateWithFallback,
     useTaskStore,
 } from '@mindwtr/core';
 
@@ -131,6 +133,37 @@ function SyncSettingsView({
     const maxClockSkewMs = lastSyncSummary.maxClockSkewMs;
     const timestampAdjustments = lastSyncSummary.timestampAdjustments;
     const conflictIds = lastSyncSummary.conflictIds.slice(0, 6);
+    const conflictLines = useMemo(() => {
+        const samples = listMergeConflictSamples(lastSyncStats).slice(0, 6);
+        if (samples.length === 0) return [];
+        const state = useTaskStore.getState();
+        const findTitle = (sample: (typeof samples)[number]): string => {
+            const { id } = sample;
+            const entity = sample.entity === 'task'
+                ? state._allTasks.find((item) => item.id === id)
+                : sample.entity === 'project'
+                    ? state._allProjects.find((item) => item.id === id)
+                    : sample.entity === 'section'
+                        ? state._allSections.find((item) => item.id === id)
+                        : sample.entity === 'area'
+                            ? state._allAreas.find((item) => item.id === id)
+                            : state._allPeople.find((item) => item.id === id);
+            if (!entity) return id;
+            return ('title' in entity ? entity.title : entity.name) || id;
+        };
+        return samples.map((sample) => {
+            const outcome = sample.winner === 'incoming'
+                ? translateWithFallback(t, 'settings.syncConflictKeptOtherDevice', 'kept the synced version')
+                : translateWithFallback(t, 'settings.syncConflictKeptThisDevice', "kept this device's version");
+            const detail = sample.reasons.includes('deleteState')
+                ? translateWithFallback(t, 'settings.syncConflictDeleteRestore', 'delete vs. edit')
+                : sample.diffKeys.length > 0
+                    ? translateWithFallback(t, 'settings.syncConflictChanged', 'changed: {{fields}}').replace('{{fields}}', sample.diffKeys.join(', '))
+                    : '';
+            const title = findTitle(sample);
+            return detail ? `“${title}” — ${outcome} (${detail})` : `“${title}” — ${outcome}`;
+        });
+    }, [lastSyncStats, t]);
     const loggingEnabled = settings.diagnostics?.loggingEnabled === true;
     const analyticsHeartbeatAvailable = isMobileAnalyticsHeartbeatConfigured({
         analyticsHeartbeatUrl,
@@ -594,6 +627,7 @@ function SyncSettingsView({
         <SyncLastStatusCard
             conflictCount={syncConflictCount}
             conflictIds={conflictIds}
+            conflictLines={conflictLines}
             historyContent={renderSyncHistory()}
             lastSyncAt={settings.lastSyncAt}
             lastSyncError={settings.lastSyncError}

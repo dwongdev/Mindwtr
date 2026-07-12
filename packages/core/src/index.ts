@@ -258,9 +258,12 @@ export {
     buildConflictDiagnosticsLogExtra,
     buildMergeSummaryLog,
     buildPendingAttachmentUploadLogExtra,
+    listMergeConflictSamples,
     summarizeMergeStats,
 } from './sync-log-utils';
 export type {
+    ConflictSampleEntity,
+    EntityConflictSample,
     MergeStatsSummary,
 } from './sync-log-utils';
 

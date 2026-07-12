@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildMergeSummaryLog, summarizeMergeStats } from './sync-log-utils';
-import type { EntityMergeStats, MergeStats } from './sync-types';
+import { buildMergeSummaryLog, listMergeConflictSamples, summarizeMergeStats } from './sync-log-utils';
+import type { EntityMergeStats, MergeConflictSample, MergeStats } from './sync-types';
 
 const entityStats = (overrides: Partial<EntityMergeStats> = {}): EntityMergeStats => ({
     localTotal: 0,
@@ -62,5 +62,35 @@ describe('sync log utils', () => {
             conflicts: '1',
             conflictIds: 'area-1',
         });
+    });
+
+    it('lists conflict samples tagged with their entity type', () => {
+        const sample = (id: string): MergeConflictSample => ({
+            id,
+            winner: 'incoming',
+            reasons: ['content'],
+            hasRevision: true,
+            timeDiffMs: 0,
+            localUpdatedAt: '2026-01-01T00:00:00.000Z',
+            incomingUpdatedAt: '2026-01-01T00:00:01.000Z',
+            localRev: 1,
+            incomingRev: 2,
+            localComparableHash: 'aaa',
+            incomingComparableHash: 'bbb',
+            diffKeys: ['title'],
+        });
+
+        expect(listMergeConflictSamples(null)).toEqual([]);
+        expect(listMergeConflictSamples(mergeStats())).toEqual([]);
+
+        const samples = listMergeConflictSamples(mergeStats({
+            tasks: entityStats({ conflictSamples: [sample('task-1')] }),
+            areas: entityStats({ conflictSamples: [sample('area-1')] }),
+        }));
+
+        expect(samples.map((item) => [item.entity, item.id])).toEqual([
+            ['task', 'task-1'],
+            ['area', 'area-1'],
+        ]);
     });
 });

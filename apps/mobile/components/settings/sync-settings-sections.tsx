@@ -13,6 +13,7 @@ type SettingsTranslator = (key: string, values?: Record<string, string | number 
 type SyncLastStatusCardProps = {
   conflictCount: number;
   conflictIds: string[];
+  conflictLines: string[];
   historyContent?: ReactNode;
   lastSyncAt?: string;
   lastSyncError?: string;
@@ -27,6 +28,7 @@ type SyncLastStatusCardProps = {
 export function SyncLastStatusCard({
   conflictCount,
   conflictIds,
+  conflictLines,
   historyContent,
   lastSyncAt,
   lastSyncError,
@@ -62,7 +64,12 @@ export function SyncLastStatusCard({
               {t('settings.lastSyncAdjusted')}: {timestampAdjustments}
             </Text>
           )}
-          {showLastSyncStats && conflictIds.length > 0 && (
+          {showLastSyncStats && conflictLines.map((line, index) => (
+            <Text key={`${index}-${line}`} style={[styles.settingDescription, { color: tc.secondaryText }]}>
+              {line}
+            </Text>
+          ))}
+          {showLastSyncStats && conflictLines.length === 0 && conflictIds.length > 0 && (
             <Text style={[styles.settingDescription, { color: tc.secondaryText }]}>
               {t('settings.lastSyncConflictIds')}: {conflictIds.join(', ')}
             </Text>

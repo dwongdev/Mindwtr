@@ -1811,6 +1811,10 @@ export class SyncService {
             {
                 scope: 'sync',
                 extra: mergeLog.extra,
+                // Resolved conflicts must stay auditable in mindwtr.log even when
+                // diagnostics logging is off; the extra carries ids and field names
+                // only, never task content (#854).
+                force: mergeLog.summary.conflicts > 0,
             }
         );
     }

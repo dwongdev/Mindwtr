@@ -100,6 +100,10 @@ export type SettingsSyncLabels = {
     lastSyncSkew: string;
     lastSyncAdjusted: string;
     lastSyncConflictIds: string;
+    syncConflictKeptThisDevice: string;
+    syncConflictKeptOtherDevice: string;
+    syncConflictChanged: string;
+    syncConflictDeleteRestore: string;
     syncHistory: string;
     recoverySnapshots: string;
     recoverySnapshotsDesc: string;

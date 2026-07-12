@@ -40,6 +40,7 @@ interface LayoutProps {
     children: React.ReactNode;
     currentView: string;
     onViewChange: (view: string) => void;
+    onOpenSyncSettings?: () => void;
 }
 
 type NavItem = {
@@ -85,7 +86,7 @@ function saveCollapsedSections(keys: Set<string>) {
     }
 }
 
-export function Layout({ children, currentView, onViewChange }: LayoutProps) {
+export function Layout({ children, currentView, onViewChange, onOpenSyncSettings }: LayoutProps) {
     const { tasks, projects, areas, settings, updateSettings, error, setError } = useTaskStore((state) => ({
         tasks: state.tasks,
         projects: state.projects,
@@ -729,12 +730,19 @@ export function Layout({ children, currentView, onViewChange }: LayoutProps) {
                                         <span
                                             className={cn(
                                                 "inline-flex min-w-0 items-center gap-1.5 pl-6 text-[11px] leading-none text-muted-foreground",
-                                                (!isOnline || lastSyncStatus === 'error' || lastSyncStatus === 'conflict' || syncFreshness === 'old' || syncFreshness === 'stale') && "text-foreground"
+                                                (!isOnline || lastSyncStatus === 'error' || lastSyncStatus === 'conflict' || syncFreshness === 'old' || syncFreshness === 'stale') && "text-foreground",
+                                                onOpenSyncSettings && "hover:underline"
                                             )}
                                             title={syncTooltip}
                                             role="status"
                                             aria-live="polite"
                                             aria-label={syncTooltip}
+                                            onClick={onOpenSyncSettings
+                                                ? (event) => {
+                                                    event.stopPropagation();
+                                                    onOpenSyncSettings();
+                                                }
+                                                : undefined}
                                         >
                                             <span
                                                 className={cn(

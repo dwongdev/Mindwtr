@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { safeFormatDate, summarizeMergeStats } from '@mindwtr/core';
+import { useMemo, useState } from 'react';
+import { listMergeConflictSamples, safeFormatDate, summarizeMergeStats, useTaskStore } from '@mindwtr/core';
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import { ConfirmModal } from '../../../ConfirmModal';
@@ -95,6 +95,42 @@ export function SyncStatusSection({
     const maxClockSkewMs = lastSyncSummary.maxClockSkewMs;
     const timestampAdjustments = lastSyncSummary.timestampAdjustments;
     const conflictIds = lastSyncSummary.conflictIds.slice(0, 6);
+    const conflictSamples = useMemo(() => listMergeConflictSamples(lastSyncStats).slice(0, 6), [lastSyncStats]);
+    const allTasks = useTaskStore((state) => state._allTasks);
+    const allProjects = useTaskStore((state) => state._allProjects);
+    const allSections = useTaskStore((state) => state._allSections);
+    const allAreas = useTaskStore((state) => state._allAreas);
+    const allPeople = useTaskStore((state) => state._allPeople);
+    const conflictTitleById = useMemo(() => {
+        const titles = new Map<string, string>();
+        if (conflictSamples.length === 0) return titles;
+        for (const sample of conflictSamples) {
+            const { id } = sample;
+            const entity = sample.entity === 'task'
+                ? allTasks.find((item) => item.id === id)
+                : sample.entity === 'project'
+                    ? allProjects.find((item) => item.id === id)
+                    : sample.entity === 'section'
+                        ? allSections.find((item) => item.id === id)
+                        : sample.entity === 'area'
+                            ? allAreas.find((item) => item.id === id)
+                            : allPeople.find((item) => item.id === id);
+            if (!entity) continue;
+            const title = 'title' in entity ? entity.title : entity.name;
+            if (title) titles.set(id, title);
+        }
+        return titles;
+    }, [conflictSamples, allTasks, allProjects, allSections, allAreas, allPeople]);
+    const describeConflictSample = (sample: (typeof conflictSamples)[number]): string => {
+        const title = conflictTitleById.get(sample.id) ?? sample.id;
+        const outcome = sample.winner === 'incoming' ? t.syncConflictKeptOtherDevice : t.syncConflictKeptThisDevice;
+        const detail = sample.reasons.includes('deleteState')
+            ? t.syncConflictDeleteRestore
+            : sample.diffKeys.length > 0
+                ? t.syncConflictChanged.replace('{{fields}}', sample.diffKeys.join(', '))
+                : '';
+        return detail ? `“${title}” — ${outcome} (${detail})` : `“${title}” — ${outcome}`;
+    };
     const historyEntries = (lastSyncHistory ?? []).slice(0, 6);
     const syncPrefs = syncPreferences ?? {};
     const recentResultLabel = (() => {
@@ -228,7 +264,16 @@ export function SyncStatusSection({
                             {t.lastSyncAdjusted}: {timestampAdjustments}
                         </div>
                     )}
-                    {lastSyncStats && conflictIds.length > 0 && (
+                    {lastSyncStats && conflictSamples.length > 0 && (
+                        <div className="space-y-0.5">
+                            {conflictSamples.map((sample) => (
+                                <div key={`${sample.entity}-${sample.id}`} className="break-words">
+                                    {describeConflictSample(sample)}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {lastSyncStats && conflictSamples.length === 0 && conflictIds.length > 0 && (
                         <div>
                             {t.lastSyncConflictIds}: {conflictIds.join(', ')}
                         </div>

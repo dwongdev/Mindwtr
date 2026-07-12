@@ -1041,6 +1041,11 @@ function App() {
         handleViewChange('settings');
     }, [handleViewChange]);
 
+    const openSyncSettings = useCallback(() => {
+        setSettingsInitialPage('sync');
+        handleViewChange('settings');
+    }, [handleViewChange]);
+
     const handleStartFreshOnboarding = useCallback(() => {
         if (desktopOnboardingBusy) return;
         setDesktopOnboardingBusy(true);
@@ -1471,7 +1476,7 @@ function App() {
     return (
         <ErrorBoundary>
             <KeybindingProvider currentView={currentView} onNavigate={handleViewChange}>
-                <Layout currentView={currentView} onViewChange={handleViewChange}>
+                <Layout currentView={currentView} onViewChange={handleViewChange} onOpenSyncSettings={openSyncSettings}>
                     <Suspense
                         fallback={(
                             <LoadingFallback view={activeView} />

@@ -1,5 +1,5 @@
 import type { PendingAttachmentUpload } from './sync-helpers';
-import type { EntityMergeStats, MergeStats } from './sync-types';
+import type { EntityMergeStats, MergeConflictSample, MergeStats } from './sync-types';
 
 type SanitizeLogValue = (value: string) => string;
 
@@ -23,6 +23,21 @@ export const buildPendingAttachmentUploadLogExtra = (
     };
 };
 
+export type ConflictSampleEntity = 'task' | 'project' | 'section' | 'area' | 'person';
+
+export type EntityConflictSample = MergeConflictSample & { entity: ConflictSampleEntity };
+
+export const listMergeConflictSamples = (stats?: MergeStats | null): EntityConflictSample[] => {
+    if (!stats) return [];
+    return [
+        ...(stats.tasks?.conflictSamples ?? []).map((sample) => ({ entity: 'task' as const, ...sample })),
+        ...(stats.projects?.conflictSamples ?? []).map((sample) => ({ entity: 'project' as const, ...sample })),
+        ...(stats.sections?.conflictSamples ?? []).map((sample) => ({ entity: 'section' as const, ...sample })),
+        ...(stats.areas?.conflictSamples ?? []).map((sample) => ({ entity: 'area' as const, ...sample })),
+        ...(stats.people?.conflictSamples ?? []).map((sample) => ({ entity: 'person' as const, ...sample })),
+    ];
+};
+
 export const buildConflictDiagnosticsLogExtra = (stats: MergeStats): Record<string, string> => {
     const reasonCountsByEntity = Object.fromEntries(
         Object.entries({
@@ -33,13 +48,7 @@ export const buildConflictDiagnosticsLogExtra = (stats: MergeStats): Record<stri
             people: stats.people?.conflictReasonCounts ?? {},
         }).filter(([, counts]) => Object.keys(counts).length > 0)
     );
-    const conflictSamples = [
-        ...(stats.tasks.conflictSamples ?? []).map((sample) => ({ entity: 'task', ...sample })),
-        ...(stats.projects.conflictSamples ?? []).map((sample) => ({ entity: 'project', ...sample })),
-        ...(stats.sections.conflictSamples ?? []).map((sample) => ({ entity: 'section', ...sample })),
-        ...(stats.areas.conflictSamples ?? []).map((sample) => ({ entity: 'area', ...sample })),
-        ...(stats.people?.conflictSamples ?? []).map((sample) => ({ entity: 'person', ...sample })),
-    ].slice(0, 6);
+    const conflictSamples = listMergeConflictSamples(stats).slice(0, 6);
     const extra: Record<string, string> = {};
     if (Object.keys(reasonCountsByEntity).length > 0) {
         extra.conflictReasonCounts = JSON.stringify(reasonCountsByEntity);
