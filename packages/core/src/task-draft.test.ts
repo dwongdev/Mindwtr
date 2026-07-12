@@ -5,6 +5,7 @@ import {
     areDraftAttachmentsDirty,
     createTaskDraft,
     isTaskDraftDirty,
+    setTaskDraftField,
     taskDraftToUpdatePatch,
 } from './task-draft';
 
@@ -24,6 +25,44 @@ const baseTask: Task = {
 describe('task-draft', () => {
     it('a fresh draft is never dirty', () => {
         expect(isTaskDraftDirty(createTaskDraft(baseTask), baseTask)).toBe(false);
+    });
+
+    it('setTaskDraftField returns the same draft when the value is unchanged', () => {
+        const draft = createTaskDraft(baseTask);
+        expect(setTaskDraftField(draft, 'title', draft.title)).toBe(draft);
+        expect(setTaskDraftField(draft, 'status', draft.status)).toBe(draft);
+    });
+
+    it('setTaskDraftField sets a field without touching the original draft', () => {
+        const draft = createTaskDraft(baseTask);
+        const next = setTaskDraftField(draft, 'title', 'Write report v2');
+        expect(next).not.toBe(draft);
+        expect(next.title).toBe('Write report v2');
+        expect(draft.title).toBe('Write report');
+    });
+
+    it('sending a draft back to Inbox drops its focus star', () => {
+        const starred: Task = { ...baseTask, isFocusedToday: true };
+        const draft = createTaskDraft(starred);
+        expect(draft.focusedToday).toBe(true);
+
+        const backToInbox = setTaskDraftField(draft, 'status', 'inbox');
+        expect(backToInbox.status).toBe('inbox');
+        expect(backToInbox.focusedToday).toBe(false);
+
+        // Any other status keeps the star.
+        const toWaiting = setTaskDraftField(draft, 'status', 'waiting');
+        expect(toWaiting.focusedToday).toBe(true);
+    });
+
+    it('the inbox cascade result round-trips through the dirty check', () => {
+        const starred: Task = { ...baseTask, isFocusedToday: true };
+        const draft = setTaskDraftField(createTaskDraft(starred), 'status', 'inbox');
+        expect(isTaskDraftDirty(draft, starred)).toBe(true);
+        expect(taskDraftToUpdatePatch(draft, starred)).toMatchObject({
+            status: 'inbox',
+            isFocusedToday: false,
+        });
     });
 
     it('detects a change in any field and ignores token whitespace', () => {

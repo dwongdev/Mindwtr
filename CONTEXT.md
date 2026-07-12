@@ -37,6 +37,12 @@ _Avoid_: deleted project, hidden project
 The per-task mark that commits a task to Today's Focus. Removing a star is always allowed; adding one is gated by focus eligibility and the focus cap. Starring an unprocessed inbox task clarifies it to next; starring a review-due waiting/someday task keeps its status — "chase this today" does not stop the task being waiting-for.
 _Avoid_: favorite, pin, priority flag
 
+### Editing
+
+**Task draft**:
+The editor's private working copy of a task's fields. Edits accumulate in the draft and reach the task only on save; discarding the draft leaves the task untouched. A draft obeys the same field rules the save enforces — sending a draft back to Inbox drops its focus star. Attachments are buffered alongside the draft and count toward its pending edits.
+_Avoid_: edit state, form state, pending changes
+
 ### Capture
 
 **Capture**:

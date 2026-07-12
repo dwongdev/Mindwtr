@@ -383,6 +383,7 @@ export {
     getTaskDraftRecurrenceRuleValue,
     getTaskDraftRecurrenceStrategyValue,
     isTaskDraftDirty,
+    setTaskDraftField,
     taskDraftToUpdatePatch,
     toTaskDraftDateTimeLocalValue,
     TASK_DRAFT_FIELD_KEYS,

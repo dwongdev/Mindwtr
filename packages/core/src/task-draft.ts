@@ -28,8 +28,9 @@ import type {
  * editor field means adding one descriptor here (plus its UI), instead of
  * hand-syncing six parallel per-field lists across four files.
  *
- * Interface: createTaskDraft · isTaskDraftDirty · areDraftAttachmentsDirty ·
- * taskDraftToUpdatePatch. Everything else is implementation.
+ * Interface: createTaskDraft · setTaskDraftField · isTaskDraftDirty ·
+ * areDraftAttachmentsDirty · taskDraftToUpdatePatch. Everything else is
+ * implementation.
  */
 export type TaskDraft = {
     title: string;
@@ -64,6 +65,8 @@ type FieldSpec<K extends TaskDraftField> = {
     fromTask: (task: Task) => TaskDraft[K];
     /** Custom dirty comparison; defaults to `draftValue !== fromTask(task)`. */
     isDirty?: (draftValue: TaskDraft[K], task: Task) => boolean;
+    /** Cascade applied after this field changes; returns the adjusted draft. */
+    onSet?: (draft: TaskDraft) => TaskDraft;
 };
 
 const trimmedDiffers = (draftValue: string, taskValue: string) => draftValue.trim() !== taskValue.trim();
@@ -119,7 +122,16 @@ const TASK_DRAFT_FIELDS: { [K in TaskDraftField]: FieldSpec<K> } = {
     projectId: { fromTask: (task) => task.projectId || '' },
     sectionId: { fromTask: (task) => task.sectionId || '' },
     areaId: { fromTask: (task) => task.areaId || '' },
-    status: { fromTask: (task) => task.status },
+    status: {
+        fromTask: (task) => task.status,
+        // Draft mirror of the core star↔status rule: a draft sent back to
+        // Inbox drops its focus star (core enforces the same on save).
+        onSet: (draft) => (
+            draft.status === 'inbox' && draft.focusedToday
+                ? { ...draft, focusedToday: false }
+                : draft
+        ),
+    },
     focusedToday: { fromTask: (task) => task.isFocusedToday === true },
     contexts: {
         fromTask: (task) => task.contexts?.join(', ') || '',
@@ -158,6 +170,22 @@ export function createTaskDraft(task: Task): TaskDraft {
         (draft as Record<TaskDraftField, unknown>)[key] = TASK_DRAFT_FIELDS[key].fromTask(task);
     }
     return draft;
+}
+
+/**
+ * The one write path into a draft: returns the same reference when the value
+ * is unchanged, otherwise a new draft with the field set and any descriptor
+ * cascade applied.
+ */
+export function setTaskDraftField<K extends TaskDraftField>(
+    draft: TaskDraft,
+    field: K,
+    value: TaskDraft[K],
+): TaskDraft {
+    if (draft[field] === value) return draft;
+    const next = { ...draft, [field]: value };
+    const spec = TASK_DRAFT_FIELDS[field] as FieldSpec<K>;
+    return spec.onSet ? spec.onSet(next) : next;
 }
 
 export function isTaskDraftDirty(draft: TaskDraft, task: Task): boolean {
