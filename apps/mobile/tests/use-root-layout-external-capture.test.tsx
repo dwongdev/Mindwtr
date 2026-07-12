@@ -14,6 +14,10 @@ vi.mock('@/lib/attachment-sync', () => ({
   persistAttachmentLocally,
 }));
 
+vi.mock('expo-file-system', () => ({
+  deleteAsync: vi.fn().mockResolvedValue(undefined),
+}));
+
 type RouterMock = {
   canGoBack: ReturnType<typeof vi.fn>;
   push: ReturnType<typeof vi.fn>;
@@ -66,6 +70,7 @@ describe('useRootLayoutExternalCapture', () => {
   let showToast: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     router = {
       canGoBack: vi.fn(() => false),
       push: vi.fn(),
@@ -186,7 +191,7 @@ describe('useRootLayoutExternalCapture', () => {
     expect(resetShareIntent).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to shared text capture when the file copy fails', async () => {
+  it('falls back to shared text capture and reports the skipped file when the copy fails', async () => {
     // persistAttachmentLocally signals a failed copy by returning the input unchanged.
     persistAttachmentLocally.mockImplementation(async (attachment: { uri: string }) => attachment);
 
@@ -207,6 +212,87 @@ describe('useRootLayoutExternalCapture', () => {
     const params = router.replace.mock.calls[0][0].params;
     expect(decodeURIComponent(params.initialValue)).toBe('Look at this');
     expect(params.initialProps).toBeUndefined();
+    expect(showToast).toHaveBeenCalledTimes(1);
+    expect(showToast.mock.calls[0][0].message).toContain('1 shared file');
+  });
+
+  it('skips blocked file types even when the share reports no size', async () => {
+    persistAttachmentLocally.mockImplementation(async (attachment: { uri: string }) => ({
+      ...attachment,
+      uri: 'file:///data/mindwtr/attachments/copied.bin',
+    }));
+
+    await act(async () => {
+      create(
+        <TestHarness
+          hasShareIntent
+          incomingUrl={null}
+          router={router}
+          shareFiles={[{ fileName: 'setup.exe', mimeType: 'application/x-msdownload', path: '/share/tmp/setup.exe', size: null }]}
+          shareText="Install this"
+          showToast={showToast}
+        />
+      );
+    });
+
+    // The blocklist rejects the file before any copy happens.
+    expect(persistAttachmentLocally).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledTimes(1);
+    const params = router.replace.mock.calls[0][0].params;
+    expect(decodeURIComponent(params.initialValue)).toBe('Install this');
+    expect(params.initialProps).toBeUndefined();
+  });
+
+  it('handles a share intent once even when hook dependencies change mid-copy', async () => {
+    const resetShareIntent = vi.fn();
+    let resolveCopy!: (value: { uri: string }) => void;
+    persistAttachmentLocally.mockImplementation((attachment: { uri: string }) => new Promise((resolve) => {
+      resolveCopy = () => resolve({ ...attachment, uri: 'file:///data/mindwtr/attachments/copied.pdf' });
+    }));
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(
+        <TestHarness
+          hasShareIntent
+          incomingUrl={null}
+          resetShareIntent={resetShareIntent}
+          router={router}
+          shareFiles={[{ fileName: 'doc.pdf', mimeType: 'application/pdf', path: '/share/tmp/doc.pdf', size: 64 }]}
+          showToast={showToast}
+        />
+      );
+    });
+
+    // Let validation finish so the copy is genuinely in flight.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(persistAttachmentLocally).toHaveBeenCalledTimes(1);
+
+    // A re-render with a new showToast identity while the copy is pending
+    // re-runs the effect; the in-flight guard must not start a second copy.
+    act(() => {
+      tree.update(
+        <TestHarness
+          hasShareIntent
+          incomingUrl={null}
+          resetShareIntent={resetShareIntent}
+          router={router}
+          shareFiles={[{ fileName: 'doc.pdf', mimeType: 'application/pdf', path: '/share/tmp/doc.pdf', size: 64 }]}
+          showToast={vi.fn()}
+        />
+      );
+    });
+
+    await act(async () => {
+      resolveCopy({ uri: 'unused' });
+      await Promise.resolve();
+    });
+
+    expect(persistAttachmentLocally).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    expect(resetShareIntent).toHaveBeenCalledTimes(1);
   });
 
   it('opens a confirmation modal for App Actions capture links', () => {

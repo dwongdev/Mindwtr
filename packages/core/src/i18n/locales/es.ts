@@ -411,6 +411,7 @@ export const esOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Abre el evento desde tu app de calendario.',
         'share.unavailable': 'Compartir no disponible',
         'share.readFailed': 'Mindwtr no pudo leer texto ni una URL del elemento compartido.',
+        'share.filesSkipped': 'No se pudieron adjuntar {{count}} archivo(s) compartido(s) (demasiado grandes, tipo bloqueado o ilegibles).',
         'shortcuts.captureUnavailable': 'Atajo de captura no disponible',
         'shortcuts.missingTitle': 'Mindwtr no pudo leer un título de tarea desde ese enlace de atajo.',
         'projects.title': 'Proyectos',

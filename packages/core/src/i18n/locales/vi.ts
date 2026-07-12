@@ -537,6 +537,7 @@ export const viOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Mở sự kiện từ ứng dụng lịch của bạn.',
         'share.unavailable': 'Chia sẻ không khả dụng',
         'share.readFailed': 'Mindwtr không thể đọc văn bản hoặc URL từ mục được chia sẻ.',
+        'share.filesSkipped': 'Không thể đính kèm {{count}} tệp được chia sẻ (quá lớn, loại tệp bị chặn hoặc không đọc được).',
         'shortcuts.captureUnavailable': 'Phím tắt ghi lại không khả dụng',
         'shortcuts.missingTitle': 'Mindwtr không thể đọc tiêu đề nhiệm vụ từ liên kết phím tắt đó.',
 

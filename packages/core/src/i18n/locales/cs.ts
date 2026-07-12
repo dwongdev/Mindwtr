@@ -524,6 +524,7 @@ export const csOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Otevřete událost raději ze své kalendářové aplikace.',
         'share.unavailable': 'Sdílení není dostupné',
         'share.readFailed': 'Mindwtr nedokázal ze sdílené položky přečíst text ani URL.',
+        'share.filesSkipped': 'Počet sdílených souborů, které se nepodařilo připojit: {{count}} (příliš velké, blokovaný typ, nebo je nelze přečíst).',
         'shortcuts.captureUnavailable': 'Zkratka pro zachycení není dostupná',
         'shortcuts.missingTitle': 'Mindwtr nedokázal z odkazu zkratky přečíst název úkolu.',
         'projects.title': 'Projekty',

@@ -499,6 +499,7 @@ export const itOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Apri invece l’evento dalla tua app calendario.',
         'share.unavailable': 'Condivisione non disponibile',
         'share.readFailed': 'Mindwtr non ha potuto leggere testo o URL dall’elemento condiviso.',
+        'share.filesSkipped': 'Impossibile allegare {{count}} file condivisi (troppo grandi, tipo bloccato o illeggibili).',
         'shortcuts.captureUnavailable': 'Scorciatoia di acquisizione non disponibile',
         'shortcuts.missingTitle': 'Mindwtr non ha potuto leggere un titolo attività da quel link scorciatoia.',
 

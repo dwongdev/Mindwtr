@@ -446,6 +446,7 @@ export const trOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Etkinliği bunun yerine takvim uygulamanızdan açın.',
         'share.unavailable': 'Paylaşım kullanılamıyor',
         'share.readFailed': 'Mindwtr paylaşılan öğeden metin veya URL okuyamadı.',
+        'share.filesSkipped': '{{count}} paylaşılan dosya eklenemedi (çok büyük, engellenen dosya türü veya okunamıyor).',
         'shortcuts.captureUnavailable': 'Yakalama kısayolu kullanılamıyor',
         'shortcuts.missingTitle': 'Mindwtr bu kısayol bağlantısından görev başlığı okuyamadı.',
         'projects.title': 'Projeler',

@@ -416,6 +416,7 @@ export const nlOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Open de gebeurtenis in plaats daarvan vanuit je agenda-app.',
         'share.unavailable': 'Delen niet beschikbaar',
         'share.readFailed': 'Mindwtr kon geen tekst of URL uit het gedeelde item lezen.',
+        'share.filesSkipped': '{{count}} gedeelde bestand(en) konden niet worden bijgevoegd (te groot, geblokkeerd bestandstype of onleesbaar).',
         'shortcuts.captureUnavailable': 'Vastleg-snelkoppeling niet beschikbaar',
         'shortcuts.missingTitle': 'Mindwtr kon geen taaktitel uit die snelkoppelingslink lezen.',
         'common.ok': 'OK',

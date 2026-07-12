@@ -526,6 +526,7 @@ export const frOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Ouvrez plutôt l’événement depuis votre app de calendrier.',
         'share.unavailable': 'Partage indisponible',
         'share.readFailed': 'Mindwtr n’a pas pu lire de texte ni d’URL depuis l’élément partagé.',
+        'share.filesSkipped': 'Impossible de joindre {{count}} fichier(s) partagé(s) (trop volumineux, type bloqué ou illisible).',
         'shortcuts.captureUnavailable': 'Raccourci de capture indisponible',
         'shortcuts.missingTitle': 'Mindwtr n’a pas pu lire de titre de tâche depuis ce lien de raccourci.',
 

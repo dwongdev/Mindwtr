@@ -439,6 +439,7 @@ export const jaOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': '代わりにカレンダーアプリから予定を開いてください。',
         'share.unavailable': '共有を利用できません',
         'share.readFailed': 'Mindwtr は共有項目からテキストまたはURLを読み取れませんでした。',
+        'share.filesSkipped': '共有された {{count}} 件のファイルを添付できませんでした（サイズ超過、ブロック対象の形式、または読み取り不可）。',
         'shortcuts.captureUnavailable': 'キャプチャショートカットを利用できません',
         'shortcuts.missingTitle': 'Mindwtr はそのショートカットリンクからタスク名を読み取れませんでした。',
         'projects.title': 'プロジェクト',

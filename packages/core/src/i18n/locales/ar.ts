@@ -475,6 +475,7 @@ export const arOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'افتح الحدث من تطبيق التقويم بدلاً من ذلك.',
         'share.unavailable': 'المشاركة غير متاحة',
         'share.readFailed': 'تعذر على Mindwtr قراءة نص أو رابط من العنصر المشترك.',
+        'share.filesSkipped': 'تعذر إرفاق {{count}} من الملفات المشتركة (كبيرة جدًا أو نوع محظور أو تعذرت قراءتها).',
         'shortcuts.captureUnavailable': 'اختصار الالتقاط غير متاح',
         'shortcuts.missingTitle': 'تعذر على Mindwtr قراءة عنوان مهمة من رابط الاختصار هذا.',
         'projects.title': 'المشاريع',

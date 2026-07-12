@@ -543,6 +543,7 @@ export const en: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Open the event from your calendar app instead.',
         'share.unavailable': 'Share unavailable',
         'share.readFailed': 'Mindwtr could not read text or a URL from the shared item.',
+        'share.filesSkipped': '{{count}} shared file(s) could not be attached (too large, blocked file type, or unreadable).',
         'shortcuts.captureUnavailable': 'Capture shortcut unavailable',
         'shortcuts.missingTitle': 'Mindwtr could not read a task title from that shortcut link.',
 

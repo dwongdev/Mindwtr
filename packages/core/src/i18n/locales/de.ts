@@ -471,6 +471,7 @@ export const deOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Öffne den Termin stattdessen in deiner Kalender-App.',
         'share.unavailable': 'Teilen nicht verfügbar',
         'share.readFailed': 'Mindwtr konnte keinen Text oder keine URL aus dem geteilten Element lesen.',
+        'share.filesSkipped': '{{count}} geteilte Datei(en) konnten nicht angehängt werden (zu groß, blockierter Dateityp oder nicht lesbar).',
         'shortcuts.captureUnavailable': 'Erfassungs-Kurzbefehl nicht verfügbar',
         'shortcuts.missingTitle': 'Mindwtr konnte aus diesem Kurzbefehl-Link keinen Aufgabentitel lesen.',
         'projects.title': 'Projekte',

@@ -439,6 +439,7 @@ export const plOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Otwórz wydarzenie bezpośrednio w aplikacji kalendarza.',
         'share.unavailable': 'Udostępnianie niedostępne',
         'share.readFailed': 'Mindwtr nie mógł odczytać tekstu ani URL z udostępnionego elementu.',
+        'share.filesSkipped': 'Nie udało się załączyć {{count}} udostępnionych plików (za duże, zablokowany typ lub nieczytelne).',
         'shortcuts.captureUnavailable': 'Skrót przechwytywania niedostępny',
         'shortcuts.missingTitle': 'Mindwtr nie mógł odczytać tytułu zadania z tego linku skrótu.',
         'projects.title': 'Projekty',

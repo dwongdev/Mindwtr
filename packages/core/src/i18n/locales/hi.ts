@@ -436,6 +436,7 @@ export const hiOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'इसके बजाय अपने कैलेंडर ऐप से इवेंट खोलें।',
         'share.unavailable': 'शेयर उपलब्ध नहीं',
         'share.readFailed': 'Mindwtr साझा किए गए आइटम से टेक्स्ट या URL नहीं पढ़ सका।',
+        'share.filesSkipped': '{{count}} साझा फ़ाइलें संलग्न नहीं हो सकीं (बहुत बड़ी, अवरुद्ध प्रकार, या पढ़ी नहीं जा सकीं)।',
         'shortcuts.captureUnavailable': 'कैप्चर शॉर्टकट उपलब्ध नहीं',
         'shortcuts.missingTitle': 'Mindwtr उस शॉर्टकट लिंक से कार्य शीर्षक नहीं पढ़ सका।',
         'projects.title': 'परियोजनाओं',

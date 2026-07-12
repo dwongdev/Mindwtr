@@ -433,6 +433,7 @@ export const koOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': '대신 캘린더 앱에서 이벤트를 여세요.',
         'share.unavailable': '공유를 사용할 수 없음',
         'share.readFailed': 'Mindwtr가 공유 항목에서 텍스트나 URL을 읽지 못했습니다.',
+        'share.filesSkipped': '공유된 파일 {{count}}개를 첨부하지 못했습니다(너무 크거나, 차단된 형식이거나, 읽을 수 없음).',
         'shortcuts.captureUnavailable': '캡처 바로가기를 사용할 수 없음',
         'shortcuts.missingTitle': 'Mindwtr가 해당 바로가기 링크에서 작업 제목을 읽지 못했습니다.',
         'projects.title': '프로젝트',

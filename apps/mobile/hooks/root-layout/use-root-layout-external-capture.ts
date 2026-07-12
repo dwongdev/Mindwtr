@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import * as FileSystem from 'expo-file-system';
 
 import { generateUUID, validateAttachmentForUpload, type Attachment, type Task } from '@mindwtr/core';
 
@@ -51,6 +52,12 @@ const SHARE_INTENT_MAX_FILES = 6;
 
 const stripFileExtension = (value: string): string => value.replace(/\.[A-Za-z0-9]{1,8}$/, '');
 
+type ShareIntentFileCaptureResult = {
+    params: Record<string, string> | null;
+    candidateCount: number;
+    attachedCount: number;
+};
+
 // Shared files (PDFs, images, audio, ...) become copied attachments on the
 // capture draft, mirroring the in-app attach flow: the share-extension file
 // lives in a temporary container, so the bytes must be re-homed into the
@@ -61,13 +68,13 @@ async function buildShareIntentFileCaptureParams({
 }: {
     files?: SharedIntentFile[] | null;
     shareText?: string | null;
-}): Promise<Record<string, string> | null> {
+}): Promise<ShareIntentFileCaptureResult> {
     const candidates = (files ?? [])
         .filter((file): file is SharedIntentFile & { path: string } => (
             typeof file?.path === 'string' && file.path.trim().length > 0
         ))
         .slice(0, SHARE_INTENT_MAX_FILES);
-    if (candidates.length === 0) return null;
+    if (candidates.length === 0) return { params: null, candidateCount: 0, attachedCount: 0 };
 
     const attachments: Attachment[] = [];
     for (const file of candidates) {
@@ -85,15 +92,15 @@ async function buildShareIntentFileCaptureParams({
             localStatus: 'available',
         };
         try {
-            if (typeof attachment.size === 'number') {
-                const validation = await validateAttachmentForUpload(attachment, attachment.size);
-                if (!validation.valid) {
-                    void logWarn('Skipped shared file failing attachment validation', {
-                        scope: 'share-intent',
-                        extra: { error: validation.error ?? 'unknown', size: String(attachment.size) },
-                    });
-                    continue;
-                }
+            // Some providers omit the size; 0 still runs the mime blocklist,
+            // and the post-copy check below enforces the size cap.
+            const validation = await validateAttachmentForUpload(attachment, attachment.size ?? 0);
+            if (!validation.valid) {
+                void logWarn('Skipped shared file failing attachment validation', {
+                    scope: 'share-intent',
+                    extra: { error: validation.error ?? 'unknown', size: String(attachment.size ?? 'unknown') },
+                });
+                continue;
             }
             const cached = await persistAttachmentLocally(attachment);
             if (cached.uri === attachment.uri) {
@@ -102,17 +109,36 @@ async function buildShareIntentFileCaptureParams({
                 void logWarn('Failed to copy shared file into attachments', { scope: 'share-intent' });
                 continue;
             }
+            if (typeof attachment.size !== 'number' && typeof cached.size === 'number') {
+                // The copy revealed the real size of a sizeless share; drop the
+                // bytes again if they exceed the attachment cap.
+                const sizeValidation = await validateAttachmentForUpload(cached, cached.size);
+                if (!sizeValidation.valid) {
+                    void FileSystem.deleteAsync(cached.uri, { idempotent: true }).catch(() => undefined);
+                    void logWarn('Skipped shared file failing attachment validation', {
+                        scope: 'share-intent',
+                        extra: { error: sizeValidation.error ?? 'unknown', size: String(cached.size) },
+                    });
+                    continue;
+                }
+            }
             attachments.push(cached);
         } catch (error) {
             void logError(error, { scope: 'share-intent', extra: { step: 'copy-shared-file' } });
         }
     }
-    if (attachments.length === 0) return null;
+    if (attachments.length === 0) {
+        return { params: null, candidateCount: candidates.length, attachedCount: 0 };
+    }
 
     const title = trimSharedValue(shareText) || stripFileExtension(attachments[0].title);
     return {
-        initialValue: encodeURIComponent(title),
-        initialProps: encodeURIComponent(JSON.stringify({ attachments } satisfies Partial<Task>)),
+        params: {
+            initialValue: encodeURIComponent(title),
+            initialProps: encodeURIComponent(JSON.stringify({ attachments } satisfies Partial<Task>)),
+        },
+        candidateCount: candidates.length,
+        attachedCount: attachments.length,
     };
 }
 
@@ -152,6 +178,10 @@ export function useRootLayoutExternalCapture({
     showToast,
 }: UseRootLayoutExternalCaptureParams) {
     const lastHandledUrl = useRef<string | null>(null);
+    // The async file-copy branch outlives a render; a dep-identity change
+    // mid-copy (language load swaps resolveText, for instance) must not start
+    // a second copy of the same share.
+    const shareHandlingRef = useRef(false);
 
     const openCaptureConfirmation = useCallback((payload: ShortcutCapturePayload) => {
         const tags = normalizeShortcutTags(payload.tags);
@@ -184,6 +214,8 @@ export function useRootLayoutExternalCapture({
 
     useEffect(() => {
         if (!hasShareIntent) return;
+        if (shareHandlingRef.current) return;
+        shareHandlingRef.current = true;
         const finish = (params: Record<string, string> | null) => {
             if (params) {
                 router.replace({
@@ -205,13 +237,38 @@ export function useRootLayoutExternalCapture({
             // async copy into the managed attachments dir.
             finish(buildShareIntentCaptureParams({ shareText, shareWebUrl }));
             resetShareIntent();
+            shareHandlingRef.current = false;
             return;
         }
         void buildShareIntentFileCaptureParams({ files: shareFiles, shareText })
-            .then((fileParams) => {
-                finish(fileParams ?? buildShareIntentCaptureParams({ shareText, shareWebUrl }));
+            .then((result) => {
+                const skippedCount = result.candidateCount - result.attachedCount;
+                if (skippedCount > 0) {
+                    showToast({
+                        title: resolveText('common.notice', 'Notice'),
+                        message: resolveText(
+                            'share.filesSkipped',
+                            '{{count}} shared file(s) could not be attached (too large, blocked file type, or unreadable).',
+                        ).replace('{{count}}', String(skippedCount)),
+                        tone: 'warning',
+                    });
+                }
+                const params = result.params ?? buildShareIntentCaptureParams({ shareText, shareWebUrl });
+                if (params) {
+                    router.replace({
+                        pathname: '/capture-modal',
+                        params,
+                    });
+                } else if (skippedCount === 0) {
+                    // Nothing readable at all; when files were skipped the
+                    // toast above already explains why nothing arrived.
+                    finish(null);
+                }
             })
-            .finally(resetShareIntent);
+            .finally(() => {
+                resetShareIntent();
+                shareHandlingRef.current = false;
+            });
     }, [hasShareIntent, resolveText, resetShareIntent, router, shareFiles, shareText, shareWebUrl, showToast]);
 
     useEffect(() => {

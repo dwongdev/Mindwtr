@@ -439,6 +439,7 @@ export const ruOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Откройте событие из приложения календаря.',
         'share.unavailable': 'Поделиться недоступно',
         'share.readFailed': 'Mindwtr не смог прочитать текст или URL из общего элемента.',
+        'share.filesSkipped': 'Не удалось прикрепить {{count}} файл(ов) из общего доступа (слишком большие, заблокированный тип или не читаются).',
         'shortcuts.captureUnavailable': 'Ярлык захвата недоступен',
         'shortcuts.missingTitle': 'Mindwtr не смог прочитать название задачи из этой ссылки ярлыка.',
         'projects.title': 'Проекты',

@@ -478,6 +478,7 @@ export const zhHant: Record<string, string> = {
         'calendar.openFromCalendarApp': '請改從你的日曆應用打開該日程。',
         'share.unavailable': '分享不可用',
         'share.readFailed': 'Mindwtr 無法從分享內容中讀取文字或連結。',
+        'share.filesSkipped': '有 {{count}} 個分享的檔案無法附加（檔案過大、類型被禁止或無法讀取）。',
         'shortcuts.captureUnavailable': '快捷捕獲不可用',
         'shortcuts.missingTitle': 'Mindwtr 無法從該快捷方式連結中讀取任務標題。',
         'projects.title': '項目',

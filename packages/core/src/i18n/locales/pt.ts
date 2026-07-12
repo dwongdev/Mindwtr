@@ -474,6 +474,7 @@ export const ptOverrides: Record<string, string> = {
         'calendar.openFromCalendarApp': 'Abra o evento diretamente no seu app de calendário.',
         'share.unavailable': 'Compartilhamento indisponível',
         'share.readFailed': 'O Mindwtr não conseguiu ler texto ou URL do item compartilhado.',
+        'share.filesSkipped': 'Não foi possível anexar {{count}} arquivo(s) compartilhado(s) (muito grandes, tipo bloqueado ou ilegíveis).',
         'shortcuts.captureUnavailable': 'Atalho de captura indisponível',
         'shortcuts.missingTitle': 'O Mindwtr não conseguiu ler um título de tarefa desse link de atalho.',
 
