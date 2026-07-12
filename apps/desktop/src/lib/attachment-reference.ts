@@ -26,14 +26,14 @@ async function loadManagedDirPrefix(): Promise<string | null> {
     if (!isTauriRuntime()) return null;
     if (cachedManagedDirPrefix) return cachedManagedDirPrefix;
     if (!managedDirPrefixPromise) {
-        managedDirPrefixPromise = import('@tauri-apps/api/path')
-            .then(async ({ dataDir }) => {
-                const base = await dataDir();
+        managedDirPrefixPromise = import('./managed-paths')
+            .then(async ({ getManagedDataDir }) => {
+                const base = await getManagedDataDir();
                 // Owned copies live only in the managed attachments dir
-                // (BaseDirectory.Data + mindwtr/attachments, same as imports and
-                // sync downloads). The trailing slash keeps sibling dirs like
-                // ".../mindwtr/attachments-old" from matching by prefix.
-                cachedManagedDirPrefix = `${normalizeAttachmentPathForUrl(base).replace(/\/+$/, '')}/mindwtr/attachments/`;
+                // (portable-aware, same dir as imports and sync downloads).
+                // The trailing slash keeps sibling dirs like ".../attachments-old"
+                // from matching by prefix.
+                cachedManagedDirPrefix = `${normalizeAttachmentPathForUrl(base).replace(/\/+$/, '')}/attachments/`;
                 return cachedManagedDirPrefix;
             })
             .catch(() => null);

@@ -52,6 +52,7 @@ import {
 } from './lib/desktop-calendar-push-sync';
 import { SyncService } from './lib/sync-service';
 import type { ExternalSyncChange, ExternalSyncChangeResolution } from './lib/sync-service';
+import { migratePortableAttachments } from './lib/portable-migration';
 import * as LocalDataWatcher from './lib/local-data-watcher';
 import { getInstallSourceOrFallback, isFlatpakRuntime, isTauriRuntime } from './lib/runtime';
 import { persistLastView, readRestorableLastView } from './lib/session-restore';
@@ -531,6 +532,7 @@ function App() {
             })
             .then(() => {
                 if (!disposed && isTauriRuntime()) {
+                    void migratePortableAttachments();
                     stopCalendarPush = startDesktopCalendarPushSync();
                     runFullDesktopCalendarPushSync()
                         .catch((error) => reportError('Calendar push failed', error));

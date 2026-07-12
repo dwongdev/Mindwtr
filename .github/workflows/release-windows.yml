@@ -118,7 +118,7 @@ jobs:
             "",
             "- Extract this ZIP to a writable folder.",
             "- Keep portable.txt next to mindwtr.exe.",
-            "- Mindwtr stores local data under profile\data and profile\config beside the executable.",
+            "- Mindwtr stores all local data beside the executable: tasks, attachments, and logs under profile\data, settings under profile\config, and the WebView2 browser profile under profile\webview.",
             "- Portable mode keeps secrets in the local profile instead of Windows Credential Manager.",
             "- Windows WebView2 is still required."
           ) | Set-Content -Path "$portableDir\README-portable.txt"

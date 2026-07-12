@@ -1,5 +1,5 @@
-import { BaseDirectory, mkdir, readTextFile, remove, writeTextFile } from '@tauri-apps/plugin-fs';
-import { dataDir, join } from '@tauri-apps/api/path';
+import { mkdir, readTextFile, remove, writeTextFile } from '@tauri-apps/plugin-fs';
+import { join } from '@tauri-apps/api/path';
 import {
     getBreadcrumbs,
     sanitizeForLog,
@@ -9,9 +9,10 @@ import {
     useTaskStore,
 } from '@mindwtr/core';
 import { isTauriRuntime } from './runtime';
+import { getManagedPath } from './managed-paths';
 
-const LOG_DIR = 'mindwtr/logs';
-const LOG_FILE = `${LOG_DIR}/mindwtr.log`;
+const LOG_DIR_NAME = 'logs';
+const LOG_FILE_NAME = 'mindwtr.log';
 const RECENT_LOG_MAX_CHARS = 20_000;
 
 type LogEntry = {
@@ -34,8 +35,10 @@ export function sanitizeLogMessage(value: string): string {
     return sanitizeForLog(value);
 }
 
-async function ensureLogDir(): Promise<void> {
-    await mkdir(LOG_DIR, { baseDir: BaseDirectory.Data, recursive: true });
+async function ensureLogDir(): Promise<string> {
+    const logDir = await getManagedPath(LOG_DIR_NAME);
+    await mkdir(logDir, { recursive: true });
+    return logDir;
 }
 
 function isLoggingEnabled(): boolean {
@@ -58,14 +61,14 @@ async function appendLogLine(entry: LogEntry, options?: AppendLogOptions): Promi
             const { invoke } = await import('@tauri-apps/api/core');
             return await invoke<string>('append_log_line', { line });
         } catch (error) {
+            const logDir = await ensureLogDir();
+            const logFile = await join(logDir, LOG_FILE_NAME);
             try {
-                await ensureLogDir();
-                await writeTextFile(LOG_FILE, line, { baseDir: BaseDirectory.Data, append: true });
+                await writeTextFile(logFile, line, { append: true });
             } catch (writeError) {
-                await ensureLogDir();
-                await writeTextFile(LOG_FILE, line, { baseDir: BaseDirectory.Data });
+                await writeTextFile(logFile, line);
             }
-            return await getLogPath();
+            return logFile;
         }
     } catch (error) {
         return null;
@@ -75,8 +78,7 @@ async function appendLogLine(entry: LogEntry, options?: AppendLogOptions): Promi
 export async function getLogPath(): Promise<string | null> {
     if (!isTauriRuntime()) return null;
     try {
-        const baseDir = await dataDir();
-        return await join(baseDir, 'mindwtr', 'logs', 'mindwtr.log');
+        return await getManagedPath(LOG_DIR_NAME, LOG_FILE_NAME);
     } catch (error) {
         return null;
     }
@@ -89,7 +91,8 @@ export async function clearLog(): Promise<void> {
         await invoke('clear_log_file');
     } catch (error) {
         try {
-            await remove(LOG_FILE, { baseDir: BaseDirectory.Data, recursive: false });
+            const logFile = await getManagedPath(LOG_DIR_NAME, LOG_FILE_NAME);
+            await remove(logFile, { recursive: false });
         } catch (_removeError) {
             return;
         }
@@ -99,7 +102,8 @@ export async function clearLog(): Promise<void> {
 export async function readRecentLogText(maxChars = RECENT_LOG_MAX_CHARS): Promise<string | null> {
     if (!isTauriRuntime()) return null;
     try {
-        const raw = await readTextFile(LOG_FILE, { baseDir: BaseDirectory.Data });
+        const logFile = await getManagedPath(LOG_DIR_NAME, LOG_FILE_NAME);
+        const raw = await readTextFile(logFile);
         const trimmed = raw.trim();
         if (!trimmed) return null;
         return trimmed.slice(-Math.max(1, maxChars));

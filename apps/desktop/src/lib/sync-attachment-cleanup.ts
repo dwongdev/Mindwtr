@@ -30,6 +30,7 @@ import {
     stripFileScheme,
     type SyncBackend,
 } from './sync-service-utils';
+import { getManagedPath } from './managed-paths';
 
 export type AttachmentCleanupDeps = {
     getCloudConfig: () => Promise<CloudConfig>;
@@ -47,19 +48,18 @@ export type AttachmentCleanupDeps = {
 
 type PendingRemoteAttachmentDeleteEntry = PendingRemoteAttachmentDelete;
 
-const LOCAL_ATTACHMENTS_DIR = `mindwtr/${ATTACHMENTS_DIR_NAME}`;
-
 export const cleanupAttachmentTempFiles = async (deps: Pick<AttachmentCleanupDeps, 'isTauriRuntimeEnv' | 'logSyncWarning'>): Promise<void> => {
     if (!deps.isTauriRuntimeEnv()) return;
     try {
-        const { BaseDirectory, readDir, remove } = await import('@tauri-apps/plugin-fs');
-        const entries = await readDir(LOCAL_ATTACHMENTS_DIR, { baseDir: BaseDirectory.Data });
+        const { readDir, remove } = await import('@tauri-apps/plugin-fs');
+        const attachmentsDir = await getManagedPath(ATTACHMENTS_DIR_NAME);
+        const entries = await readDir(attachmentsDir);
         for (const entry of entries) {
             if (!entry.isFile) continue;
             const name = entry.name;
             if (!isTempAttachmentFile(name)) continue;
             try {
-                await remove(`${LOCAL_ATTACHMENTS_DIR}/${name}`, { baseDir: BaseDirectory.Data });
+                await remove(`${attachmentsDir}/${name}`);
             } catch (error) {
                 deps.logSyncWarning('Failed to remove temp attachment file', error);
             }
@@ -78,19 +78,15 @@ export const deleteAttachmentFile = async (
     const rawUri = stripFileScheme(safeUri);
     if (/^https?:\/\//i.test(rawUri) || rawUri.startsWith('content://')) return;
     try {
-        const { remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-        const { dataDir } = await import('@tauri-apps/api/path');
-        const baseDataDir = await dataDir();
+        const { remove } = await import('@tauri-apps/plugin-fs');
         const normalizePath = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '');
         const normalizedRawUri = normalizePath(rawUri);
-        const normalizedBaseDataDir = normalizePath(baseDataDir);
-        const normalizedAttachmentsDir = normalizePath(`${normalizedBaseDataDir}/${LOCAL_ATTACHMENTS_DIR}`);
+        const normalizedAttachmentsDir = normalizePath(await getManagedPath(ATTACHMENTS_DIR_NAME));
         if (
             normalizedRawUri === normalizedAttachmentsDir
             || !normalizedRawUri.startsWith(`${normalizedAttachmentsDir}/`)
         ) return;
-        const relative = normalizedRawUri.slice(normalizedBaseDataDir.length).replace(/^[\\/]/, '');
-        await remove(relative, { baseDir: BaseDirectory.Data });
+        await remove(normalizedRawUri);
     } catch (error) {
         deps.logSyncWarning(`Failed to delete attachment file ${attachment.title}`, error);
     }

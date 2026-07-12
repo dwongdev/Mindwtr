@@ -4,6 +4,7 @@ const PORTABLE_MARKER_FILE_NAME: &str = "portable.txt";
 const PORTABLE_PROFILE_DIR_NAME: &str = "profile";
 const PORTABLE_CONFIG_DIR_NAME: &str = "config";
 const PORTABLE_DATA_DIR_NAME: &str = "data";
+const PORTABLE_WEBVIEW_DIR_NAME: &str = "webview";
 const SEARCH_RESULT_LIMIT: usize = 200;
 const SEARCH_RESULT_QUERY_LIMIT: i64 = (SEARCH_RESULT_LIMIT as i64) + 1;
 
@@ -39,6 +40,15 @@ fn detect_storage_mode() -> StorageMode {
 
 pub(crate) fn is_portable_mode() -> bool {
     matches!(detect_storage_mode(), StorageMode::Portable { .. })
+}
+
+// Keeps the webview's own browsing profile (cache, local storage) inside the
+// portable profile instead of the OS-default per-user location.
+pub(crate) fn portable_webview_data_dir() -> Option<PathBuf> {
+    if let StorageMode::Portable { profile_root } = detect_storage_mode() {
+        return Some(profile_root.join(PORTABLE_WEBVIEW_DIR_NAME));
+    }
+    None
 }
 
 pub(crate) fn get_config_dir_for_startup() -> PathBuf {

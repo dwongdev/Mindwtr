@@ -31,8 +31,9 @@ import {
     type QuickAddResult,
     type Task,
 } from '@mindwtr/core';
-import { BaseDirectory, mkdir, readFile, remove, writeFile } from '@tauri-apps/plugin-fs';
-import { dataDir, join } from '@tauri-apps/api/path';
+import { mkdir, readFile, remove, writeFile } from '@tauri-apps/plugin-fs';
+import { join } from '@tauri-apps/api/path';
+import { getManagedPath } from '../lib/managed-paths';
 import { useLanguage } from '../contexts/language-context';
 import { cn } from '../lib/utils';
 import { isFlatpakRuntime, isTauriRuntime } from '../lib/runtime';
@@ -57,13 +58,14 @@ import { TaskInput } from './Task/TaskInput';
 import { AreaSelector } from './ui/AreaSelector';
 import { FocusStarIcon } from './FocusStarIcon';
 
-const AUDIO_CAPTURE_DIR = 'mindwtr/audio-captures';
-const QUICK_ADD_IMAGE_CAPTURE_DIR = 'mindwtr/quick-add-images';
+// Relative to the managed data dir (portable-aware, #855).
+const AUDIO_CAPTURE_DIR = 'audio-captures';
+const QUICK_ADD_IMAGE_CAPTURE_DIR = 'quick-add-images';
 const TARGET_SAMPLE_RATE = 16_000;
 
 type PastedImageAttachment = {
     attachment: Attachment;
-    relativePath: string;
+    path: string;
 };
 
 type QuickAddModalProps = {
@@ -255,8 +257,8 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
     }, [pastedImageAttachments]);
 
     const cleanupPastedImageAttachments = useCallback((attachments: PastedImageAttachment[]) => {
-        attachments.forEach(({ relativePath }) => {
-            remove(relativePath, { baseDir: BaseDirectory.Data }).catch((error) => {
+        attachments.forEach(({ path }) => {
+            remove(path).catch((error) => {
                 void logWarn('Pasted image cleanup failed', {
                     scope: 'attachment',
                     extra: { error: error instanceof Error ? error.message : String(error) },
@@ -469,14 +471,13 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         const nowIso = now.toISOString();
         const displayTitle = `${tFallback(t, 'quickAdd.pastedImageTitle', 'Screenshot')} ${safeFormatDate(now, 'Pp')}`;
         const fileName = `mindwtr-paste-${safeFormatDate(now, 'yyyyMMdd-HHmmss')}-${generateUUID().slice(0, 8)}.${getImageExtension(file)}`;
-        await mkdir(QUICK_ADD_IMAGE_CAPTURE_DIR, { baseDir: BaseDirectory.Data, recursive: true });
-        const relativePath = `${QUICK_ADD_IMAGE_CAPTURE_DIR}/${fileName}`;
+        const captureDir = await getManagedPath(QUICK_ADD_IMAGE_CAPTURE_DIR);
+        await mkdir(captureDir, { recursive: true });
         const bytes = await readClipboardFileBytes(file);
-        await writeFile(relativePath, bytes, { baseDir: BaseDirectory.Data });
-        const baseDir = await dataDir();
-        const absolutePath = await join(baseDir, QUICK_ADD_IMAGE_CAPTURE_DIR, fileName);
+        const absolutePath = await join(captureDir, fileName);
+        await writeFile(absolutePath, bytes);
         return {
-            relativePath,
+            path: absolutePath,
             attachment: {
                 id: generateUUID(),
                 kind: 'file',
@@ -637,7 +638,6 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         try {
             type NativeResult = {
                 path: string;
-                relativePath: string;
                 sampleRate: number;
                 channels: number;
                 size: number;
@@ -645,7 +645,6 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
 
             let wavBytes: Uint8Array | null = null;
             let fileName: string;
-            let relativePath: string;
             let absolutePath: string;
             let audioByteSize: number | undefined;
 
@@ -653,7 +652,6 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             if (recordingBackend === 'native' && isTauriRuntime()) {
                 const { invoke } = await import('@tauri-apps/api/core');
                 const result = await invoke<NativeResult>('stop_audio_recording');
-                relativePath = result.relativePath;
                 absolutePath = result.path;
                 const parts = absolutePath.split(/[\\/]/);
                 fileName = parts[parts.length - 1] || 'mindwtr-audio.wav';
@@ -697,15 +695,14 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
 
                 const timestamp = safeFormatDate(now, 'yyyyMMdd-HHmmss');
                 fileName = `mindwtr-audio-${timestamp}.wav`;
-                await mkdir(AUDIO_CAPTURE_DIR, { baseDir: BaseDirectory.Data, recursive: true });
-                relativePath = `${AUDIO_CAPTURE_DIR}/${fileName}`;
-                await writeFile(relativePath, wavBytes, { baseDir: BaseDirectory.Data });
-                const baseDir = await dataDir();
-                absolutePath = await join(baseDir, AUDIO_CAPTURE_DIR, fileName);
+                const audioCaptureDir = await getManagedPath(AUDIO_CAPTURE_DIR);
+                await mkdir(audioCaptureDir, { recursive: true });
+                absolutePath = await join(audioCaptureDir, fileName);
+                await writeFile(absolutePath, wavBytes);
             }
 
             if (!saveTask) {
-                remove(relativePath, { baseDir: BaseDirectory.Data }).catch((error) => {
+                remove(absolutePath).catch((error) => {
                     void logWarn('Audio cleanup failed', {
                         scope: 'audio',
                         extra: { error: error instanceof Error ? error.message : String(error) },
@@ -795,7 +792,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                     }))
                     .finally(() => {
                         if (!saveAudioAttachments) {
-                            remove(relativePath, { baseDir: BaseDirectory.Data }).catch((error) => {
+                            remove(absolutePath).catch((error) => {
                                 void logWarn('Audio cleanup failed', {
                                     scope: 'audio',
                                     extra: { error: error instanceof Error ? error.message : String(error) },
@@ -809,7 +806,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                 if (wavBytes) {
                     void runSpeech(wavBytes);
                 } else {
-                    void readFile(relativePath, { baseDir: BaseDirectory.Data })
+                    void readFile(absolutePath)
                         .then((bytes) => (bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)))
                         .then((bytes) => runSpeech(bytes))
                         .catch((error) => {
@@ -818,7 +815,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 extra: { error: error instanceof Error ? error.message : String(error) },
                             });
                             if (!saveAudioAttachments) {
-                                remove(relativePath, { baseDir: BaseDirectory.Data }).catch((cleanupError) => {
+                                remove(absolutePath).catch((cleanupError) => {
                                     void logWarn('Audio cleanup failed', {
                                         scope: 'audio',
                                         extra: {
@@ -830,7 +827,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                         });
                 }
             } else if (!saveAudioAttachments) {
-                remove(relativePath, { baseDir: BaseDirectory.Data }).catch((error) => {
+                remove(absolutePath).catch((error) => {
                     void logWarn('Audio cleanup failed', {
                         scope: 'audio',
                         extra: { error: error instanceof Error ? error.message : String(error) },

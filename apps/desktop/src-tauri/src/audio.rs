@@ -721,8 +721,6 @@ fn stop_audio_recording_blocking(
     }
 
     let file_name = audio_capture_file_name(SystemTime::now())?;
-    let relative_path = format!("{}/audio-captures/{}", APP_NAME, file_name);
-
     let target_dir = get_data_dir(&app).join("audio-captures");
     fs::create_dir_all(&target_dir).map_err(|e| e.to_string())?;
     let target_path = target_dir.join(&file_name);
@@ -731,7 +729,6 @@ fn stop_audio_recording_blocking(
 
     Ok(AudioCaptureResult {
         path: target_path.to_string_lossy().to_string(),
-        relative_path,
         sample_rate: info.sample_rate,
         channels: info.channels,
         size: samples.len() * std::mem::size_of::<i16>(),

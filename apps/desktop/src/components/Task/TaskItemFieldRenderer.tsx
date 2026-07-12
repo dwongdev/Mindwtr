@@ -44,7 +44,7 @@ import {
     type TaskStatus,
     type TimeEstimate,
 } from '@mindwtr/core';
-import { BaseDirectory, readFile, remove } from '@tauri-apps/plugin-fs';
+import { readFile, remove } from '@tauri-apps/plugin-fs';
 
 import { useMarkdownReferenceAutocomplete } from '../MarkdownReferenceAutocomplete';
 import { AttachmentsField } from './TaskForm/AttachmentsField';
@@ -85,7 +85,6 @@ type DescriptionAudioState = 'idle' | 'recording' | 'transcribing';
 
 type NativeAudioCaptureResult = {
     path: string;
-    relativePath: string;
     sampleRate: number;
     channels: number;
     size: number;
@@ -733,8 +732,8 @@ export function TaskItemFieldRenderer({
         void import('@tauri-apps/api/core')
             .then(({ invoke }) => invoke<NativeAudioCaptureResult>('stop_audio_recording'))
             .then((result) => {
-                if (!result.relativePath) return;
-                return remove(result.relativePath, { baseDir: BaseDirectory.Data });
+                if (!result.path) return;
+                return remove(result.path);
             })
             .catch((error) => {
                 void logWarn('Description audio cleanup failed', {
@@ -1143,7 +1142,7 @@ export function TaskItemFieldRenderer({
                 throw new Error(tFallback(t, 'attachments.transcriptionUnavailable', 'Speech-to-text is not ready. Check your AI settings and try again.'));
             }
 
-            const bytes = await readFile(capture.relativePath, { baseDir: BaseDirectory.Data });
+            const bytes = await readFile(capture.path);
             const audioBytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
             const timeZone = typeof Intl === 'object' && typeof Intl.DateTimeFormat === 'function'
                 ? Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -1177,8 +1176,8 @@ export function TaskItemFieldRenderer({
             const message = error instanceof Error ? error.message : String(error);
             setDescriptionAudioError(message || tFallback(t, 'attachments.transcriptionFailed', 'Transcription failed. Please try again.'));
         } finally {
-            if (capture?.relativePath) {
-                remove(capture.relativePath, { baseDir: BaseDirectory.Data }).catch((error) => {
+            if (capture?.path) {
+                remove(capture.path).catch((error) => {
                     void logWarn('Description audio cleanup failed', {
                         scope: 'audio',
                         extra: { error: error instanceof Error ? error.message : String(error) },

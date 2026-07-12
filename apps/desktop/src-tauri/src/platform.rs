@@ -653,17 +653,115 @@ pub(crate) fn import_attachment_file(
     max_bytes: Option<u64>,
 ) -> Result<ImportedAttachmentFile, String> {
     let source = PathBuf::from(strip_file_scheme(path.trim())?);
-    // Matches the webview-side managed dir (BaseDirectory.Data + mindwtr/attachments)
-    // used by sync downloads, previews, and cleanup — not the portable-mode data dir.
-    let dest_dir = app
-        .path()
-        .resolve("mindwtr/attachments", BaseDirectory::Data)
-        .map_err(|error| error.to_string())?;
+    // Matches the webview-side managed dir used by sync downloads, previews,
+    // and cleanup; portable mode redirects it into the profile dir (#855).
+    let dest_dir = get_data_dir(&app).join("attachments");
     let (final_path, size) = import_attachment_into(&dest_dir, &source, &file_name, max_bytes)?;
     Ok(ImportedAttachmentFile {
         uri: final_path.to_string_lossy().into_owned(),
         size,
     })
+}
+
+// The directory the webview must use for managed app files (attachments, logs,
+// audio captures, speech models). Portable mode points it into the profile dir.
+#[tauri::command]
+pub(crate) fn get_managed_data_dir(app: tauri::AppHandle) -> String {
+    get_data_dir(&app).to_string_lossy().into_owned()
+}
+
+fn legacy_webview_data_root() -> Option<PathBuf> {
+    dirs::data_dir().map(|dir| dir.join("mindwtr"))
+}
+
+// A standard (installed) copy of Mindwtr on the same machine stores its data
+// under the OS data dir; its attachment files must never be moved away by a
+// portable copy that references the same paths.
+fn standard_install_present(legacy_root: &Path) -> bool {
+    legacy_root.join(DATA_FILE_NAME).exists() || legacy_root.join(DB_FILE_NAME).exists()
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PortableAttachmentMigration {
+    is_portable: bool,
+    legacy_attachments_dir: String,
+    managed_attachments_dir: String,
+    migrated_file_names: Vec<String>,
+}
+
+// One-time, idempotent re-home of attachment files a portable install wrote to
+// the OS data dir before portable mode covered webview-managed files (#855).
+// Only the requested file names are touched, sources must live inside the
+// legacy attachments dir, and files are copied (not moved) when a standard
+// install shares the machine.
+#[tauri::command]
+pub(crate) fn migrate_portable_attachments(
+    app: tauri::AppHandle,
+    file_names: Vec<String>,
+) -> Result<PortableAttachmentMigration, String> {
+    let managed_dir = get_data_dir(&app).join("attachments");
+    let legacy_root = legacy_webview_data_root();
+    let legacy_dir = legacy_root
+        .as_ref()
+        .map(|root| root.join("attachments"))
+        .unwrap_or_default();
+    let mut result = PortableAttachmentMigration {
+        is_portable: crate::storage::is_portable_mode(),
+        legacy_attachments_dir: legacy_dir.to_string_lossy().into_owned(),
+        managed_attachments_dir: managed_dir.to_string_lossy().into_owned(),
+        migrated_file_names: Vec::new(),
+    };
+    if !result.is_portable || file_names.is_empty() {
+        return Ok(result);
+    }
+    let Some(legacy_root) = legacy_root else {
+        return Ok(result);
+    };
+    if legacy_dir == managed_dir || !legacy_dir.is_dir() {
+        return Ok(result);
+    }
+    let keep_legacy_copy = standard_install_present(&legacy_root);
+    for file_name in file_names {
+        // Reject anything that could escape the legacy attachments dir.
+        if file_name.is_empty()
+            || file_name.contains('/')
+            || file_name.contains('\\')
+            || file_name == "."
+            || file_name == ".."
+        {
+            continue;
+        }
+        let source = legacy_dir.join(&file_name);
+        if !source.is_file() {
+            continue;
+        }
+        let target = managed_dir.join(&file_name);
+        if target.exists() {
+            result.migrated_file_names.push(file_name);
+            continue;
+        }
+        if let Err(error) = fs::create_dir_all(&managed_dir) {
+            return Err(format!("Failed to create attachments directory: {error}"));
+        }
+        let moved = if keep_legacy_copy {
+            fs::copy(&source, &target).map(|_| ())
+        } else {
+            fs::rename(&source, &target).or_else(|_| {
+                // Profile dir may sit on another volume (USB stick).
+                fs::copy(&source, &target).map(|_| {
+                    let _ = fs::remove_file(&source);
+                })
+            })
+        };
+        match moved {
+            Ok(()) => result.migrated_file_names.push(file_name),
+            Err(error) => {
+                log::warn!("Failed to migrate portable attachment {file_name}: {error}");
+            }
+        }
+    }
+    Ok(result)
 }
 
 #[tauri::command]

@@ -9,6 +9,7 @@ import { normalizeAttachmentInput } from '../../lib/attachment-utils';
 import { openAttachmentTarget } from '../../lib/open-attachment-target';
 import { isTauriRuntime } from '../../lib/runtime';
 import { logWarn } from '../../lib/app-log';
+import { getManagedDataDir } from '../../lib/managed-paths';
 import { processAudioCapture } from '../../lib/speech-to-text';
 import { DEFAULT_PARAKEET_MODEL, DEFAULT_WHISPER_MODEL } from '../../lib/speech-models';
 import {
@@ -55,12 +56,13 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
         if (!isTauriRuntime()) return null;
         const uri = resolveAttachmentOpenTarget(attachment.uri);
         try {
-            const baseDir = await dataDir();
+            // Blob playback is limited to app-managed files (attachments and
+            // audio captures under the managed data dir, portable-aware).
+            const managedDir = await getManagedDataDir();
             const normalizedUri = normalizeAttachmentPathForUrl(uri);
-            const normalizedBaseDir = normalizeAttachmentPathForUrl(baseDir);
+            const normalizedBaseDir = normalizeAttachmentPathForUrl(managedDir);
             if (!normalizedUri.startsWith(normalizedBaseDir)) return null;
-            const relative = normalizedUri.slice(normalizedBaseDir.length).replace(/^[\\/]/, '');
-            const bytes = await readFile(relative, { baseDir: BaseDirectory.Data });
+            const bytes = await readFile(normalizedUri);
             const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
             const mimeType = attachment.mimeType || 'audio/wav';
             const blob = new Blob([buffer], { type: mimeType });

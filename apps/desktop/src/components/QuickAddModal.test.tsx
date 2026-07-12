@@ -415,14 +415,12 @@ describe('QuickAddModal', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
         await waitFor(() => expect(addTask).toHaveBeenCalled());
-        expect(fsMocks.mkdir).toHaveBeenCalledWith('mindwtr/quick-add-images', {
-            baseDir: 'Data',
+        expect(fsMocks.mkdir).toHaveBeenCalledWith('/data/mindwtr/quick-add-images', {
             recursive: true,
         });
         expect(fsMocks.writeFile).toHaveBeenCalledWith(
-            expect.stringMatching(/^mindwtr\/quick-add-images\/mindwtr-paste-/),
+            expect.stringMatching(/^\/data\/mindwtr\/quick-add-images\/mindwtr-paste-/),
             expect.any(Uint8Array),
-            expect.objectContaining({ baseDir: 'Data' }),
         );
         expect(addTask).toHaveBeenCalledWith('Capture receipt', expect.objectContaining({
             attachments: [

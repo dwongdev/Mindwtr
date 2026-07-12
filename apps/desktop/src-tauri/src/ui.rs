@@ -375,23 +375,29 @@ pub(crate) fn create_quick_add_window(app: &tauri::AppHandle) -> Result<(), Stri
         return Ok(());
     }
 
-    tauri::WebviewWindowBuilder::new(
+    let mut builder = tauri::WebviewWindowBuilder::new(
         app,
         QUICK_ADD_WINDOW_LABEL,
         tauri::WebviewUrl::App(QUICK_ADD_WINDOW_URL.into()),
-    )
-    .title("Quick Add")
-    .inner_size(QUICK_ADD_WINDOW_WIDTH, QUICK_ADD_WINDOW_HEIGHT)
-    .resizable(false)
-    .decorations(false)
-    .shadow(false)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .focused(false)
-    .visible(false)
-    .build()
-    .map(|_| ())
-    .map_err(|error| format!("Failed to create quick add window: {error}"))
+    );
+    // Portable mode keeps every webview profile inside the portable dir (#855).
+    if let Some(webview_dir) = crate::storage::portable_webview_data_dir() {
+        let _ = std::fs::create_dir_all(&webview_dir);
+        builder = builder.data_directory(webview_dir);
+    }
+    builder
+        .title("Quick Add")
+        .inner_size(QUICK_ADD_WINDOW_WIDTH, QUICK_ADD_WINDOW_HEIGHT)
+        .resizable(false)
+        .decorations(false)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .visible(false)
+        .build()
+        .map(|_| ())
+        .map_err(|error| format!("Failed to create quick add window: {error}"))
 }
 
 fn quick_add_window_physical_size(scale_factor: f64) -> tauri::PhysicalSize<u32> {

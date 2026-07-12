@@ -92,7 +92,8 @@ use platform::{
     cloudkit_fetch_attachment_asset, cloudkit_fetch_changes, cloudkit_register_for_notifications,
     cloudkit_save_attachment_asset, cloudkit_save_records, create_macos_calendar_event,
     delete_macos_calendar_event, ensure_macos_mindwtr_calendar, get_macos_calendar_events,
-    get_macos_calendar_permission_status, get_macos_writable_calendars, import_attachment_file,
+    get_macos_calendar_permission_status, get_macos_writable_calendars, get_managed_data_dir,
+    import_attachment_file, migrate_portable_attachments,
     open_path,
     request_macos_calendar_permission, set_macos_activation_policy, update_macos_calendar_event,
 };
@@ -719,7 +720,6 @@ struct AudioRecorderHandle {
 #[serde(rename_all = "camelCase")]
 struct AudioCaptureResult {
     path: String,
-    relative_path: String,
     sample_rate: u32,
     channels: u16,
     size: usize,
@@ -1281,6 +1281,33 @@ pub fn run() {
         .setup(move |app| {
             ensure_data_file(&app.handle()).ok();
 
+            // The main window is declared create:false so portable mode can pin
+            // the webview's browsing profile inside the portable dir (#855).
+            {
+                let main_window_config = app
+                    .config()
+                    .app
+                    .windows
+                    .iter()
+                    .find(|window| window.label == "main")
+                    .cloned()
+                    .ok_or("main window config missing")?;
+                let mut main_window_builder =
+                    tauri::WebviewWindowBuilder::from_config(app.handle(), &main_window_config)?;
+                if let Some(webview_dir) = crate::storage::portable_webview_data_dir() {
+                    let _ = std::fs::create_dir_all(&webview_dir);
+                    main_window_builder = main_window_builder.data_directory(webview_dir);
+                }
+                main_window_builder.build()?;
+            }
+
+            // Portable mode stores webview-managed files (attachments, logs,
+            // captures) under the profile dir, which lies outside the fs
+            // plugin's static $DATA scope.
+            if crate::storage::is_portable_mode() {
+                expand_tauri_fs_scope(&app.handle(), &get_data_dir(&app.handle()));
+            }
+
             {
                 let config = read_config(&app.handle());
 
@@ -1539,7 +1566,9 @@ pub fn run() {
             cloudkit_delete_records,
             cloudkit_consume_pending_remote_change,
             cloudkit_register_for_notifications,
+            get_managed_data_dir,
             import_attachment_file,
+            migrate_portable_attachments,
             open_path,
             read_sync_file,
             write_sync_file,

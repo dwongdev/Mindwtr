@@ -31,9 +31,9 @@ import {
     sleep,
     stripFileScheme,
     createCooperativeYield,
-    writeAttachmentFileSafely,
     writeFileSafelyAbsolute,
 } from './sync-service-utils';
+import { getManagedPath } from './managed-paths';
 import {
     clearAttachmentValidationFailure,
     handleAttachmentValidationFailure,
@@ -76,7 +76,6 @@ export type AttachmentBackendDeps = {
     resolveWebdavPassword: (config: WebDavConfig) => Promise<string>;
 };
 
-const LOCAL_ATTACHMENTS_DIR = `mindwtr/${ATTACHMENTS_DIR_NAME}`;
 const FILE_BACKEND_VALIDATION_CONFIG = {
     maxFileSizeBytes: Number.POSITIVE_INFINITY,
     blockedMimeTypes: [],
@@ -254,15 +253,13 @@ export async function syncWebdavAttachments(
     }
 
     try {
-        await mkdir(LOCAL_ATTACHMENTS_DIR, {
-            baseDir: BaseDirectory.Data,
-            recursive: true,
-        });
+        await mkdir(await getManagedPath(ATTACHMENTS_DIR_NAME), { recursive: true });
     } catch (error) {
         deps.logSyncWarning('Failed to ensure local attachments directory', error);
     }
 
     const baseDataDir = await dataDir();
+    const managedAttachmentsDir = await getManagedPath(ATTACHMENTS_DIR_NAME);
     const workingData = structuredClone(appData);
     const attachmentsById = collectAttachmentsById(workingData);
 
@@ -498,14 +495,13 @@ export async function syncWebdavAttachments(
                 fileData instanceof ArrayBuffer ? new Uint8Array(fileData) : new Uint8Array(fileData as ArrayBuffer);
             await validateAttachmentHash(attachment, bytes);
             const filename = cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.uri)}`;
-            const relativePath = `${LOCAL_ATTACHMENTS_DIR}/${filename}`;
-            await writeAttachmentFileSafely(relativePath, bytes, {
-                baseDir: BaseDirectory.Data,
+            const targetPath = await join(managedAttachmentsDir, filename);
+            await writeFileSafelyAbsolute(targetPath, bytes, {
                 writeFile,
                 rename,
                 remove,
             });
-            attachment.uri = await join(baseDataDir, relativePath);
+            attachment.uri = targetPath;
             if (attachment.localStatus !== 'available') {
                 attachment.localStatus = 'available';
                 didMutate = true;
@@ -567,15 +563,13 @@ export async function syncCloudAttachments(
     const { dataDir, join } = await import('@tauri-apps/api/path');
 
     try {
-        await mkdir(LOCAL_ATTACHMENTS_DIR, {
-            baseDir: BaseDirectory.Data,
-            recursive: true,
-        });
+        await mkdir(await getManagedPath(ATTACHMENTS_DIR_NAME), { recursive: true });
     } catch (error) {
         deps.logSyncWarning('Failed to ensure local attachments directory', error);
     }
 
     const baseDataDir = await dataDir();
+    const managedAttachmentsDir = await getManagedPath(ATTACHMENTS_DIR_NAME);
     const attachmentsById = collectAttachmentsById(appData);
 
     const readLocalFile = async (path: string): Promise<Uint8Array> => {
@@ -690,14 +684,13 @@ export async function syncCloudAttachments(
             await validateAttachmentHash(attachment, bytes);
             const filename =
                 attachment.cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.uri)}`;
-            const relativePath = `${LOCAL_ATTACHMENTS_DIR}/${filename}`;
-            await writeAttachmentFileSafely(relativePath, bytes, {
-                baseDir: BaseDirectory.Data,
+            const targetPath = await join(managedAttachmentsDir, filename);
+            await writeFileSafelyAbsolute(targetPath, bytes, {
                 writeFile,
                 rename,
                 remove,
             });
-            attachment.uri = await join(baseDataDir, relativePath);
+            attachment.uri = targetPath;
             const statusChanged = attachment.localStatus !== 'available';
             if (statusChanged) {
                 attachment.localStatus = 'available';
@@ -732,15 +725,13 @@ export async function syncDropboxAttachments(
     const { dataDir, join } = await import('@tauri-apps/api/path');
 
     try {
-        await mkdir(LOCAL_ATTACHMENTS_DIR, {
-            baseDir: BaseDirectory.Data,
-            recursive: true,
-        });
+        await mkdir(await getManagedPath(ATTACHMENTS_DIR_NAME), { recursive: true });
     } catch (error) {
         deps.logSyncWarning('Failed to ensure local attachments directory', error);
     }
 
     const baseDataDir = await dataDir();
+    const managedAttachmentsDir = await getManagedPath(ATTACHMENTS_DIR_NAME);
     const attachmentsById = collectAttachmentsById(appData);
 
     const withDropboxAccess = async <T>(operation: (accessToken: string) => Promise<T>): Promise<T> => {
@@ -857,14 +848,13 @@ export async function syncDropboxAttachments(
             await validateAttachmentHash(attachment, bytes);
             const filename =
                 attachment.cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.uri)}`;
-            const relativePath = `${LOCAL_ATTACHMENTS_DIR}/${filename}`;
-            await writeAttachmentFileSafely(relativePath, bytes, {
-                baseDir: BaseDirectory.Data,
+            const targetPath = await join(managedAttachmentsDir, filename);
+            await writeFileSafelyAbsolute(targetPath, bytes, {
                 writeFile,
                 rename,
                 remove,
             });
-            attachment.uri = await join(baseDataDir, relativePath);
+            attachment.uri = targetPath;
             const statusChanged = attachment.localStatus !== 'available';
             if (statusChanged) {
                 attachment.localStatus = 'available';
@@ -893,15 +883,13 @@ export async function syncCloudKitAttachments(appData: AppData, deps: Attachment
     const { dataDir, join } = await import('@tauri-apps/api/path');
 
     try {
-        await mkdir(LOCAL_ATTACHMENTS_DIR, {
-            baseDir: BaseDirectory.Data,
-            recursive: true,
-        });
+        await mkdir(await getManagedPath(ATTACHMENTS_DIR_NAME), { recursive: true });
     } catch (error) {
         deps.logSyncWarning('Failed to ensure CloudKit attachments directory', error);
     }
 
     const baseDataDir = await dataDir();
+    const managedAttachmentsDir = await getManagedPath(ATTACHMENTS_DIR_NAME);
     const attachmentsById = collectAttachmentsById(appData);
     let didMutate = await flushPendingCloudKitAttachmentDeletes(appData);
     const maybeYieldAttachmentLoop = createCooperativeYield(4);
@@ -995,13 +983,10 @@ export async function syncCloudKitAttachments(appData: AppData, deps: Attachment
             try {
                 const extension = extractExtension(attachment.title) || extractExtension(attachment.uri);
                 const filename = `${attachment.id}${extension}`;
-                const relativePath = `${LOCAL_ATTACHMENTS_DIR}/${filename}`;
-                const targetPath = await join(baseDataDir, relativePath);
+                const targetPath = await join(managedAttachmentsDir, filename);
                 reportProgress(attachment.id, 'download', 0, attachment.size ?? 0, 'active');
                 const metadata = await fetchCloudKitAttachmentAsset(nextRecordName, targetPath);
-                const bytes = await readFile(relativePath, {
-                    baseDir: BaseDirectory.Data,
-                });
+                const bytes = await readFile(targetPath);
                 await validateAttachmentHash(attachment, bytes);
                 attachment.uri = targetPath;
                 attachment.localStatus = 'available';
@@ -1047,15 +1032,13 @@ export async function syncFileAttachments(
     }
 
     try {
-        await mkdir(LOCAL_ATTACHMENTS_DIR, {
-            baseDir: BaseDirectory.Data,
-            recursive: true,
-        });
+        await mkdir(await getManagedPath(ATTACHMENTS_DIR_NAME), { recursive: true });
     } catch (error) {
         deps.logSyncWarning('Failed to ensure local attachments directory', error);
     }
 
     const baseDataDir = await dataDir();
+    const managedAttachmentsDir = await getManagedPath(ATTACHMENTS_DIR_NAME);
     const attachmentsById = collectAttachmentsById(appData);
 
     const readLocalFile = async (path: string): Promise<Uint8Array> => {
@@ -1118,14 +1101,13 @@ export async function syncFileAttachments(
             await validateAttachmentHash(attachment, fileData);
             const filename =
                 attachment.cloudKey.split('/').pop() || `${attachment.id}${extractExtension(attachment.uri)}`;
-            const relativePath = `${LOCAL_ATTACHMENTS_DIR}/${filename}`;
-            await writeAttachmentFileSafely(relativePath, fileData, {
-                baseDir: BaseDirectory.Data,
+            const targetPath = await join(managedAttachmentsDir, filename);
+            await writeFileSafelyAbsolute(targetPath, fileData, {
                 writeFile,
                 rename,
                 remove,
             });
-            attachment.uri = await join(baseDataDir, relativePath);
+            attachment.uri = targetPath;
             const statusChanged = attachment.localStatus !== 'available';
             if (statusChanged) {
                 attachment.localStatus = 'available';
