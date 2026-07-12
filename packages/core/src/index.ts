@@ -541,6 +541,8 @@ export {
     normalizeFocusTaskLimit,
 } from './focus-utils';
 
+export { undoTaskCompletion } from './undo-task-completion';
+
 export {
     generateDeterministicUUID,
     generateUUID,

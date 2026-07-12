@@ -165,3 +165,4 @@ Changes collected after `v1.0.5` and before the next version tag.
 - perf(android): attaching a file from another app (document picker or share sheet) now copies it natively instead of piping the bytes through two base64 conversions in JavaScript — large files attach noticeably faster and no longer stall the UI thread while copying.
 - fix(desktop): archiving a project no longer asks for confirmation — like on mobile, the action is fully reversible from the same spot (the button becomes Reactivate and task statuses are restored); deleting a project still asks.
 - fix(desktop): the list controls panel no longer shows a stray "Loading..." strip while the inbox processor is open — the strip now appears only during an actual bulk delete.
+- feat(mobile): completing a task from a list now shows an Undo toast, just like deleting one — undo restores the task's previous status and its Today star (when the Focus cap has room), matching the undo desktop already offered.

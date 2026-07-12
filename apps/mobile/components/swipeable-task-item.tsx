@@ -10,6 +10,7 @@ import {
     safeParseDueDate,
     shallow,
     tFallback,
+    undoTaskCompletion,
     useTaskStore,
 } from '@mindwtr/core';
 import type { Area, Project, ProjectSequenceTaskCue, Task, TaskStatus } from '@mindwtr/core';
@@ -244,6 +245,8 @@ function SwipeableTaskItemInner({
     }, [showToast, t]);
 
     const handleStatusChange = useCallback((status: TaskStatus) => {
+        const previousStatus = task.status;
+        const wasFocusedToday = task.isFocusedToday === true;
         let result: void | Promise<unknown>;
         try {
             result = onStatusChange(status);
@@ -258,14 +261,27 @@ function SwipeableTaskItemInner({
                     showActionFailure(failure);
                     return;
                 }
-                if (status === 'done' && task.status !== 'done') {
+                if (status === 'done' && previousStatus !== 'done') {
+                    // Completing mirrors deleting: immediate, with an undo toast
+                    // instead of a confirmation (matches the desktop undo).
+                    showToast({
+                        title: t('common.notice') || 'Notice',
+                        message: (tFallback(t, 'task.markedDone', '{title} marked Done')).replace('{title}', task.title),
+                        tone: 'info',
+                        actionLabel: t('common.undo') || 'Undo',
+                        onAction: () => {
+                            void undoTaskCompletion(task.id, previousStatus, wasFocusedToday)
+                                .catch(() => undefined);
+                        },
+                        durationMs: 5200,
+                    });
                     openProjectNextActionPromptIfNeeded(task.id);
                 }
             })
             .catch((error) => {
                 showActionFailure(getUnknownErrorMessage(error));
             });
-    }, [onStatusChange, openProjectNextActionPromptIfNeeded, showActionFailure, task.id, task.status]);
+    }, [onStatusChange, openProjectNextActionPromptIfNeeded, showActionFailure, showToast, t, task.id, task.isFocusedToday, task.status, task.title]);
 
     const [completedAtPicker, setCompletedAtPicker] = useState<null | 'complete' | 'edit'>(null);
     const applyCompletedAt = useCallback((iso: string) => {
