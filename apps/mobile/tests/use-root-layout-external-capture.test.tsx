@@ -9,10 +9,22 @@ vi.mock('@/lib/app-log', () => ({
   logWarn: vi.fn(),
 }));
 
+const persistAttachmentLocally = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/attachment-sync', () => ({
+  persistAttachmentLocally,
+}));
+
 type RouterMock = {
   canGoBack: ReturnType<typeof vi.fn>;
   push: ReturnType<typeof vi.fn>;
   replace: ReturnType<typeof vi.fn>;
+};
+
+type SharedFile = {
+  fileName?: string | null;
+  mimeType?: string | null;
+  path?: string | null;
+  size?: number | null;
 };
 
 function TestHarness({
@@ -20,6 +32,7 @@ function TestHarness({
   incomingUrl,
   resetShareIntent = vi.fn(),
   router,
+  shareFiles = null,
   shareText = null,
   shareWebUrl = null,
   showToast,
@@ -28,6 +41,7 @@ function TestHarness({
   incomingUrl: string | null;
   resetShareIntent?: ReturnType<typeof vi.fn>;
   router: RouterMock;
+  shareFiles?: SharedFile[] | null;
   shareText?: string | null;
   shareWebUrl?: string | null;
   showToast: ReturnType<typeof vi.fn>;
@@ -39,6 +53,7 @@ function TestHarness({
     resolveText: (_key: string, fallback: string) => fallback,
     resetShareIntent,
     router,
+    shareFiles,
     shareText,
     shareWebUrl,
     showToast,
@@ -127,6 +142,71 @@ describe('useRootLayoutExternalCapture', () => {
         initialValue: 'https%3A%2F%2Fexample.com%2Freview-notes',
       },
     });
+  });
+
+  it('copies a shared file into attachments and opens capture with it attached', async () => {
+    const resetShareIntent = vi.fn();
+    persistAttachmentLocally.mockImplementation(async (attachment: { uri: string }) => ({
+      ...attachment,
+      uri: 'file:///data/mindwtr/attachments/copied.pdf',
+    }));
+
+    await act(async () => {
+      create(
+        <TestHarness
+          hasShareIntent
+          incomingUrl={null}
+          resetShareIntent={resetShareIntent}
+          router={router}
+          shareFiles={[{ fileName: 'Invoice March.pdf', mimeType: 'application/pdf', path: '/share/tmp/Invoice March.pdf', size: 1024 }]}
+          showToast={showToast}
+        />
+      );
+    });
+
+    expect(persistAttachmentLocally).toHaveBeenCalledTimes(1);
+    expect(persistAttachmentLocally.mock.calls[0][0]).toMatchObject({
+      kind: 'file',
+      title: 'Invoice March.pdf',
+      mimeType: 'application/pdf',
+      uri: 'file:///share/tmp/Invoice March.pdf',
+      size: 1024,
+    });
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    const params = router.replace.mock.calls[0][0].params;
+    expect(decodeURIComponent(params.initialValue)).toBe('Invoice March');
+    const props = JSON.parse(decodeURIComponent(params.initialProps));
+    expect(props.attachments).toHaveLength(1);
+    expect(props.attachments[0]).toMatchObject({
+      kind: 'file',
+      title: 'Invoice March.pdf',
+      uri: 'file:///data/mindwtr/attachments/copied.pdf',
+    });
+    expect(showToast).not.toHaveBeenCalled();
+    expect(resetShareIntent).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to shared text capture when the file copy fails', async () => {
+    // persistAttachmentLocally signals a failed copy by returning the input unchanged.
+    persistAttachmentLocally.mockImplementation(async (attachment: { uri: string }) => attachment);
+
+    await act(async () => {
+      create(
+        <TestHarness
+          hasShareIntent
+          incomingUrl={null}
+          router={router}
+          shareFiles={[{ fileName: 'photo.jpg', mimeType: 'image/jpeg', path: '/share/tmp/photo.jpg', size: 10 }]}
+          shareText="Look at this"
+          showToast={showToast}
+        />
+      );
+    });
+
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    const params = router.replace.mock.calls[0][0].params;
+    expect(decodeURIComponent(params.initialValue)).toBe('Look at this');
+    expect(params.initialProps).toBeUndefined();
   });
 
   it('opens a confirmation modal for App Actions capture links', () => {

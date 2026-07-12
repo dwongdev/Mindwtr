@@ -112,10 +112,23 @@
           "iosAppGroupIdentifier": "group.tech.dongdongbh.mindwtr",
           "iosActivationRules": {
             "NSExtensionActivationSupportsText": true,
-            "NSExtensionActivationSupportsWebURLWithMaxCount": 1
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsImageWithMaxCount": 6,
+            "NSExtensionActivationSupportsMovieWithMaxCount": 6,
+            "NSExtensionActivationSupportsFileWithMaxCount": 6
           },
           "androidIntentFilters": [
-            "text/*"
+            "text/*",
+            "image/*",
+            "audio/*",
+            "video/*",
+            "application/*"
+          ],
+          "androidMultiIntentFilters": [
+            "image/*",
+            "audio/*",
+            "video/*",
+            "application/*"
           ]
         }
       ],

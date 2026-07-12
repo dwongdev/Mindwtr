@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import type { Task } from '@mindwtr/core';
+import { generateUUID, validateAttachmentForUpload, type Attachment, type Task } from '@mindwtr/core';
 
 import type { ToastOptions } from '@/contexts/toast-context';
 import { logError, logWarn } from '@/lib/app-log';
+import { persistAttachmentLocally } from '@/lib/attachment-sync';
 import {
     isOpenFeatureUrl,
     isShortcutCaptureUrl,
@@ -22,6 +23,13 @@ type RouterLike = {
     replace: (...args: any[]) => void;
 };
 
+type SharedIntentFile = {
+    fileName?: string | null;
+    mimeType?: string | null;
+    path?: string | null;
+    size?: number | null;
+};
+
 type UseRootLayoutExternalCaptureParams = {
     dataReady: boolean;
     hasShareIntent: boolean;
@@ -29,6 +37,7 @@ type UseRootLayoutExternalCaptureParams = {
     resolveText: ResolveText;
     resetShareIntent: () => void;
     router: RouterLike;
+    shareFiles?: SharedIntentFile[] | null;
     shareText?: string | null;
     shareWebUrl?: string | null;
     showToast: (options: ToastOptions) => void;
@@ -37,6 +46,75 @@ type UseRootLayoutExternalCaptureParams = {
 const trimSharedValue = (value: string | null | undefined): string => (
     typeof value === 'string' ? value.trim() : ''
 );
+
+const SHARE_INTENT_MAX_FILES = 6;
+
+const stripFileExtension = (value: string): string => value.replace(/\.[A-Za-z0-9]{1,8}$/, '');
+
+// Shared files (PDFs, images, audio, ...) become copied attachments on the
+// capture draft, mirroring the in-app attach flow: the share-extension file
+// lives in a temporary container, so the bytes must be re-homed into the
+// managed attachments dir before the capture sheet ever sees them.
+async function buildShareIntentFileCaptureParams({
+    files,
+    shareText,
+}: {
+    files?: SharedIntentFile[] | null;
+    shareText?: string | null;
+}): Promise<Record<string, string> | null> {
+    const candidates = (files ?? [])
+        .filter((file): file is SharedIntentFile & { path: string } => (
+            typeof file?.path === 'string' && file.path.trim().length > 0
+        ))
+        .slice(0, SHARE_INTENT_MAX_FILES);
+    if (candidates.length === 0) return null;
+
+    const attachments: Attachment[] = [];
+    for (const file of candidates) {
+        const now = new Date().toISOString();
+        const sourceUri = file.path.startsWith('/') ? `file://${file.path}` : file.path;
+        const attachment: Attachment = {
+            id: generateUUID(),
+            kind: 'file',
+            title: trimSharedValue(file.fileName) || 'Shared file',
+            uri: sourceUri,
+            mimeType: trimSharedValue(file.mimeType) || undefined,
+            size: typeof file.size === 'number' && Number.isFinite(file.size) ? file.size : undefined,
+            createdAt: now,
+            updatedAt: now,
+            localStatus: 'available',
+        };
+        try {
+            if (typeof attachment.size === 'number') {
+                const validation = await validateAttachmentForUpload(attachment, attachment.size);
+                if (!validation.valid) {
+                    void logWarn('Skipped shared file failing attachment validation', {
+                        scope: 'share-intent',
+                        extra: { error: validation.error ?? 'unknown', size: String(attachment.size) },
+                    });
+                    continue;
+                }
+            }
+            const cached = await persistAttachmentLocally(attachment);
+            if (cached.uri === attachment.uri) {
+                // persistAttachmentLocally returns the input unchanged when the
+                // copy failed; a share-container path would go stale immediately.
+                void logWarn('Failed to copy shared file into attachments', { scope: 'share-intent' });
+                continue;
+            }
+            attachments.push(cached);
+        } catch (error) {
+            void logError(error, { scope: 'share-intent', extra: { step: 'copy-shared-file' } });
+        }
+    }
+    if (attachments.length === 0) return null;
+
+    const title = trimSharedValue(shareText) || stripFileExtension(attachments[0].title);
+    return {
+        initialValue: encodeURIComponent(title),
+        initialProps: encodeURIComponent(JSON.stringify({ attachments } satisfies Partial<Task>)),
+    };
+}
 
 function buildShareIntentCaptureParams({
     shareText,
@@ -68,6 +146,7 @@ export function useRootLayoutExternalCapture({
     resolveText,
     resetShareIntent,
     router,
+    shareFiles,
     shareText,
     shareWebUrl,
     showToast,
@@ -105,22 +184,35 @@ export function useRootLayoutExternalCapture({
 
     useEffect(() => {
         if (!hasShareIntent) return;
-        const params = buildShareIntentCaptureParams({ shareText, shareWebUrl });
-        if (params) {
-            router.replace({
-                pathname: '/capture-modal',
-                params,
-            });
-        } else {
-            void logError(new Error('Share intent payload missing text'), { scope: 'share-intent' });
-            showToast({
-                title: resolveText('share.unavailable', 'Share unavailable'),
-                message: resolveText('share.readFailed', 'Mindwtr could not read text or a URL from the shared item.'),
-                tone: 'warning',
-            });
+        const finish = (params: Record<string, string> | null) => {
+            if (params) {
+                router.replace({
+                    pathname: '/capture-modal',
+                    params,
+                });
+            } else {
+                void logError(new Error('Share intent payload missing text and files'), { scope: 'share-intent' });
+                showToast({
+                    title: resolveText('share.unavailable', 'Share unavailable'),
+                    message: resolveText('share.readFailed', 'Mindwtr could not read text, a URL, or a file from the shared item.'),
+                    tone: 'warning',
+                });
+            }
+        };
+        const hasSharedFiles = (shareFiles ?? []).some((file) => typeof file?.path === 'string' && file.path.trim().length > 0);
+        if (!hasSharedFiles) {
+            // Text/URL shares stay synchronous; only file shares need the
+            // async copy into the managed attachments dir.
+            finish(buildShareIntentCaptureParams({ shareText, shareWebUrl }));
+            resetShareIntent();
+            return;
         }
-        resetShareIntent();
-    }, [hasShareIntent, resolveText, resetShareIntent, router, shareText, shareWebUrl, showToast]);
+        void buildShareIntentFileCaptureParams({ files: shareFiles, shareText })
+            .then((fileParams) => {
+                finish(fileParams ?? buildShareIntentCaptureParams({ shareText, shareWebUrl }));
+            })
+            .finally(resetShareIntent);
+    }, [hasShareIntent, resolveText, resetShareIntent, router, shareFiles, shareText, shareWebUrl, showToast]);
 
     useEffect(() => {
         if (!dataReady) return;

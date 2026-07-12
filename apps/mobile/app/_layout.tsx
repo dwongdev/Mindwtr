@@ -468,6 +468,7 @@ function RootLayoutContentInner() {
     resolveText,
     resetShareIntent,
     router,
+    shareFiles: shareIntent?.files,
     shareText: shareIntent?.text,
     shareWebUrl: shareIntent?.webUrl,
     showToast,
