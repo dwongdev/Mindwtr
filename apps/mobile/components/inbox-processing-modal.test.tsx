@@ -248,6 +248,7 @@ vi.mock('../contexts/toast-context', () => ({
     showToast,
     dismissToast,
   }),
+  ToastViewport: () => null,
 }));
 
 vi.mock('@/hooks/use-theme-tokens', () => ({

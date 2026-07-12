@@ -26,6 +26,7 @@ import {
 
 import { useTheme } from '../contexts/theme-context';
 import { useLanguage } from '../contexts/language-context';
+import { ToastViewport } from '../contexts/toast-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useFilledButtonColors } from '@/hooks/use-filled-button-colors';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
@@ -717,6 +718,7 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
             onRequestClose={onClose}
         >
             <DailyReviewFlow onClose={onClose} />
+            <ToastViewport />
         </Modal>
     );
 }

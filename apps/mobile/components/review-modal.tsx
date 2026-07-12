@@ -22,6 +22,7 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useLanguage } from '../contexts/language-context';
+import { ToastViewport } from '../contexts/toast-context';
 import { AppPressable } from './app-pressable';
 import { CompactText } from './compact-text';
 import { SwipeableTaskItem } from './swipeable-task-item';
@@ -911,6 +912,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                         </View>
                     </View>
                 </Modal>
+                <ToastViewport />
             </GestureHandlerRootView>
         </Modal>
     );

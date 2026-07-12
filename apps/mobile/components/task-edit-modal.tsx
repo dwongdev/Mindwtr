@@ -20,7 +20,7 @@ import {
 } from '@mindwtr/core';
 import { useLanguage } from '../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
-import { useToast } from '@/contexts/toast-context';
+import { ToastViewport, useToast } from '@/contexts/toast-context';
 import { ExpandedMarkdownEditor } from './expanded-markdown-editor';
 import { KeyboardAccessoryHost } from './keyboard-accessory-host';
 import { MarkdownFormatToolbar } from './markdown-format-toolbar';
@@ -1066,6 +1066,7 @@ function TaskEditModalInner({
                     />
                 </SafeAreaView>
             </KeyboardAccessoryHost>
+            <ToastViewport />
         </Modal>
         {visible ? (
             <ExpandedMarkdownEditor

@@ -35,6 +35,19 @@ type ToastContextValue = {
     dismissToast: () => void;
 };
 
+type ToastRenderState = {
+    toast: ToastState | null;
+    opacity: Animated.Value;
+    translateX: Animated.Value;
+    translateY: Animated.Value;
+    panHandlers: ReturnType<typeof PanResponder.create>['panHandlers'];
+    showToast: (options: ToastOptions) => void;
+    dismissToast: () => void;
+    topViewportId: number | null;
+    registerViewport: (id: number) => void;
+    unregisterViewport: (id: number) => void;
+};
+
 const TOAST_DEFAULT_DURATION_MS = 3200;
 const TOAST_ACTION_DURATION_MS = 5200;
 const TOAST_QUEUE_GAP_MS = 120;
@@ -45,6 +58,9 @@ const TOAST_SWIPE_EXIT_DISTANCE = 420;
 const TOAST_SWIPE_TARGET_TEST_ID = 'toast-swipe-dismiss-target';
 
 const ToastContext = createContext<ToastContextValue | null>(null);
+const ToastRenderContext = createContext<ToastRenderState | null>(null);
+
+let nextViewportId = 1;
 
 const shouldStartToastSwipe = (_event: GestureResponderEvent, gestureState: PanResponderGestureState): boolean => {
     const horizontalDistance = Math.abs(gestureState.dx);
@@ -64,9 +80,10 @@ const getToastSwipeExitTranslateX = (gestureState: PanResponderGestureState): nu
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-    const insets = useSafeAreaInsets();
-    const tc = useThemeColors();
     const [queue, setQueue] = useState<ToastState[]>([]);
+    // Native <Modal> windows cover the root overlay, so modal content mounts a
+    // ToastViewport and the toast renders in the topmost registered one (#834).
+    const [viewportStack, setViewportStack] = useState<number[]>([]);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const queueAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const opacity = useRef(new Animated.Value(0)).current;
@@ -217,82 +234,140 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         dismissToast,
     }), [dismissToast, showToast]);
 
-    const accentColor = toast?.tone === 'success'
+    const registerViewport = useCallback((id: number) => {
+        setViewportStack((current) => [...current.filter((entry) => entry !== id), id]);
+    }, []);
+
+    const unregisterViewport = useCallback((id: number) => {
+        setViewportStack((current) => current.filter((entry) => entry !== id));
+    }, []);
+
+    const topViewportId = viewportStack.length > 0 ? viewportStack[viewportStack.length - 1] : null;
+
+    const renderState = useMemo<ToastRenderState>(() => ({
+        toast,
+        opacity,
+        translateX,
+        translateY,
+        panHandlers: panResponder.panHandlers,
+        showToast,
+        dismissToast,
+        topViewportId,
+        registerViewport,
+        unregisterViewport,
+    }), [dismissToast, opacity, panResponder, registerViewport, showToast, toast, topViewportId, translateX, translateY, unregisterViewport]);
+
+    return (
+        <ToastContext.Provider value={value}>
+            <ToastRenderContext.Provider value={renderState}>
+                {children}
+                {topViewportId === null && <ToastOverlay />}
+            </ToastRenderContext.Provider>
+        </ToastContext.Provider>
+    );
+}
+
+function ToastOverlay() {
+    const renderState = useContext(ToastRenderContext);
+    const insets = useSafeAreaInsets();
+    const tc = useThemeColors();
+    if (!renderState?.toast) return null;
+    const { toast, opacity, translateX, translateY, panHandlers, showToast, dismissToast } = renderState;
+
+    const accentColor = toast.tone === 'success'
         ? tc.success
-        : toast?.tone === 'warning'
+        : toast.tone === 'warning'
             ? tc.warning
-            : toast?.tone === 'error'
+            : toast.tone === 'error'
                 ? tc.danger
                 : tc.tint;
 
     return (
-        <ToastContext.Provider value={value}>
-            {children}
-            <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-                {toast && (
-                    <View
-                        pointerEvents="box-none"
-                        style={[
-                            styles.viewport,
-                            { paddingBottom: Math.max(insets.bottom, 16) + 16 },
-                        ]}
-                    >
-                        <Animated.View
-                            testID={TOAST_SWIPE_TARGET_TEST_ID}
-                            {...panResponder.panHandlers}
-                            style={[
-                                styles.toast,
-                                {
-                                    backgroundColor: tc.cardBg,
-                                    borderColor: tc.border,
-                                    opacity,
-                                    transform: [{ translateX }, { translateY }],
-                                },
-                            ]}
-                        >
-                            <View style={[styles.accent, { backgroundColor: accentColor }]} />
-                            <View style={styles.content}>
-                                {toast.title ? (
-                                    <Text style={[styles.title, { color: tc.text }]} numberOfLines={2}>
-                                        {toast.title}
-                                    </Text>
-                                ) : null}
-                                <Text style={[styles.message, { color: tc.secondaryText }]} numberOfLines={toast.actionLabel ? 4 : 5}>
-                                    {toast.message}
-                                </Text>
-                            </View>
-                            {toast.actionLabel ? (
-                                <Pressable
-                                    accessibilityRole="button"
-                                    onPress={async () => {
-                                        try {
-                                            await toast.onAction?.();
-                                            dismissToast();
-                                        } catch (error) {
-                                            void logError(error, { scope: 'toast', extra: { message: 'Toast action failed' } });
-                                            dismissToast();
-                                            showToast({
-                                                title: 'Action failed',
-                                                message: error instanceof Error && error.message.trim()
-                                                    ? error.message
-                                                    : 'Please try again.',
-                                                tone: 'error',
-                                            });
-                                        }
-                                    }}
-                                    style={styles.actionButton}
-                                >
-                                    <Text style={[styles.actionLabel, { color: accentColor }]}>
-                                        {toast.actionLabel}
-                                    </Text>
-                                </Pressable>
-                            ) : null}
-                        </Animated.View>
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+            <View
+                pointerEvents="box-none"
+                style={[
+                    styles.viewport,
+                    { paddingBottom: Math.max(insets.bottom, 16) + 16 },
+                ]}
+            >
+                <Animated.View
+                    testID={TOAST_SWIPE_TARGET_TEST_ID}
+                    {...panHandlers}
+                    style={[
+                        styles.toast,
+                        {
+                            backgroundColor: tc.cardBg,
+                            borderColor: tc.border,
+                            opacity,
+                            transform: [{ translateX }, { translateY }],
+                        },
+                    ]}
+                >
+                    <View style={[styles.accent, { backgroundColor: accentColor }]} />
+                    <View style={styles.content}>
+                        {toast.title ? (
+                            <Text style={[styles.title, { color: tc.text }]} numberOfLines={2}>
+                                {toast.title}
+                            </Text>
+                        ) : null}
+                        <Text style={[styles.message, { color: tc.secondaryText }]} numberOfLines={toast.actionLabel ? 4 : 5}>
+                            {toast.message}
+                        </Text>
                     </View>
-                )}
+                    {toast.actionLabel ? (
+                        <Pressable
+                            accessibilityRole="button"
+                            onPress={async () => {
+                                try {
+                                    await toast.onAction?.();
+                                    dismissToast();
+                                } catch (error) {
+                                    void logError(error, { scope: 'toast', extra: { message: 'Toast action failed' } });
+                                    dismissToast();
+                                    showToast({
+                                        title: 'Action failed',
+                                        message: error instanceof Error && error.message.trim()
+                                            ? error.message
+                                            : 'Please try again.',
+                                        tone: 'error',
+                                    });
+                                }
+                            }}
+                            style={styles.actionButton}
+                        >
+                            <Text style={[styles.actionLabel, { color: accentColor }]}>
+                                {toast.actionLabel}
+                            </Text>
+                        </Pressable>
+                    ) : null}
+                </Animated.View>
             </View>
-        </ToastContext.Provider>
+        </View>
     );
+}
+
+// Mount inside a native <Modal>'s content so toasts fired while the modal is
+// open render above it instead of behind the modal window. The most recently
+// opened modal wins; the root overlay takes over when no viewport is mounted.
+export function ToastViewport() {
+    const renderState = useContext(ToastRenderContext);
+    const idRef = useRef<number | null>(null);
+    if (idRef.current === null) {
+        idRef.current = nextViewportId++;
+    }
+    const id = idRef.current;
+    const registerViewport = renderState?.registerViewport;
+    const unregisterViewport = renderState?.unregisterViewport;
+
+    useEffect(() => {
+        if (!registerViewport || !unregisterViewport) return undefined;
+        registerViewport(id);
+        return () => unregisterViewport(id);
+    }, [id, registerViewport, unregisterViewport]);
+
+    if (!renderState || renderState.topViewportId !== id) return null;
+    return <ToastOverlay />;
 }
 
 export function useToast(): ToastContextValue {

@@ -40,6 +40,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { useFilledButtonColors } from '@/hooks/use-filled-button-colors';
 import { KeyboardAccessoryHost } from '../../components/keyboard-accessory-host';
+import { ToastViewport } from '../../contexts/toast-context';
 import { ExpandedMarkdownEditor } from '../../components/expanded-markdown-editor';
 import { MarkdownFormatToolbar } from '../../components/markdown-format-toolbar';
 import { MarkdownReferenceAutocomplete } from '../../components/markdown-reference-autocomplete';
@@ -1565,6 +1566,7 @@ export function ProjectDetailModal({
                         ) : null}
                     </SafeAreaView>
                 </KeyboardAccessoryHost>
+                <ToastViewport />
             </GestureHandlerRootView>
         </Modal>
     );

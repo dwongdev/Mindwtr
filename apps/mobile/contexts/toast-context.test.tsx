@@ -61,7 +61,7 @@ vi.mock('react-native', async () => {
     };
 });
 
-import { ToastProvider, useToast } from './toast-context';
+import { ToastProvider, ToastViewport, useToast } from './toast-context';
 
 const QUEUE_GAP_MS = 120;
 const TOAST_SWIPE_TARGET_TEST_ID = 'toast-swipe-dismiss-target';
@@ -166,5 +166,44 @@ describe('ToastProvider', () => {
         });
 
         expect(getRenderedText(renderedTree)).not.toContain(`Swipe ${_direction}`);
+    });
+
+    it('renders the toast in the topmost mounted viewport instead of the root overlay', () => {
+        let controls: ToastControls | null = null;
+        let tree: ReactTestRenderer | null = null;
+
+        const render = (withViewport: boolean) => (
+            <ToastProvider>
+                <ToastHarness onReady={(value) => {
+                    controls = value;
+                }}
+                />
+                {withViewport && <ToastViewport />}
+            </ToastProvider>
+        );
+
+        act(() => {
+            tree = create(render(true));
+        });
+
+        expect(controls).not.toBeNull();
+        expect(tree).not.toBeNull();
+        if (!controls || !tree) return;
+        const toastControls = controls as ToastControls;
+        const renderedTree = tree as ReactTestRenderer;
+
+        act(() => {
+            toastControls.showToast({ message: 'Modal toast', durationMs: 10_000 });
+        });
+
+        // Exactly one toast instance: the viewport renders it, the root overlay stays empty.
+        expect(getRenderedText(renderedTree).match(/Modal toast/g)).toHaveLength(1);
+
+        // Unmounting the viewport (modal closes) hands the toast back to the root overlay.
+        act(() => {
+            renderedTree.update(render(false));
+        });
+
+        expect(getRenderedText(renderedTree)).toContain('Modal toast');
     });
 });

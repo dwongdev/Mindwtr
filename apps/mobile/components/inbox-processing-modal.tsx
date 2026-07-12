@@ -4,6 +4,7 @@ import { X } from 'lucide-react-native';
 import { tFallback } from '@mindwtr/core';
 
 import { AIResponseModal } from './ai-response-modal';
+import { ToastViewport } from '@/contexts/toast-context';
 import { styles } from './inbox-processing-modal.styles';
 import { useFilledButtonColors } from '@/hooks/use-filled-button-colors';
 import { useInboxProcessingController } from './inbox-processing/useInboxProcessingController';
@@ -546,6 +547,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
             </View>
           </KeyboardAvoidingView>
         </View>
+        <ToastViewport />
       </Modal>
       {aiModal && (
         <AIResponseModal
