@@ -672,11 +672,13 @@ describeSqlite('SqliteAdapter', () => {
         expect(loaded.projects[0]?.areaId).toBe('area-linked-1');
         expect(loaded.sections[0]?.projectId).toBe('proj-linked-1');
 
+        // Delete every linked row in one save (the area survives so the save
+        // is not an all-empty snapshot, which the #852 backstop refuses).
         await expect(adapter.saveData({
             tasks: [],
             projects: [],
             sections: [],
-            areas: [],
+            areas: linkedData.areas,
             settings: {},
         })).resolves.toBeUndefined();
 
@@ -684,7 +686,7 @@ describeSqlite('SqliteAdapter', () => {
         expect(cleared.tasks).toHaveLength(0);
         expect(cleared.projects).toHaveLength(0);
         expect(cleared.sections).toHaveLength(0);
-        expect(cleared.areas).toHaveLength(0);
+        expect(cleared.areas).toHaveLength(1);
     });
 
     it('keeps task references consistent when a project row is hard-deleted', async () => {
@@ -1392,5 +1394,52 @@ describe('SqliteAdapter saveData pruning', () => {
         );
         expect(tempAreaInsertCalls).toHaveLength(3);
         expect(tempAreaInsertCalls.map(([, params]) => (params as unknown[]).length)).toEqual([500, 500, 201]);
+    });
+});
+
+describe('SqliteAdapter empty-snapshot backstop (#852)', () => {
+    const emptyData: AppData = {
+        tasks: [],
+        projects: [],
+        sections: [],
+        areas: [],
+        people: [],
+        settings: {},
+    };
+
+    const makeAdapter = (storedTaskCount: number) => {
+        const run = vi.fn().mockResolvedValue(undefined);
+        const all = vi.fn().mockImplementation(async (sql: string) => {
+            if (String(sql).startsWith('SELECT COUNT(*)')) {
+                return String(sql).includes('FROM tasks') ? [{ count: storedTaskCount }] : [{ count: 0 }];
+            }
+            return [];
+        });
+        const client: SqliteClient = {
+            run,
+            get: vi.fn().mockResolvedValue(undefined),
+            all,
+            exec: vi.fn().mockResolvedValue(undefined),
+        };
+        const adapter = new SqliteAdapter(client);
+        (adapter as unknown as { ensureSchema: () => Promise<void> }).ensureSchema = async () => {};
+        return { adapter, run };
+    };
+
+    it('refuses an all-empty snapshot while the database still holds entities', async () => {
+        const { adapter, run } = makeAdapter(3);
+
+        await expect(adapter.saveData(emptyData)).rejects.toThrow(/empty snapshot/);
+
+        // Refusal happens before any write: no transaction, no deletes.
+        expect(run).not.toHaveBeenCalled();
+    });
+
+    it('allows an empty snapshot when the database is empty too (first run)', async () => {
+        const { adapter, run } = makeAdapter(0);
+
+        await adapter.saveData(emptyData);
+
+        expect(run.mock.calls.map(([sql]) => String(sql))).toContain('BEGIN IMMEDIATE');
     });
 });

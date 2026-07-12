@@ -1298,6 +1298,27 @@ export class SqliteAdapter {
 
     async saveData(data: AppData): Promise<void> {
         await this.ensureSchema();
+        // A snapshot with zero entities while the database still holds rows
+        // means the caller lost its in-memory state: real mass-deletions keep
+        // tombstoned rows in the snapshot (#852). Desktop's Rust storage layer
+        // refuses this at its own layer; this is the same backstop for every
+        // consumer of the shared adapter (mobile, MCP local mode).
+        const incomingEntityCount = (data.tasks?.length ?? 0)
+            + (data.projects?.length ?? 0)
+            + (data.sections?.length ?? 0)
+            + (data.areas?.length ?? 0)
+            + (data.people?.length ?? 0);
+        if (incomingEntityCount === 0) {
+            let storedEntityCount = 0;
+            for (const table of ['tasks', 'projects', 'sections', 'areas', 'people'] as const) {
+                const rows = await this.client.all<{ count: number }>(`SELECT COUNT(*) AS count FROM ${table}`);
+                storedEntityCount += Number(rows[0]?.count ?? 0);
+                if (storedEntityCount > 0) break;
+            }
+            if (storedEntityCount > 0) {
+                throw new Error('Refusing to overwrite existing data with an empty snapshot; local data left untouched');
+            }
+        }
         const previousSave = this.lastSavedFingerprints;
         const nextSave: { tables: Map<string, Map<string, string>>; settingsJson: string | null } = {
             tables: new Map(),
