@@ -1326,18 +1326,13 @@ export function ProjectWorkspace({
         setEditProjectTitle(selectedProject.title);
     };
 
+    // Archive without a confirmation: the action is fully reversible from the
+    // same header slot (the button becomes Reactivate and task statuses are
+    // restored), matching the mobile editor. Delete keeps its confirmation.
     const handleArchiveProject = async () => {
         if (!selectedProject) return;
         try {
-            const confirmed = await requestConfirmation({
-                title: t('projects.archive') || 'Archive',
-                description: t('projects.archiveConfirm'),
-                confirmLabel: t('projects.archive') || 'Archive',
-                cancelLabel: t('common.cancel') || 'Cancel',
-            });
-            if (confirmed) {
-                await Promise.resolve(updateProject(selectedProject.id, { status: 'archived' }));
-            }
+            await Promise.resolve(updateProject(selectedProject.id, { status: 'archived' }));
         } catch (error) {
             reportError('Failed to archive project', error);
             showToast(t('projects.archiveFailed') || 'Failed to archive project', 'error');
