@@ -1033,6 +1033,76 @@ function TaskListComponent({
     setProjectReorderMode(!projectReorderMode);
   }, [canUseProjectReorder, exitSelectionMode, projectReorderMode, setProjectReorderMode]);
 
+  // Entering Task order mounts a fresh DraggableFlatList at the top; start it on
+  // the task the user was looking at instead (#765). The first visible task is
+  // tracked via native viewability (no manual frames — see #831), and the entry
+  // scroll retries briefly because a freshly mounted list clamps the jump until
+  // enough rows render.
+  const firstViewableTaskIdRef = useRef<string | null>(null);
+  const reorderListRef = useRef<FlatList<ProjectReorderFlatItem<Task>> | null>(null);
+  const projectReorderFlatItemsRef = useRef(projectReorderFlatItems);
+  projectReorderFlatItemsRef.current = projectReorderFlatItems;
+  const projectReorderScrollOffsetRef = useRef(0);
+  const listViewabilityConfig = useRef({ itemVisiblePercentThreshold: 10 }).current;
+  const handleListViewableItemsChanged = useRef((info: { viewableItems: { item?: unknown }[] }) => {
+    const firstTask = info.viewableItems.find((entry) => {
+      const item = entry.item as ListItem | undefined;
+      return item?.type === 'task';
+    });
+    firstViewableTaskIdRef.current = firstTask
+      ? (firstTask.item as Extract<ListItem, { type: 'task' }>).task.id
+      : null;
+  }).current;
+  const handleProjectReorderScrollOffsetChange = useCallback((offset: number) => {
+    projectReorderScrollOffsetRef.current = offset;
+  }, []);
+  const handleReorderScrollToIndexFailed = useCallback((info: { index: number; averageItemLength: number }) => {
+    const estimate = (info.averageItemLength || PROJECT_REORDER_ITEM_HEIGHT) * info.index;
+    reorderListRef.current?.scrollToOffset({ offset: estimate, animated: false });
+    setTimeout(() => {
+      reorderListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0 });
+    }, 120);
+  }, []);
+  const prevProjectReorderModeRef = useRef(projectReorderMode);
+  useEffect(() => {
+    const wasReordering = prevProjectReorderModeRef.current;
+    prevProjectReorderModeRef.current = projectReorderMode;
+    if (wasReordering || !projectReorderMode || !canUseProjectReorder) return undefined;
+    const taskId = firstViewableTaskIdRef.current;
+    if (!taskId) return undefined;
+    const index = projectReorderFlatItemsRef.current.findIndex(
+      (item) => item.type === 'task' && item.task.id === taskId,
+    );
+    if (index <= 0) return undefined;
+    projectReorderScrollOffsetRef.current = 0;
+    const scrollToTarget = () => {
+      try {
+        reorderListRef.current?.scrollToIndex({ index, animated: false, viewPosition: 0 });
+      } catch {
+        // Out-of-render index without getItemLayout — the failed handler covers it.
+      }
+    };
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const retry = () => {
+      timer = null;
+      // Stop once the list actually moved off the top (a clamped first jump
+      // keeps it at 0) or the retries run out.
+      if (projectReorderScrollOffsetRef.current > 1) return;
+      scrollToTarget();
+      attempts += 1;
+      if (attempts < 5) timer = setTimeout(retry, 250);
+    };
+    const frame = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame(scrollToTarget)
+      : null;
+    timer = setTimeout(retry, 250);
+    return () => {
+      if (frame !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(frame);
+      if (timer !== null) clearTimeout(timer);
+    };
+  }, [canUseProjectReorder, projectReorderMode]);
+
   const handleProjectTaskDragEnd = useCallback((params: DragEndParams<ProjectReorderFlatItem<Task>>) => {
     if (!projectId) return;
     if (params.from === params.to) return;
@@ -1850,11 +1920,17 @@ function TaskListComponent({
         // into that section (per-section nested lists could never move tasks across
         // sections, and the nested variant also disabled windowing — #784).
         <DraggableFlatList
+          // DraggableFlatList forwards its ref to the inner FlatList but types
+          // it as the gesture-handler wrapper; the runtime instance is the RN
+          // FlatList the scroll calls need.
+          ref={reorderListRef as never}
           data={projectReorderFlatItems}
           keyExtractor={(item) => item.key}
           getItemLayout={projectReorderHasHeaders ? undefined : getProjectReorderItemLayout}
           renderItem={renderProjectReorderItem}
           onDragEnd={handleProjectTaskDragEnd}
+          onScrollOffsetChange={handleProjectReorderScrollOffsetChange}
+          onScrollToIndexFailed={handleReorderScrollToIndexFailed}
           activationDistance={2}
           animationConfig={PROJECT_REORDER_ANIMATION_CONFIG}
           autoscrollThreshold={80}
@@ -1916,6 +1992,8 @@ function TaskListComponent({
           renderItem={renderListItem}
           keyExtractor={getVirtualizedListItemKey}
           ListHeaderComponent={listHeaderComponent ?? undefined}
+          viewabilityConfig={listViewabilityConfig}
+          onViewableItemsChanged={handleListViewableItemsChanged}
           onScroll={onListScroll}
           scrollEventThrottle={onListScroll ? 16 : undefined}
           style={styles.list}
