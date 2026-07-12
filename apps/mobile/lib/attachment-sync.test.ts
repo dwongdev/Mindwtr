@@ -114,14 +114,11 @@ describe('attachment sync', () => {
     fileSystemMock.StorageAccessFramework.writeAsStringAsync.mockResolvedValue(undefined);
   });
 
-  it('persists generic Android content uris by staging them to a temp file first', async () => {
+  it('persists generic Android content uris with a native copy into managed storage', async () => {
     const contentUri = 'content://com.android.providers.downloads.documents/document/msf%3A1000006030';
     fileSystemMock.getInfoAsync
       .mockResolvedValueOnce({ exists: false })
       .mockResolvedValueOnce({ exists: true, size: 3 });
-    fileSystemMock.readAsStringAsync
-      .mockRejectedValueOnce(new Error(`Unsupported scheme for location '${contentUri}'.`))
-      .mockResolvedValueOnce('AQID');
 
     const { persistAttachmentLocally } = await import('./attachment-sync');
 
@@ -134,17 +131,22 @@ describe('attachment sync', () => {
       updatedAt: '2026-03-06T05:14:32.399Z',
     });
 
+    // Native copyAsync streams the content:// bytes straight into a temp file
+    // beside the target; no JS-side base64 read happens on the happy path.
     expect(fileSystemMock.copyAsync).toHaveBeenCalledTimes(1);
     expect(fileSystemMock.copyAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         from: contentUri,
-        to: expect.stringMatching(/^file:\/\/cache\/content-read-/),
+        to: expect.stringMatching(/^file:\/\/document\/attachments\/att-1\.png\.tmp-/),
       })
     );
-    expect(fileSystemMock.deleteAsync).toHaveBeenCalledWith(
-      expect.stringMatching(/^file:\/\/cache\/content-read-/),
-      { idempotent: true }
+    expect(fileSystemMock.moveAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: expect.stringMatching(/^file:\/\/document\/attachments\/att-1\.png\.tmp-/),
+        to: 'file://document/attachments/att-1.png',
+      })
     );
+    expect(fileSystemMock.readAsStringAsync).not.toHaveBeenCalled();
     expect(result.uri).toBe('file://document/attachments/att-1.png');
     expect(result.localStatus).toBe('available');
     expect(result.size).toBe(3);
@@ -211,9 +213,11 @@ describe('attachment sync', () => {
     expect(result?.uri).toBe('file://document/attachments/att-available.png');
     expect(result?.localStatus).toBe('available');
     expect(result?.size).toBe(3);
-    expect(fileSystemMock.readAsStringAsync).toHaveBeenCalledWith(
-      contentUri,
-      { encoding: 'base64' }
+    expect(fileSystemMock.copyAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: contentUri,
+        to: expect.stringMatching(/^file:\/\/document\/attachments\/att-available\.png\.tmp-/),
+      })
     );
   });
 
@@ -420,14 +424,11 @@ describe('attachment sync', () => {
     expect(didMutate).toBe(true);
     expect(attachment?.uri).toBe(managedUri);
     expect(attachment?.localStatus).toBe('available');
-    expect(fileSystemMock.readAsStringAsync).toHaveBeenCalledWith(
-      legacyContentUri,
-      { encoding: 'base64' }
-    );
-    expect(fileSystemMock.writeAsStringAsync).toHaveBeenCalledWith(
-      expect.stringMatching(/^file:\/\/document\/attachments\/legacy\.txt\.tmp-/),
-      'AQID',
-      { encoding: 'base64' }
+    expect(fileSystemMock.copyAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: legacyContentUri,
+        to: expect.stringMatching(/^file:\/\/document\/attachments\/legacy\.txt\.tmp-/),
+      })
     );
     expect(fileSystemMock.StorageAccessFramework.createFileAsync).not.toHaveBeenCalled();
   });
@@ -487,7 +488,7 @@ describe('attachment sync', () => {
     const attachments = appData.tasks[0].attachments ?? [];
 
     expect(didMutate).toBe(true);
-    expect(fileSystemMock.readAsStringAsync).toHaveBeenCalledTimes(ATTACHMENT_LOCAL_MIGRATION_MAX_PER_SYNC);
+    expect(fileSystemMock.copyAsync).toHaveBeenCalledTimes(ATTACHMENT_LOCAL_MIGRATION_MAX_PER_SYNC);
     expect(attachments.slice(0, ATTACHMENT_LOCAL_MIGRATION_MAX_PER_SYNC).every((attachment) =>
       attachment.uri.startsWith('file://document/attachments/')
     )).toBe(true);

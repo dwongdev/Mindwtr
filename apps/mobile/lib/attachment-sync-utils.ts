@@ -567,12 +567,11 @@ export const persistAttachmentLocally = async (attachment: Attachment): Promise<
     });
     const alreadyExists = await fileExists(targetUri);
     if (!alreadyExists) {
-      if (isContentAttachmentUri(uri)) {
-        const bytes = await readFileAsBytes(uri);
-        await writeBytesSafely(targetUri, bytes);
-      } else {
-        await copyFileSafely(uri, targetUri);
-      }
+      // copyFileSafely streams through native copyAsync (temp + rename) and
+      // only falls back to the JS byte round-trip when the provider refuses
+      // the copy — content:// sources included, so share-sheet files avoid a
+      // double base64 pass on the JS thread.
+      await copyFileSafely(uri, targetUri);
     }
     let size = attachment.size;
     if (!Number.isFinite(size ?? NaN)) {
