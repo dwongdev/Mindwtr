@@ -236,6 +236,7 @@ vi.mock('@/lib/task-meta-navigation', () => ({
 }));
 
 vi.mock('../contexts/toast-context', () => ({
+  ToastViewport: () => null,
   useToast: () => ({
     showToast,
     dismissToast: vi.fn(),

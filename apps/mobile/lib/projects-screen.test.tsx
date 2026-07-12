@@ -131,6 +131,7 @@ vi.mock('../contexts/language-context', () => ({
 }));
 
 vi.mock('../contexts/toast-context', () => ({
+  ToastViewport: () => null,
   useToast: () => ({ showToast: vi.fn() }),
 }));
 

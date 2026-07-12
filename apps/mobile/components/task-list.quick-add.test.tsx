@@ -255,6 +255,7 @@ vi.mock('@/hooks/use-mobile-area-filter', () => ({
 }));
 
 vi.mock('@/contexts/toast-context', () => ({
+  ToastViewport: () => null,
   useToast: () => ({ showToast: vi.fn() }),
 }));
 

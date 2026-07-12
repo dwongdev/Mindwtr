@@ -149,6 +149,7 @@ vi.mock('../lib/attachment-sync-utils', () => ({
 }));
 
 vi.mock('../contexts/toast-context', () => ({
+  ToastViewport: () => null,
   useToast: () => toastMock,
 }));
 

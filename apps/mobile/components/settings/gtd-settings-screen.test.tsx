@@ -99,6 +99,7 @@ vi.mock('@/hooks/use-theme-colors', () => ({
 }));
 
 vi.mock('@/contexts/toast-context', () => ({
+  ToastViewport: () => null,
   useToast: () => ({
     dismissToast: vi.fn(),
     showToast,
