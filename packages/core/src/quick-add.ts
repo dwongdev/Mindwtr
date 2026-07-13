@@ -41,6 +41,49 @@ export function getQuickAddProjectInitialProps(
     return areaId ? { areaId } : undefined;
 }
 
+export interface ProjectNextActionParseContext {
+    projectId: string;
+    sectionId?: string | null;
+    projects?: Project[];
+    areas?: Area[];
+    now?: Date;
+    parseOptions?: QuickAddParseOptions;
+}
+
+/**
+ * Parse the "What's the next action?" prompt input with the quick-add
+ * grammar, so tokens like `/waiting`, `@context`, or `/due:` work there the
+ * same way they do in the quick-add box (#859).
+ *
+ * The prompt is scoped to one project: parsed tokens win over the prompt's
+ * defaults, an existing `+project` token may retarget (dropping the prompt's
+ * section), but unknown project names never create projects from here — the
+ * token is kept as title text instead.
+ */
+export function parseProjectNextActionInput(
+    input: string,
+    context: ProjectNextActionParseContext,
+): { title: string; props: Partial<Task> } {
+    const { projectId, sectionId, projects, areas, now = new Date(), parseOptions } = context;
+    const parsed = parseQuickAdd(input, projects, now, areas, parseOptions);
+    const props: Partial<Task> = { ...parsed.props };
+    let title = parsed.title;
+    if (parsed.projectTitle && parseOptions?.preserveText !== true) {
+        const token = /\s/.test(parsed.projectTitle) ? `+"${parsed.projectTitle}"` : `+${parsed.projectTitle}`;
+        title = `${title} ${token}`.trim();
+    }
+    if (typeof props.projectId !== 'string' || !props.projectId.trim()) {
+        props.projectId = projectId;
+    }
+    if (props.projectId === projectId && typeof sectionId === 'string' && sectionId) {
+        props.sectionId = sectionId;
+    }
+    if (!props.status) {
+        props.status = 'next';
+    }
+    return { title: title || input.trim(), props };
+}
+
 export interface QuickAddDateCommandsResult {
     title: string;
     props: Pick<Partial<Task>, 'startTime' | 'dueDate' | 'reviewAt'>;

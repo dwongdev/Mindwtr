@@ -18,6 +18,7 @@ import {
     getFocusStarBlockedText,
     resolveFocusStarAction,
     parseQuickAddDateCommands,
+    parseProjectNextActionInput,
     getPersonOptionNames,
     useTaskStore,
     areDraftAttachmentsDirty,
@@ -799,13 +800,27 @@ export const TaskItem = memo(function TaskItem({
     }, [closeProjectNextActionPrompt, moveTask]);
     const handleAddProjectNextAction = useCallback(() => {
         if (!projectNextActionPrompt) return;
-        const title = projectNextActionTitle.trim();
-        if (!title) return;
-        void addTask(title, {
-            status: 'next',
+        const rawTitle = projectNextActionTitle.trim();
+        if (!rawTitle) return;
+        // Same quick-add grammar as the quick-add box, so "/waiting" and
+        // friends work from this prompt too (#859). Read lazily: this row
+        // component must not subscribe to the whole store.
+        const state = useTaskStore.getState();
+        const derived = state.getDerivedState();
+        const { title, props } = parseProjectNextActionInput(rawTitle, {
             projectId: projectNextActionPrompt.projectId,
             sectionId: projectNextActionPrompt.sectionId,
-        })
+            projects: state.projects,
+            areas: state.areas,
+            parseOptions: {
+                knownContexts: derived.allContexts,
+                knownTags: derived.allTags,
+                knownPeople: getPersonOptionNames(state.people, state.tasks),
+                defaultScheduleTime: normalizeClockTimeInput(state.settings.gtd?.defaultScheduleTime) || undefined,
+                preserveText: state.settings.quickAddAutoClean !== true,
+            },
+        });
+        void addTask(title, props)
             .then((result) => {
                 if (!result.success) {
                     throw new Error(result.error || 'Failed to add next action');

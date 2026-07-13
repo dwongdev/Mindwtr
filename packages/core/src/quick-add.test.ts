@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getTaskDateCoherenceIssues } from './task-date-coherence';
-import { getQuickAddProjectInitialProps, parseQuickAdd, parseQuickAddDateCommands, splitQuickAddBulkLines } from './quick-add';
+import { getQuickAddProjectInitialProps, parseProjectNextActionInput, parseQuickAdd, parseQuickAddDateCommands, splitQuickAddBulkLines } from './quick-add';
 
 describe('quick-add', () => {
     it('splits bulk quick-add text into trimmed nonblank lines', () => {
@@ -686,5 +686,96 @@ describe('quick-add', () => {
         const preserved = parseQuickAddDateCommands('Submit report /due:tomorrow', now, { preserveText: true });
         expect(preserved.title).toBe('Submit report /due:tomorrow');
         expect(preserved.props.dueDate).toBeTruthy();
+    });
+
+    describe('parseProjectNextActionInput (#859)', () => {
+        const now = new Date('2025-01-01T10:00:00Z');
+        const projects = [
+            {
+                id: 'p1',
+                title: 'MyProject',
+                status: 'active',
+                color: '#000000',
+                tagIds: [],
+                createdAt: now.toISOString(),
+                updatedAt: now.toISOString(),
+            },
+            {
+                id: 'p2',
+                title: 'OtherProject',
+                status: 'active',
+                color: '#000000',
+                tagIds: [],
+                createdAt: now.toISOString(),
+                updatedAt: now.toISOString(),
+            },
+        ] as any;
+
+        it('defaults to a next action in the prompt project and section', () => {
+            const result = parseProjectNextActionInput('Draft the report', {
+                projectId: 'p1',
+                sectionId: 's1',
+                projects,
+                now,
+            });
+            expect(result.title).toBe('Draft the report');
+            expect(result.props).toEqual({ status: 'next', projectId: 'p1', sectionId: 's1' });
+        });
+
+        it('a /waiting token creates the task as waiting-for directly', () => {
+            const result = parseProjectNextActionInput('Chase reply /waiting %Bob', {
+                projectId: 'p1',
+                projects,
+                now,
+            });
+            expect(result.title).toBe('Chase reply');
+            expect(result.props.status).toBe('waiting');
+            expect(result.props.assignedTo).toBe('Bob');
+            expect(result.props.projectId).toBe('p1');
+        });
+
+        it('context and date tokens apply like in the quick-add box', () => {
+            const result = parseProjectNextActionInput('Call plumber @phone /due:2025-01-05', {
+                projectId: 'p1',
+                sectionId: 's1',
+                projects,
+                now,
+            });
+            expect(result.props.contexts).toEqual(['@phone']);
+            expect(result.props.dueDate).toContain('2025-01-05');
+            expect(result.props.status).toBe('next');
+        });
+
+        it('an existing +project token retargets and drops the prompt section', () => {
+            const result = parseProjectNextActionInput('Hand off notes +OtherProject', {
+                projectId: 'p1',
+                sectionId: 's1',
+                projects,
+                now,
+            });
+            expect(result.props.projectId).toBe('p2');
+            expect(result.props.sectionId).toBeUndefined();
+        });
+
+        it('an unknown +project name stays in the title and never creates a project', () => {
+            const result = parseProjectNextActionInput('Plan trip +Vacations', {
+                projectId: 'p1',
+                projects,
+                now,
+            });
+            expect(result.title).toBe('Plan trip +Vacations');
+            expect(result.props.projectId).toBe('p1');
+        });
+
+        it('preserve-text mode keeps the typed title while still applying tokens', () => {
+            const result = parseProjectNextActionInput('Chase reply /waiting', {
+                projectId: 'p1',
+                projects,
+                now,
+                parseOptions: { preserveText: true },
+            });
+            expect(result.title).toBe('Chase reply /waiting');
+            expect(result.props.status).toBe('waiting');
+        });
     });
 });

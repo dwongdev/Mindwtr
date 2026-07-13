@@ -627,11 +627,13 @@ export type {
 
 export {
     getQuickAddProjectInitialProps,
+    parseProjectNextActionInput,
     parseQuickAdd,
     parseQuickAddDateCommands,
     splitQuickAddBulkLines,
 } from './quick-add';
 export type {
+    ProjectNextActionParseContext,
     QuickAddDateCommandsResult,
     QuickAddDetectedDate,
     QuickAddResult,

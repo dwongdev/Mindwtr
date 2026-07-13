@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { getProjectNextActionPromptData, shallow, tFallback, useTaskStore } from '@mindwtr/core';
+import { getProjectNextActionPromptData, normalizeClockTimeInput, parseProjectNextActionInput, shallow, tFallback, useTaskStore } from '@mindwtr/core';
 import type { Task } from '@mindwtr/core';
 
 import { useLanguage } from '../contexts/language-context';
@@ -135,14 +135,23 @@ export function ProjectNextActionPromptProvider({ children }: { children: React.
 
     const handleAddTask = useCallback(() => {
         if (!prompt || isSubmitting) return;
-        const title = newTitle.trim();
-        if (!title) return;
+        const rawTitle = newTitle.trim();
+        if (!rawTitle) return;
         setIsSubmitting(true);
-        void Promise.resolve(addTask(title, {
-            status: 'next',
+        // Same quick-add grammar as the capture sheet, so "/waiting" and
+        // friends work from this prompt too (#859).
+        const state = useTaskStore.getState();
+        const { title, props } = parseProjectNextActionInput(rawTitle, {
             projectId: prompt.projectId,
             sectionId: prompt.sectionId,
-        }))
+            projects: state.projects,
+            areas: state.areas,
+            parseOptions: {
+                defaultScheduleTime: normalizeClockTimeInput(state.settings.gtd?.defaultScheduleTime) || undefined,
+                preserveText: state.settings.quickAddAutoClean !== true,
+            },
+        });
+        void Promise.resolve(addTask(title, props))
             .then((result) => {
                 const failure = getActionFailureMessage(result);
                 if (failure) throw new Error(failure);

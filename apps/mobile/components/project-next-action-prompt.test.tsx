@@ -9,10 +9,14 @@ import {
     ProjectNextActionPromptProvider,
 } from './project-next-action-prompt';
 
-const { addTask, updateTask, showToast, storeState } = vi.hoisted(() => ({
+const { addTask, updateTask, showToast, parseNextActionInput, storeState } = vi.hoisted(() => ({
     addTask: vi.fn(),
     updateTask: vi.fn(),
     showToast: vi.fn(),
+    parseNextActionInput: vi.fn((input: string, context: { projectId: string; sectionId?: string | null }) => ({
+        title: `parsed:${input}`,
+        props: { status: 'waiting', projectId: context.projectId, sectionId: context.sectionId },
+    })),
     storeState: {
         addTask: vi.fn(),
         updateTask: vi.fn(),
@@ -21,6 +25,8 @@ const { addTask, updateTask, showToast, storeState } = vi.hoisted(() => ({
         tasks: [] as any[],
         _allTasks: [] as any[],
         _tasksById: new Map<string, any>(),
+        areas: [] as any[],
+        settings: { gtd: {} } as any,
     },
 }));
 
@@ -80,6 +86,9 @@ vi.mock('@mindwtr/core', () => {
             const value = t(key);
             return value && value !== key ? value : fallback;
         },
+        normalizeClockTimeInput: (value?: string | null) =>
+            typeof value === 'string' && value.trim() ? value.trim() : null,
+        parseProjectNextActionInput: parseNextActionInput,
     };
 });
 
@@ -264,5 +273,57 @@ describe('ProjectNextActionPromptProvider', () => {
             message: 'Project is locked',
             tone: 'error',
         }));
+    });
+
+    it('routes new next-action input through the quick-add parser (#859)', async () => {
+        function Trigger() {
+            return (
+                <Text
+                    accessibilityLabel="Open next action prompt"
+                    onPress={() => presentProjectNextActionPrompt({ ...currentTask, status: 'done', sectionId: 'section-1' } as any)}
+                >
+                    Open
+                </Text>
+            );
+        }
+
+        let tree!: renderer.ReactTestRenderer;
+        await renderer.act(async () => {
+            tree = renderer.create(
+                <ProjectNextActionPromptProvider>
+                    <Trigger />
+                </ProjectNextActionPromptProvider>,
+            );
+            await Promise.resolve();
+        });
+
+        const trigger = tree.root.find((node) => node.props.accessibilityLabel === 'Open next action prompt');
+        await renderer.act(async () => {
+            trigger.props.onPress();
+            await Promise.resolve();
+        });
+
+        const input = tree.root.find((node) => node.props.placeholder === 'New next action...');
+        await renderer.act(async () => {
+            input.props.onChangeText('Chase reply /waiting');
+            await Promise.resolve();
+        });
+
+        const addButton = tree.root.find((node) => flattenText(node.props?.children) === 'Add next action' && Boolean(node.props.onPress));
+        await renderer.act(async () => {
+            addButton.props.onPress();
+            await Promise.resolve();
+        });
+
+        expect(parseNextActionInput).toHaveBeenCalledWith('Chase reply /waiting', expect.objectContaining({
+            projectId: 'project-1',
+            sectionId: 'section-1',
+            projects: storeState.projects,
+        }));
+        expect(addTask).toHaveBeenCalledWith('parsed:Chase reply /waiting', {
+            status: 'waiting',
+            projectId: 'project-1',
+            sectionId: 'section-1',
+        });
     });
 });
