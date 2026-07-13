@@ -88,6 +88,25 @@
   <url type="bugtracker">https://github.com/dongdongbh/Mindwtr/issues</url>
   <url type="vcs-browser">https://github.com/dongdongbh/Mindwtr</url>
   <releases>
+    <release version="1.1.0" date="2026-07-12">
+      <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v1.1.0</url>
+      <description>
+        <p>Mindwtr 1.1.0 adds opt-in time tracking, undo-based task actions, stronger data safety, richer keyboard support, and channel-aware updates on the Linux desktop.</p>
+        <p xml:lang="de">Mindwtr 1.1.0 bringt optionale Zeiterfassung, Undo statt Bestaetigungsdialogen, mehr Datensicherheit, bessere Tastaturbedienung und kanalbewusste Updates auf dem Linux-Desktop.</p>
+        <ul>
+          <li>Added opt-in Time Spent tracking fed by linked Pomodoro focus sessions, with a manual field beside the time estimate.</li>
+          <li xml:lang="de">Optionale Zeiterfassung ueber verknuepfte Pomodoro-Fokussitzungen hinzugefuegt, mit manuellem Feld neben der Zeitschaetzung.</li>
+          <li>Replaced delete and archive confirmations with Undo, added Ctrl+Z undo, a Standard keyboard preset, and fully keyboard-operable context menus.</li>
+          <li xml:lang="de">Loesch- und Archivbestaetigungen durch Undo ersetzt, Strg+Z-Undo, ein Standard-Tastaturprofil und vollstaendig tastaturbedienbare Kontextmenues hinzugefuegt.</li>
+          <li>Refused saves that would wipe existing data with an empty snapshot and stopped persisting settings before the initial load, fixing startup data loss on some Linux setups.</li>
+          <li xml:lang="de">Speichervorgaenge mit leerem Snapshot werden abgelehnt und Einstellungen nicht mehr vor dem ersten Laden gespeichert; das behebt Datenverlust beim Start auf manchen Linux-Systemen.</li>
+          <li>Made attachments real copies inside app storage, decoupled checklists from note markdown, and named resolved sync conflicts item by item.</li>
+          <li xml:lang="de">Anhaenge werden als echte Kopien im App-Speicher abgelegt, Checklisten vom Notiz-Markdown entkoppelt und aufgeloeste Sync-Konflikte einzeln benannt.</li>
+          <li>Added channel-aware update checks, beta APT/RPM repositories, and drag-and-drop of tasks and projects across the sidebar.</li>
+          <li xml:lang="de">Kanalbewusste Update-Pruefungen, Beta-APT/RPM-Repositories und Drag-and-drop von Aufgaben und Projekten in der Seitenleiste hinzugefuegt.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.0.5" date="2026-06-28">
       <url type="details">https://github.com/dongdongbh/Mindwtr/releases/tag/v1.0.5</url>
       <description>

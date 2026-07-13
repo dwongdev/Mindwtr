@@ -1,3 +1,4 @@
-- Les rappels repetes peuvent relancer les taches avec heure jusqu'a completion ou report.
-- Bulk Quick Add, imports TickTick et Obsidian, Apple Shortcuts, widgets, groupes Focus et filtres tableau sont plus fluides.
-- Dictee locale, reparation sync, popups clavier, longs titres et edition des taches sont plus fiables.
+- Suivez le temps passe par tache : les sessions Pomodoro liees ajoutent leurs minutes a un champ synchronise et modifiable (optionnel).
+- Supprimer, terminer et archiver utilisent desormais Annuler au lieu de confirmations ; la semaine du calendrier suit votre region.
+- Capturez plus vite avec le jeton %personne, les fichiers partages depuis d'autres apps, le raccourci en arriere-plan "Ajouter a la boite Mindwtr" et les widgets d'ecran verrouille.
+- Les checklists sont independantes des notes, les pieces jointes sont de vraies copies, les conflits de synchronisation sont listes clairement et de nouvelles protections evitent la perte de donnees.

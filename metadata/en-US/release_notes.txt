@@ -1,3 +1,4 @@
-- Repeat reminders can now re-notify timed tasks until you complete or snooze them.
-- Bulk Quick Add, TickTick and Obsidian import, Apple Shortcuts, widgets, Focus grouping, and board filters are smoother.
-- Local dictation, sync repair, keyboard-covered popups, long task titles, and task editing are more reliable.
+- Track time spent per task: linked Pomodoro focus sessions add their minutes to an editable, synced Time Spent field (opt-in).
+- Delete, complete, and archive now use Undo instead of confirmation prompts, and the calendar week follows your locale.
+- Capture faster with the %person token, files shared from other apps, a background "Add to Mindwtr Inbox" Shortcut, and lock screen widgets.
+- Checklists are now independent from notes, attachments are stored as real copies, resolved sync conflicts are listed clearly, and new safeguards prevent data loss.

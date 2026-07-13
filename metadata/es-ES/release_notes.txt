@@ -1,3 +1,4 @@
-- Los recordatorios repetidos vuelven a avisar tareas con hora hasta completarlas o posponerlas.
-- Bulk Quick Add, importacion TickTick y Obsidian, Apple Shortcuts, widgets, grupos Focus y filtros de tablero son mas fluidos.
-- Dictado local, reparacion de sync, ventanas sobre teclado, titulos largos y edicion de tareas son mas fiables.
+- Registra el tiempo por tarea: las sesiones Pomodoro vinculadas suman sus minutos a un campo sincronizado y editable (opcional).
+- Eliminar, completar y archivar ahora usan Deshacer en lugar de confirmaciones; la semana del calendario sigue tu region.
+- Captura mas rapido con el token %persona, archivos compartidos desde otras apps, el atajo en segundo plano "Anadir a la bandeja de Mindwtr" y widgets de pantalla de bloqueo.
+- Las listas de verificacion son independientes de las notas, los adjuntos se guardan como copias reales, los conflictos de sincronizacion se muestran con claridad y nuevas protecciones evitan perdida de datos.

@@ -1,3 +1,4 @@
-- Wiederhol-Erinnerungen koennen Aufgaben mit Uhrzeit erneut melden, bis du sie erledigst oder schlummerst.
-- Bulk Quick Add, TickTick- und Obsidian-Import, Apple Shortcuts, Widgets, Focus-Gruppen und Board-Filter sind runder.
-- Lokale Diktatfunktion, Sync-Reparatur, Tastatur-Popups, lange Aufgabentitel und Aufgabenbearbeitung sind zuverlaessiger.
+- Zeiterfassung pro Aufgabe: verknuepfte Pomodoro-Fokussitzungen zaehlen ihre Minuten zu einem synchronisierten, editierbaren Feld (optional).
+- Loeschen, Erledigen und Archivieren nutzen jetzt Undo statt Bestaetigungsdialogen; die Kalenderwoche folgt deiner Region.
+- Schneller erfassen mit dem %Person-Token, geteilten Dateien aus anderen Apps, dem Kurzbefehl "Zur Mindwtr Inbox" und Sperrbildschirm-Widgets.
+- Checklisten sind von Notizen unabhaengig, Anhaenge werden als echte Kopien gespeichert, Sync-Konflikte klar aufgelistet und neue Schutzmechanismen verhindern Datenverlust.
