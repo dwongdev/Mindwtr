@@ -106,7 +106,7 @@ describe('task attachments survive completion (#836)', () => {
             fireEvent.click(addLink);
         });
         const dialog = await waitFor(() => getByRole('dialog'));
-        const input = within(dialog).getByRole('textbox');
+        const input = within(dialog).getByRole('combobox');
         await act(async () => {
             fireEvent.change(input, { target: { value: 'https://example.com/spec' } });
         });

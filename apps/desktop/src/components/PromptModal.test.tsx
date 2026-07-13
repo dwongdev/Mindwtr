@@ -30,7 +30,7 @@ describe('PromptModal browse', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Link to file…' }));
         await waitFor(() => {
-            expect(screen.getByRole('textbox')).toHaveValue('C:\\docs\\report.pdf');
+            expect(screen.getByRole('combobox')).toHaveValue('C:\\docs\\report.pdf');
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Save' }));
