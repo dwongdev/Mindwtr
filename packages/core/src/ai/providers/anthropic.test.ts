@@ -186,6 +186,94 @@ describe('anthropic provider error behavior', () => {
         );
     });
 
+    it('sends temperature and a manual thinking budget for older models', async () => {
+        const fetchMock = vi.fn(async () => mockAnthropicSuccess());
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const provider = createAnthropicProvider({
+            provider: 'anthropic',
+            apiKey: 'test-key',
+            model: 'claude-haiku-4-5-20251001',
+        });
+        await provider.clarifyTask({ title: 'Plan trip' });
+
+        const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
+        expect(body.temperature).toBe(0.2);
+        expect(body.thinking).toBeUndefined();
+
+        fetchMock.mockClear();
+        const thinkingProvider = createAnthropicProvider({
+            provider: 'anthropic',
+            apiKey: 'test-key',
+            model: 'claude-haiku-4-5-20251001',
+            thinkingBudget: 2048,
+        });
+        await thinkingProvider.clarifyTask({ title: 'Plan trip' });
+
+        const thinkingBody = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
+        expect(thinkingBody.thinking).toEqual({ type: 'enabled', budget_tokens: 2048 });
+        // Extended thinking rejects any temperature other than the default.
+        expect(thinkingBody.temperature).toBeUndefined();
+        expect(thinkingBody.max_tokens).toBeGreaterThan(2048);
+    });
+
+    it('omits temperature and budget_tokens for models that only accept adaptive thinking', async () => {
+        const fetchMock = vi.fn(async () => mockAnthropicSuccess());
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        for (const model of ['claude-sonnet-5', 'claude-opus-4-7', 'claude-opus-4-8', 'claude-fable-5']) {
+            fetchMock.mockClear();
+            const provider = createAnthropicProvider({
+                provider: 'anthropic',
+                apiKey: 'test-key',
+                model,
+            });
+            await provider.clarifyTask({ title: 'Plan trip' });
+
+            const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
+            expect(body.temperature, model).toBeUndefined();
+            expect(body.thinking, model).toBeUndefined();
+            // Adaptive thinking can run by default and spends from max_tokens.
+            expect(body.max_tokens, model).toBeGreaterThanOrEqual(4096);
+        }
+    });
+
+    it('maps the thinking toggle to adaptive thinking on newer models', async () => {
+        const fetchMock = vi.fn(async () => mockAnthropicSuccess());
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const provider = createAnthropicProvider({
+            provider: 'anthropic',
+            apiKey: 'test-key',
+            model: 'claude-sonnet-5',
+            thinkingBudget: 2048,
+        });
+        await provider.clarifyTask({ title: 'Plan trip' });
+
+        const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
+        expect(body.thinking).toEqual({ type: 'adaptive' });
+        expect(body.temperature).toBeUndefined();
+    });
+
+    it('keeps the old request shape for pre-5 models with version-suffixed ids', async () => {
+        const fetchMock = vi.fn(async () => mockAnthropicSuccess());
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        for (const model of ['claude-sonnet-4-5-20250929', 'claude-opus-4-6', 'claude-3-5-haiku-20241022']) {
+            fetchMock.mockClear();
+            const provider = createAnthropicProvider({
+                provider: 'anthropic',
+                apiKey: 'test-key',
+                model,
+            });
+            await provider.clarifyTask({ title: 'Plan trip' });
+
+            const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
+            expect(body.temperature, model).toBe(0.2);
+            expect(body.max_tokens, model).toBe(1024);
+        }
+    });
+
     it('succeeds on a well-formed response', async () => {
         const fetchMock = vi.fn(async () => mockAnthropicSuccess());
         globalThis.fetch = fetchMock as unknown as typeof fetch;

@@ -21,6 +21,25 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 const DEFAULT_MAX_TOKENS = 1024;
+// Floor for models that may spend adaptive-thinking tokens inside max_tokens;
+// without headroom the visible JSON answer gets truncated mid-thought.
+const ADAPTIVE_THINKING_MAX_TOKENS = 4096;
+
+// Sonnet 5+, Opus 4.7+, and the Fable/Mythos families reject a non-default
+// `temperature` and the manual `budget_tokens` thinking config with a 400;
+// they use adaptive thinking instead. Version-compare so future releases in
+// those families stay covered without a hardcoded ID list.
+function isAdaptiveThinkingModel(model: string): boolean {
+    const id = String(model || '').trim().toLowerCase();
+    if (/^claude-(fable|mythos)-/.test(id)) return true;
+    const match = /^claude-(opus|sonnet|haiku)-(\d+)(?:-(\d+))?/.exec(id);
+    if (!match) return false;
+    const [, family, majorRaw, minorRaw] = match;
+    const major = Number(majorRaw);
+    const minor = minorRaw ? Number(minorRaw) : 0;
+    if (family === 'opus') return major > 4 || (major === 4 && minor >= 7);
+    return major >= 5;
+}
 
 const resolveTimeoutMs = (value?: number) =>
     typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_MS;
@@ -107,22 +126,34 @@ async function requestAnthropic(
     const url = config.endpoint || ANTHROPIC_BASE_URL;
     const usingOfficialAnthropic = url === ANTHROPIC_BASE_URL;
     const thinkingBudget = typeof config.thinkingBudget === 'number' ? config.thinkingBudget : 0;
-    const maxTokens =
-        thinkingBudget > 0 ? Math.max(DEFAULT_MAX_TOKENS, thinkingBudget + 256) : DEFAULT_MAX_TOKENS;
+    const adaptiveThinking = isAdaptiveThinkingModel(config.model);
+    let maxTokens =
+        thinkingBudget > 0 && !adaptiveThinking
+            ? Math.max(DEFAULT_MAX_TOKENS, thinkingBudget + 256)
+            : DEFAULT_MAX_TOKENS;
+    if (adaptiveThinking) {
+        // Sonnet 5 runs adaptive thinking even when the toggle is off, and the
+        // thinking tokens count against max_tokens.
+        maxTokens = Math.max(maxTokens, ADAPTIVE_THINKING_MAX_TOKENS);
+    }
 
     const body: Record<string, unknown> = {
         model: config.model,
         max_tokens: maxTokens,
         system: prompt.system,
         messages: [{ role: 'user', content: prompt.user }],
-        temperature: 0.2,
     };
 
+    // Adaptive-thinking models 400 on any non-default temperature; older
+    // models 400 on temperature != 1 whenever extended thinking is enabled.
+    if (!adaptiveThinking && thinkingBudget <= 0) {
+        body.temperature = 0.2;
+    }
+
     if (thinkingBudget > 0) {
-        body.thinking = {
-            type: 'enabled',
-            budget_tokens: thinkingBudget,
-        };
+        body.thinking = adaptiveThinking
+            ? { type: 'adaptive' }
+            : { type: 'enabled', budget_tokens: thinkingBudget };
     }
 
     await rateLimit('anthropic');
