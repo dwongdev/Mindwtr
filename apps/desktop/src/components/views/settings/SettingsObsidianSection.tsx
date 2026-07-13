@@ -161,7 +161,7 @@ export function SettingsObsidianSection({
                     aria-checked={obsidianEnabled}
                     onClick={() => onObsidianEnabledChange(!obsidianEnabled)}
                     className={cn(
-                        "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors",
+                        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
                         obsidianEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border",
                     )}
                 >
@@ -259,7 +259,7 @@ export function SettingsObsidianSection({
                                 aria-checked={obsidianDataviewMetadataEnabled}
                                 onClick={() => onObsidianDataviewMetadataEnabledChange(!obsidianDataviewMetadataEnabled)}
                                 className={cn(
-                                    'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                    'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                     obsidianDataviewMetadataEnabled ? 'bg-primary border-primary' : 'bg-muted/50 border-border',
                                 )}
                             >
@@ -290,7 +290,7 @@ export function SettingsObsidianSection({
                                 aria-checked={obsidianTaskNotesIncludeArchived}
                                 onClick={() => onObsidianTaskNotesIncludeArchivedChange(!obsidianTaskNotesIncludeArchived)}
                                 className={cn(
-                                    'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                    'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                     obsidianTaskNotesIncludeArchived ? 'bg-primary border-primary' : 'bg-muted/50 border-border',
                                 )}
                             >

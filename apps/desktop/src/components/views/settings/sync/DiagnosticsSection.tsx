@@ -51,7 +51,7 @@ export function DiagnosticsSection({
                             aria-checked={analyticsHeartbeatOptedOut}
                             onClick={toggleAnalyticsHeartbeatOptOut}
                             className={cn(
-                                'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                 analyticsHeartbeatOptedOut ? 'bg-muted border-border' : 'bg-muted/50 border-border'
                             )}
                         >
@@ -76,7 +76,7 @@ export function DiagnosticsSection({
                         aria-checked={loggingEnabled}
                         onClick={onToggleLogging}
                         className={cn(
-                            'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                            'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                             loggingEnabled ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                         )}
                     >

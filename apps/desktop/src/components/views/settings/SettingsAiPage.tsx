@@ -284,7 +284,7 @@ export function SettingsAiPage({
                         aria-checked={aiEnabled}
                         onClick={handleAiToggle}
                         className={cn(
-                            "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors",
+                            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
                             aiEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
                         )}
                     >
@@ -457,7 +457,7 @@ export function SettingsAiPage({
                                             aria-checked={anthropicThinkingEnabled}
                                             onClick={onToggleAnthropicThinking}
                                             className={cn(
-                                                "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors",
+                                                "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
                                                 anthropicThinkingEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
                                             )}
                                         >
@@ -546,7 +546,7 @@ export function SettingsAiPage({
                         aria-checked={speechEnabled}
                         onClick={() => onUpdateSpeechSettings({ enabled: !speechEnabled })}
                         className={cn(
-                            "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors",
+                            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
                             speechEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
                         )}
                     >

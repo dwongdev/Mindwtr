@@ -87,7 +87,7 @@ export function SettingsNotificationsPage({
                     aria-checked={notificationsEnabled}
                     onClick={() => handleUpdate({ notificationsEnabled: !notificationsEnabled })}
                     className={cn(
-                        "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors",
+                        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
                         notificationsEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
                     )}
                 >
@@ -112,7 +112,7 @@ export function SettingsNotificationsPage({
                     onClick={() => handleUpdate({ startDateNotificationsEnabled: !startDateNotificationsEnabled })}
                     disabled={!notificationsEnabled}
                     className={cn(
-                        "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
                         startDateNotificationsEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
                     )}
                 >
@@ -137,7 +137,7 @@ export function SettingsNotificationsPage({
                     onClick={() => handleUpdate({ dueDateNotificationsEnabled: !dueDateNotificationsEnabled })}
                     disabled={!notificationsEnabled}
                     className={cn(
-                        "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
                         dueDateNotificationsEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
                     )}
                 >
@@ -162,7 +162,7 @@ export function SettingsNotificationsPage({
                     onClick={() => handleUpdate({ reviewAtNotificationsEnabled: !reviewAtNotificationsEnabled })}
                     disabled={!notificationsEnabled}
                     className={cn(
-                        "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
                         reviewAtNotificationsEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
                     )}
                 >
@@ -192,7 +192,7 @@ export function SettingsNotificationsPage({
                         onClick={() => handleUpdate({ weeklyReviewEnabled: !weeklyReviewEnabled })}
                         disabled={!notificationsEnabled}
                         className={cn(
-                            "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
                             weeklyReviewEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
                         )}
                     >
@@ -258,7 +258,7 @@ export function SettingsNotificationsPage({
                             onClick={() => handleUpdate({ dailyDigestMorningEnabled: !dailyDigestMorningEnabled })}
                             disabled={!notificationsEnabled}
                             className={cn(
-                                "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                                "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
                                 dailyDigestMorningEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
                             )}
                         >
@@ -289,7 +289,7 @@ export function SettingsNotificationsPage({
                             onClick={() => handleUpdate({ dailyDigestEveningEnabled: !dailyDigestEveningEnabled })}
                             disabled={!notificationsEnabled}
                             className={cn(
-                                "relative inline-flex h-5 w-9 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                                "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
                                 dailyDigestEveningEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
                             )}
                         >

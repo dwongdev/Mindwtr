@@ -54,7 +54,7 @@ function SyncPreferenceToggle({
                 aria-checked={checked}
                 onClick={onClick}
                 className={cn(
-                    'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                    'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                     checked ? 'bg-primary border-primary' : 'bg-muted/50 border-border',
                 )}
             >

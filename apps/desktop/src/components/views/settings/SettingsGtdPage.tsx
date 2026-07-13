@@ -665,7 +665,7 @@ export function SettingsGtdPage({
                             }).then(showSaved).catch((error) => reportError('Failed to update feature flags', error));
                         }}
                         className={cn(
-                            'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                            'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                             pomodoroEnabled ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                         )}
                     >
@@ -733,7 +733,7 @@ export function SettingsGtdPage({
                                     aria-checked={pomodoroLinkTask}
                                     onClick={() => updatePomodoroSettings({ linkTask: !pomodoroLinkTask })}
                                     className={cn(
-                                        'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                        'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                         pomodoroLinkTask ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                                     )}
                                 >
@@ -759,7 +759,7 @@ export function SettingsGtdPage({
                                         { showAutoStartNotice: !pomodoroAutoStartBreaks }
                                     )}
                                     className={cn(
-                                        'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                        'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                         pomodoroAutoStartBreaks ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                                     )}
                                 >
@@ -785,7 +785,7 @@ export function SettingsGtdPage({
                                         { showAutoStartNotice: !pomodoroAutoStartFocus }
                                     )}
                                     className={cn(
-                                        'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                        'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                         pomodoroAutoStartFocus ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                                     )}
                                 >
@@ -895,7 +895,7 @@ export function SettingsGtdPage({
                                 }).then(showSaved).catch((error) => reportError('Failed to update audio capture settings', error));
                             }}
                             className={cn(
-                                'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                 saveAudioAttachments ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                             )}
                         >
@@ -923,7 +923,7 @@ export function SettingsGtdPage({
                                 .catch((error) => reportError('Failed to update quick add settings', error));
                         }}
                         className={cn(
-                            'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                            'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                             quickAddAutoClean ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                         )}
                     >
@@ -950,7 +950,7 @@ export function SettingsGtdPage({
                                 .catch((error) => reportError('Failed to update editor settings', error));
                         }}
                         className={cn(
-                            'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                            'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                             markdownEditorAssist ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                         )}
                     >
@@ -980,7 +980,7 @@ export function SettingsGtdPage({
                         aria-checked={includeContextStep}
                         onClick={() => updateWeeklyReviewConfig({ includeContextStep: !includeContextStep })}
                         className={cn(
-                            'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                            'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                             includeContextStep ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                         )}
                     >
@@ -1046,7 +1046,7 @@ export function SettingsGtdPage({
                             aria-checked={inboxTwoMinuteEnabled}
                             onClick={() => updateInboxProcessing({ twoMinuteEnabled: !inboxTwoMinuteEnabled })}
                             className={cn(
-                                'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                 inboxTwoMinuteEnabled ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                             )}
                         >
@@ -1069,7 +1069,7 @@ export function SettingsGtdPage({
                             disabled={!inboxTwoMinuteEnabled}
                             onClick={() => updateInboxProcessing({ twoMinuteFirst: !inboxTwoMinuteFirst })}
                             className={cn(
-                                'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                 inboxTwoMinuteFirst ? 'bg-primary border-primary' : 'bg-muted/50 border-border',
                                 !inboxTwoMinuteEnabled && 'opacity-50 cursor-not-allowed'
                             )}
@@ -1092,7 +1092,7 @@ export function SettingsGtdPage({
                             aria-checked={inboxProjectFirst}
                             onClick={() => updateInboxProcessing({ projectFirst: !inboxProjectFirst })}
                             className={cn(
-                                'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                 inboxProjectFirst ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                             )}
                         >
@@ -1114,7 +1114,7 @@ export function SettingsGtdPage({
                             aria-checked={inboxContextStepEnabled}
                             onClick={() => updateInboxProcessing({ contextStepEnabled: !inboxContextStepEnabled })}
                             className={cn(
-                                'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                 inboxContextStepEnabled ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                             )}
                         >
@@ -1136,7 +1136,7 @@ export function SettingsGtdPage({
                             aria-checked={inboxScheduleEnabled}
                             onClick={() => updateInboxProcessing({ scheduleEnabled: !inboxScheduleEnabled })}
                             className={cn(
-                                'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                 inboxScheduleEnabled ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                             )}
                         >
@@ -1250,7 +1250,7 @@ export function SettingsGtdPage({
                                                 aria-label={`${group.title}: ${t.taskEditorOpenByDefault}`}
                                                 onClick={() => updateSectionOpenDefault(sectionOpenSectionId, !isOpenByDefault)}
                                                 className={cn(
-                                                    'relative inline-flex h-5 w-9 items-center rounded-full border transition-colors',
+                                                    'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors',
                                                     isOpenByDefault ? 'bg-primary border-primary' : 'bg-muted/50 border-border'
                                                 )}
                                             >
