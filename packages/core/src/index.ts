@@ -325,6 +325,30 @@ export type {
     SyncCloudProvider,
 } from './sync-service-utils';
 
+export { SyncRemoteWriteConflict } from './sync-run-ports';
+export type {
+    SyncBackendIO,
+    SyncPayloadTraceEvent,
+    SyncRemoteWriteOutcome,
+    SyncRunAttachmentCleanupContext,
+    SyncRunAttachmentPhase,
+    SyncRunCycleSetup,
+    SyncRunDiagnosticEvent,
+    SyncRunErrorContext,
+    SyncRunErrorStatusDetails,
+    SyncRunNotifier,
+    SyncRunOptions,
+    SyncRunPlatformHooks,
+    SyncRunPolicy,
+    SyncRunPorts,
+    SyncRunResult,
+    SyncRunSkipReason,
+    SyncRunStorage,
+    SyncRunStoreBridge,
+    SyncRunSuccessInfo,
+    SyncStatusUpdates,
+} from './sync-run-ports';
+
 export {
     buildFastSyncScope,
     parseFastSyncState,
