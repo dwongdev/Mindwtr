@@ -43,6 +43,12 @@ _Avoid_: favorite, pin, priority flag
 The editor's private working copy of a task's fields. Edits accumulate in the draft and reach the task only on save; discarding the draft leaves the task untouched. A draft obeys the same field rules the save enforces — sending a draft back to Inbox drops its focus star. Attachments are buffered alongside the draft and count toward its pending edits.
 _Avoid_: edit state, form state, pending changes
 
+### Filtering
+
+**Filter selections**:
+What a view's filter pickers currently hold: mixed @context/#tag tokens, projects, and metadata choices. Selections build the filter criteria that narrow a list; applying a saved filter turns its criteria back into selections, dropping values the pickers cannot show (unknown enum values, custom time estimates, the criteria-only 'none' priority).
+_Avoid_: filter state, active filters
+
 ### Capture
 
 **Capture**:
