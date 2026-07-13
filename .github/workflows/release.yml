@@ -1158,6 +1158,23 @@ jobs:
               raise SystemExit("Could not find the desktop test command in PKGBUILD")
           PY
 
+      - name: Require Node 22 for prebuilt native modules
+        shell: bash
+        working-directory: aur-mindwtr
+        run: |
+          set -euo pipefail
+          NODE_MAJOR="$(sed -n 's/^_nodeversion=//p' PKGBUILD | head -n 1)"
+          if [ -z "$NODE_MAJOR" ]; then
+            echo "::error::PKGBUILD has no _nodeversion pin; bun would run native install scripts with an unknown Node."
+            exit 1
+          fi
+          if [ "$NODE_MAJOR" -ge 22 ]; then
+            echo "PKGBUILD already pins Node ${NODE_MAJOR}."
+          else
+            sed -i 's/^_nodeversion=.*/_nodeversion=22/' PKGBUILD
+            echo "Bumped PKGBUILD _nodeversion ${NODE_MAJOR} -> 22 (better-sqlite3 12 ships no prebuilds below Node 22, and the build container has no node-gyp)."
+          fi
+
       - name: Update checksums
         shell: bash
         working-directory: aur-mindwtr
