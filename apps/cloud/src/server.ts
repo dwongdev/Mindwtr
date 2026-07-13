@@ -24,11 +24,9 @@ import {
 import {
     getAuthFailureRateKey,
     getAuthFailureTokenRateKey,
-    getClientIp,
     getToken,
     isAuthorizedToken,
     normalizeAllowedAuthTokens,
-    parseAllowedAuthTokens,
     parseBoolEnv,
     parseTrustedProxyIps,
     resolveAllowedAuthTokensFromEnv,
@@ -40,6 +38,7 @@ import {
     AUTH_FAILURE_RATE_MAX,
     CLOUD_API_REV_BY,
     corsOrigin,
+    createInternalServerErrorResponse,
     errorResponse,
     jsonResponse,
     logError,
@@ -63,14 +62,12 @@ import {
     isPathWithinRoot,
     isRequestAbortError,
     normalizeAttachmentRelativePath,
-    pathContainsSymlink,
     readData,
     readJsonBody,
     readRequestBytes,
     resolveAttachmentPath,
     throwIfRequestAborted,
     writeAttachmentFileSafely,
-    writeData,
 } from './server-storage';
 import {
     asStatus,
@@ -86,7 +83,6 @@ import {
     validateTaskPatchProps,
 } from './server-validation';
 import {
-    __serverDataCacheTestUtils,
     dataMetadataResponse,
     getDataFileMetadata,
     isTrustedValidatedDataFile,
@@ -95,6 +91,7 @@ import {
     rememberValidatedDataFile,
     writeCloudData,
 } from './server-data-cache';
+import { createRateLimiter } from './server-rate-limit';
 
 const normalizeAttachmentContentType = (value: string | null): string => value?.split(';', 1)[0]?.trim().toLowerCase() || '';
 const ANY_TOKEN_NAMESPACE_LIMIT_DEFAULT = 32;
@@ -125,13 +122,6 @@ const generateRequestId = (): string => {
     }
     return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
-
-const createInternalServerErrorResponse = (message: string, requestId: string): Response => (
-    jsonResponse(
-        { error: message, requestId },
-        { status: 500, headers: { 'X-Request-Id': requestId } },
-    )
-);
 
 const emptyCorsResponse = (status: number): Response => {
     const headers = new Headers({
@@ -196,12 +186,6 @@ const getBunRuntime = (): BunRuntime | undefined => (
 );
 
 const IS_MAIN_MODULE = !!getBunRuntime() && (import.meta as ImportMeta & { main?: boolean }).main === true;
-
-type RateLimitState = {
-    count: number;
-    resetAt: number;
-    lastSeenAt: number;
-};
 
 function decodePathParam(rawValue: string): string | null {
     try {
@@ -688,7 +672,7 @@ function countTokenNamespaces(dataDir: string): number {
     return namespaces.size;
 }
 
-function resolveServerMergeTimestamp(..._dataSets: AppData[]): string {
+export function resolveServerMergeTimestamp(..._dataSets: AppData[]): string {
     return new Date().toISOString();
 }
 
@@ -854,38 +838,6 @@ function garbageCollectOrphanAttachments(dataDir: string, key: string, data: App
     return { deleted, errors, kept, scanned };
 }
 
-export const __cloudTestUtils = {
-    parseArgs,
-    getToken,
-    tokenToKey,
-    parseAllowedAuthTokens,
-    parseBoolEnv,
-    parseTrustedProxyIps,
-    resolveAllowedAuthTokensFromEnv,
-    isAuthorizedToken,
-    getClientIp,
-    getAuthFailureRateKey,
-    getAuthFailureTokenRateKey,
-    toRateLimitRoute,
-    validateAppData,
-    asStatus,
-    validateTaskCreationProps,
-    validateTaskPatchProps,
-    pickTaskList,
-    readJsonBody,
-    isBodyReadError,
-    resolveServerMergeTimestamp,
-    writeData,
-    resolveAttachmentPath,
-    normalizeAttachmentRelativePath,
-    isPathWithinRoot,
-    pathContainsSymlink,
-    createWriteLockRunner,
-    createInternalServerErrorResponse,
-    ...__serverDataCacheTestUtils,
-    getParsedDataCacheMaxEntries: __serverDataCacheTestUtils.getDataCacheMaxEntries,
-};
-
 type CloudServerOptions = {
     port?: number;
     host?: string;
@@ -913,7 +865,6 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
     const host = String(options.host ?? flags.host ?? process.env.HOST ?? '0.0.0.0');
     const dataDir = String(options.dataDir ?? process.env.MINDWTR_CLOUD_DATA_DIR ?? join(process.cwd(), 'data'));
 
-    const rateLimits = new Map<string, RateLimitState>();
     const windowMs = Number(options.windowMs ?? process.env.MINDWTR_CLOUD_RATE_WINDOW_MS ?? 60_000);
     const maxPerWindow = Number(options.maxPerWindow ?? process.env.MINDWTR_CLOUD_RATE_MAX ?? 120);
     const maxAttachmentPerWindow = Number(
@@ -941,62 +892,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
     const withWriteLock = createWriteLockRunner(dataDir);
     const rateLimitCleanupMs = Number(process.env.MINDWTR_CLOUD_RATE_CLEANUP_MS || 60_000);
     const requestTimeoutMs = Number(options.requestTimeoutMs ?? process.env.MINDWTR_CLOUD_REQUEST_TIMEOUT_MS ?? 30_000);
-
-    const pruneExpiredRateLimits = (now: number) => {
-        for (const [key, state] of rateLimits.entries()) {
-            if (now > state.resetAt) {
-                rateLimits.delete(key);
-            }
-        }
-    };
-
-    const findLeastRecentlyUsedRateLimitKey = (): string | null => {
-        let oldestKey: string | null = null;
-        let oldestSeenAt = Number.POSITIVE_INFINITY;
-        let oldestResetAt = Number.POSITIVE_INFINITY;
-        for (const [key, state] of rateLimits.entries()) {
-            if (
-                state.lastSeenAt < oldestSeenAt
-                || (state.lastSeenAt === oldestSeenAt && state.resetAt < oldestResetAt)
-            ) {
-                oldestKey = key;
-                oldestSeenAt = state.lastSeenAt;
-                oldestResetAt = state.resetAt;
-            }
-        }
-        return oldestKey;
-    };
-
-    const ensureRateLimitCapacity = (now: number) => {
-        pruneExpiredRateLimits(now);
-        while (rateLimits.size >= RATE_LIMIT_MAX_KEYS) {
-            const oldestKey = findLeastRecentlyUsedRateLimitKey();
-            if (!oldestKey) break;
-            rateLimits.delete(oldestKey);
-        }
-    };
-
-    const checkRateLimit = (rateKey: string, maxAllowed: number): Response | null => {
-        const now = Date.now();
-        const state = rateLimits.get(rateKey);
-        if (state && now < state.resetAt) {
-            state.count += 1;
-            state.lastSeenAt = now;
-            if (state.count > maxAllowed) {
-                const retryAfter = Math.ceil((state.resetAt - now) / 1000);
-                return jsonResponse(
-                    { error: 'Rate limit exceeded', retryAfterSeconds: retryAfter },
-                    { status: 429, headers: { 'Retry-After': String(retryAfter) } },
-                );
-            }
-            return null;
-        }
-        if (!state && rateLimits.size >= RATE_LIMIT_MAX_KEYS) {
-            ensureRateLimitCapacity(now);
-        }
-        rateLimits.set(rateKey, { count: 1, resetAt: now + windowMs, lastSeenAt: now });
-        return null;
-    };
+    const rateLimiter = createRateLimiter({ windowMs, maxKeys: RATE_LIMIT_MAX_KEYS });
 
     const ensureNamespaceWriteAllowed = (key: string): Response | null => {
         if (allowedAuthTokens) return null;
@@ -1029,7 +925,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
             }),
         ].filter((key): key is string => Boolean(key));
         for (const key of authRateLimitKeys) {
-            const authRateLimitResponse = checkRateLimit(key, AUTH_FAILURE_RATE_MAX);
+            const authRateLimitResponse = rateLimiter.check(key, AUTH_FAILURE_RATE_MAX);
             if (authRateLimitResponse) {
                 return authRateLimitResponse;
             }
@@ -1038,7 +934,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
     };
 
     const cleanupTimer = setInterval(() => {
-        pruneExpiredRateLimits(Date.now());
+        rateLimiter.prune(Date.now());
     }, rateLimitCleanupMs);
     if (typeof cleanupTimer.unref === 'function') {
         cleanupTimer.unref();
@@ -1122,7 +1018,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                     const key = tokenToKey(token);
                     const routeKey = toRateLimitRoute(pathname);
                     const rateKey = `${key}:${req.method}:${routeKey}`;
-                    const rateLimitResponse = checkRateLimit(rateKey, maxPerWindow);
+                    const rateLimitResponse = rateLimiter.check(rateKey, maxPerWindow);
                     if (rateLimitResponse) return rateLimitResponse;
                     const filePath = join(dataDir, `${key}.json`);
                     if (req.method !== 'GET') {
@@ -1420,7 +1316,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                     if (!isAuthorizedToken(token, allowedAuthTokens)) return unauthorizedResponse(req, token);
                     const key = tokenToKey(token);
                     const dataRateKey = `${key}:${req.method}:${toRateLimitRoute(pathname)}`;
-                    const dataRateLimitResponse = checkRateLimit(dataRateKey, maxPerWindow);
+                    const dataRateLimitResponse = rateLimiter.check(dataRateKey, maxPerWindow);
                     if (dataRateLimitResponse) return dataRateLimitResponse;
                     const filePath = join(dataDir, `${key}.json`);
 
@@ -1538,7 +1434,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                     if (!isAuthorizedToken(token, allowedAuthTokens)) return unauthorizedResponse(req, token);
                     const key = tokenToKey(token);
                     const attachmentRateKey = `${key}:${req.method}:${toRateLimitRoute(pathname)}`;
-                    const attachmentRateLimitResponse = checkRateLimit(attachmentRateKey, maxAttachmentPerWindow);
+                    const attachmentRateLimitResponse = rateLimiter.check(attachmentRateKey, maxAttachmentPerWindow);
                     if (attachmentRateLimitResponse) return attachmentRateLimitResponse;
                     if (req.method !== 'POST' && req.method !== 'DELETE') {
                         return errorResponse('Method not allowed', 405);
@@ -1564,7 +1460,7 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                     if (!isAuthorizedToken(token, allowedAuthTokens)) return unauthorizedResponse(req, token);
                     const key = tokenToKey(token);
                     const attachmentRateKey = `${key}:${req.method}:${toRateLimitRoute(pathname)}`;
-                    const attachmentRateLimitResponse = checkRateLimit(attachmentRateKey, maxAttachmentPerWindow);
+                    const attachmentRateLimitResponse = rateLimiter.check(attachmentRateKey, maxAttachmentPerWindow);
                     if (attachmentRateLimitResponse) return attachmentRateLimitResponse;
 
                     const resolvedAttachmentPath = resolveAttachmentPath(dataDir, key, pathname.slice('/v1/attachments/'.length));

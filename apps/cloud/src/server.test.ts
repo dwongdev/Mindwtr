@@ -3,8 +3,48 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, 
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { cloudHeadJson, cloudPutJson, type AppData, type Task } from '@mindwtr/core';
-import { corsOrigin, errorResponse, preflightResponse } from './server-config';
-import { __cloudTestUtils, startCloudServer } from './server';
+import {
+    getAuthFailureRateKey,
+    getAuthFailureTokenRateKey,
+    getClientIp,
+    getToken,
+    isAuthorizedToken,
+    parseAllowedAuthTokens,
+    parseTrustedProxyIps,
+    resolveAllowedAuthTokensFromEnv,
+    toRateLimitRoute,
+    tokenToKey,
+} from './server-auth';
+import {
+    corsOrigin,
+    createInternalServerErrorResponse,
+    errorResponse,
+    preflightResponse,
+} from './server-config';
+import {
+    __serverDataCacheTestUtils,
+    dataMetadataResponse,
+    isTrustedValidatedDataFile,
+    loadAppData,
+    writeCloudData,
+} from './server-data-cache';
+import {
+    createWriteLockRunner,
+    isBodyReadError,
+    isPathWithinRoot,
+    normalizeAttachmentRelativePath,
+    pathContainsSymlink,
+    readJsonBody,
+    resolveAttachmentPath,
+    writeData,
+} from './server-storage';
+import {
+    asStatus,
+    validateAppData,
+    validateTaskCreationProps,
+    validateTaskPatchProps,
+} from './server-validation';
+import { resolveServerMergeTimestamp, startCloudServer } from './server';
 
 const expireFileForOrphanGc = (path: string): void => {
     const staleTime = new Date(Date.now() - 10 * 60 * 1000);
@@ -25,34 +65,34 @@ describe('cloud server utils', () => {
         const req = new Request('http://localhost/v1/data', {
             headers: { Authorization: 'Bearer demo-token-1234567890' },
         });
-        const token = __cloudTestUtils.getToken(req);
+        const token = getToken(req);
         expect(token).toBe('demo-token-1234567890');
-        expect(__cloudTestUtils.tokenToKey(token!)).toHaveLength(64);
+        expect(tokenToKey(token!)).toHaveLength(64);
 
         const base64TokenReq = new Request('http://localhost/v1/data', {
             headers: { Authorization: 'Bearer YWxhZGRpbjpvcGVuL3Nlc2FtZT0=' },
         });
-        expect(__cloudTestUtils.getToken(base64TokenReq)).toBe('YWxhZGRpbjpvcGVuL3Nlc2FtZT0=');
+        expect(getToken(base64TokenReq)).toBe('YWxhZGRpbjpvcGVuL3Nlc2FtZT0=');
 
         const shortTokenReq = new Request('http://localhost/v1/data', {
             headers: { Authorization: 'Bearer short' },
         });
-        expect(__cloudTestUtils.getToken(shortTokenReq)).toBeNull();
+        expect(getToken(shortTokenReq)).toBeNull();
 
         const tokenWithWhitespaceReq = new Request('http://localhost/v1/data', {
             headers: { Authorization: 'Bearer token with spaces' },
         });
-        expect(__cloudTestUtils.getToken(tokenWithWhitespaceReq)).toBeNull();
+        expect(getToken(tokenWithWhitespaceReq)).toBeNull();
     });
 
     test('parses optional auth token allowlist', () => {
-        expect(__cloudTestUtils.parseAllowedAuthTokens('')).toBeNull();
-        const tokens = __cloudTestUtils.parseAllowedAuthTokens('alpha, beta ,gamma');
+        expect(parseAllowedAuthTokens('')).toBeNull();
+        const tokens = parseAllowedAuthTokens('alpha, beta ,gamma');
         expect(tokens?.size).toBe(3);
         expect(tokens?.digests.every((digest) => digest.length === 32)).toBe(true);
-        expect(__cloudTestUtils.isAuthorizedToken('beta', tokens || null)).toBe(true);
-        expect(__cloudTestUtils.isAuthorizedToken('delta', tokens || null)).toBe(false);
-        expect(__cloudTestUtils.isAuthorizedToken('any', null)).toBe(true);
+        expect(isAuthorizedToken('beta', tokens || null)).toBe(true);
+        expect(isAuthorizedToken('delta', tokens || null)).toBe(false);
+        expect(isAuthorizedToken('any', null)).toBe(true);
     });
 
     test('resolves auth tokens from both current and legacy env var names', () => {
@@ -63,51 +103,51 @@ describe('cloud server utils', () => {
             writeFileSync(authTokensFile, 'file-alpha,file-beta\n');
             writeFileSync(legacyTokenFile, 'legacy-file-token\n');
 
-            const primaryOnly = __cloudTestUtils.resolveAllowedAuthTokensFromEnv({
+            const primaryOnly = resolveAllowedAuthTokensFromEnv({
                 MINDWTR_CLOUD_AUTH_TOKENS: 'alpha,beta',
             });
             expect(primaryOnly).not.toBeNull();
-            expect(__cloudTestUtils.isAuthorizedToken('alpha', primaryOnly)).toBe(true);
-            expect(__cloudTestUtils.isAuthorizedToken('beta', primaryOnly)).toBe(true);
+            expect(isAuthorizedToken('alpha', primaryOnly)).toBe(true);
+            expect(isAuthorizedToken('beta', primaryOnly)).toBe(true);
 
-            const legacyOnly = __cloudTestUtils.resolveAllowedAuthTokensFromEnv({
+            const legacyOnly = resolveAllowedAuthTokensFromEnv({
                 MINDWTR_CLOUD_TOKEN: 'legacy-token',
             });
             expect(legacyOnly).not.toBeNull();
-            expect(__cloudTestUtils.isAuthorizedToken('legacy-token', legacyOnly)).toBe(true);
+            expect(isAuthorizedToken('legacy-token', legacyOnly)).toBe(true);
 
-            const combined = __cloudTestUtils.resolveAllowedAuthTokensFromEnv({
+            const combined = resolveAllowedAuthTokensFromEnv({
                 MINDWTR_CLOUD_AUTH_TOKENS: 'new-token',
                 MINDWTR_CLOUD_TOKEN: 'legacy-token',
             });
-            expect(__cloudTestUtils.isAuthorizedToken('new-token', combined)).toBe(true);
-            expect(__cloudTestUtils.isAuthorizedToken('legacy-token', combined)).toBe(true);
+            expect(isAuthorizedToken('new-token', combined)).toBe(true);
+            expect(isAuthorizedToken('legacy-token', combined)).toBe(true);
 
-            const fileOnly = __cloudTestUtils.resolveAllowedAuthTokensFromEnv({
+            const fileOnly = resolveAllowedAuthTokensFromEnv({
                 MINDWTR_CLOUD_AUTH_TOKENS_FILE: authTokensFile,
             });
-            expect(__cloudTestUtils.isAuthorizedToken('file-alpha', fileOnly)).toBe(true);
-            expect(__cloudTestUtils.isAuthorizedToken('file-beta', fileOnly)).toBe(true);
+            expect(isAuthorizedToken('file-alpha', fileOnly)).toBe(true);
+            expect(isAuthorizedToken('file-beta', fileOnly)).toBe(true);
 
-            const legacyFileOnly = __cloudTestUtils.resolveAllowedAuthTokensFromEnv({
+            const legacyFileOnly = resolveAllowedAuthTokensFromEnv({
                 MINDWTR_CLOUD_TOKEN_FILE: legacyTokenFile,
             });
-            expect(__cloudTestUtils.isAuthorizedToken('legacy-file-token', legacyFileOnly)).toBe(true);
+            expect(isAuthorizedToken('legacy-file-token', legacyFileOnly)).toBe(true);
 
-            const mixedWithFile = __cloudTestUtils.resolveAllowedAuthTokensFromEnv({
+            const mixedWithFile = resolveAllowedAuthTokensFromEnv({
                 MINDWTR_CLOUD_AUTH_TOKENS: 'inline-token',
                 MINDWTR_CLOUD_AUTH_TOKENS_FILE: authTokensFile,
             });
-            expect(__cloudTestUtils.isAuthorizedToken('inline-token', mixedWithFile)).toBe(true);
-            expect(__cloudTestUtils.isAuthorizedToken('file-alpha', mixedWithFile)).toBe(true);
-            expect(__cloudTestUtils.isAuthorizedToken('file-beta', mixedWithFile)).toBe(true);
+            expect(isAuthorizedToken('inline-token', mixedWithFile)).toBe(true);
+            expect(isAuthorizedToken('file-alpha', mixedWithFile)).toBe(true);
+            expect(isAuthorizedToken('file-beta', mixedWithFile)).toBe(true);
 
-            const allowAny = __cloudTestUtils.resolveAllowedAuthTokensFromEnv({
+            const allowAny = resolveAllowedAuthTokensFromEnv({
                 MINDWTR_CLOUD_ALLOW_ANY_TOKEN: 'true',
             });
             expect(allowAny).toBeNull();
 
-            expect(() => __cloudTestUtils.resolveAllowedAuthTokensFromEnv({})).toThrow(
+            expect(() => resolveAllowedAuthTokensFromEnv({})).toThrow(
                 'Cloud auth is not configured.'
             );
         } finally {
@@ -124,14 +164,14 @@ describe('cloud server utils', () => {
             },
         });
 
-        expect(__cloudTestUtils.getClientIp(req)).toBe('unknown');
-        expect(__cloudTestUtils.getClientIp(req, true)).toBe('unknown');
-        expect(__cloudTestUtils.getClientIp(req, {
+        expect(getClientIp(req)).toBe('unknown');
+        expect(getClientIp(req, true)).toBe('unknown');
+        expect(getClientIp(req, {
             trustProxyHeaders: true,
             requestIpAddress: '198.51.100.1',
             trustedProxyIps: new Set(['10.0.0.1']),
         })).toBe('unknown');
-        expect(__cloudTestUtils.getClientIp(req, {
+        expect(getClientIp(req, {
             trustProxyHeaders: true,
             requestIpAddress: '10.0.0.1',
             trustedProxyIps: new Set(['10.0.0.1']),
@@ -139,7 +179,7 @@ describe('cloud server utils', () => {
     });
 
     test('parses trusted proxy IP allowlists', () => {
-        expect(Array.from(__cloudTestUtils.parseTrustedProxyIps(' 10.0.0.1, ::ffff:127.0.0.1 ,, '))).toEqual([
+        expect(Array.from(parseTrustedProxyIps(' 10.0.0.1, ::ffff:127.0.0.1 ,, '))).toEqual([
             '10.0.0.1',
             '127.0.0.1',
         ]);
@@ -154,49 +194,49 @@ describe('cloud server utils', () => {
             },
         });
 
-        expect(__cloudTestUtils.getAuthFailureRateKey(req, {
+        expect(getAuthFailureRateKey(req, {
             trustProxyHeaders: true,
             trustedProxyIps: new Set(['127.0.0.1']),
             requestIpAddress: '127.0.0.1',
         })).toBe('auth-failure:ip:203.0.113.10');
 
-        expect(__cloudTestUtils.getAuthFailureRateKey(req, {
+        expect(getAuthFailureRateKey(req, {
             trustProxyHeaders: true,
             trustedProxyIps: new Set(['10.0.0.1']),
             requestIpAddress: '127.0.0.1',
         })).toBe('auth-failure:ip:127.0.0.1');
 
-        expect(__cloudTestUtils.getAuthFailureRateKey(req, {
+        expect(getAuthFailureRateKey(req, {
             trustProxyHeaders: false,
             requestIpAddress: '127.0.0.1',
         })).toBe('auth-failure:ip:127.0.0.1');
 
-        expect(__cloudTestUtils.getAuthFailureRateKey(req, {
+        expect(getAuthFailureRateKey(req, {
             trustProxyHeaders: false,
             requestIpAddress: '127.0.0.1',
-        })).toBe(__cloudTestUtils.getAuthFailureRateKey(new Request('http://localhost/v1/data', {
+        })).toBe(getAuthFailureRateKey(new Request('http://localhost/v1/data', {
             headers: { authorization: 'Bearer another-invalid-token-1234567890' },
         }), {
             trustProxyHeaders: false,
             requestIpAddress: '127.0.0.1',
         }));
 
-        expect(__cloudTestUtils.getAuthFailureRateKey(req, {
+        expect(getAuthFailureRateKey(req, {
             trustProxyHeaders: false,
             requestIpAddress: null,
         })).toBe('auth-failure:ip:unknown');
 
-        expect(__cloudTestUtils.getAuthFailureTokenRateKey({ token })).toBe(
-            `auth-failure:token:${__cloudTestUtils.tokenToKey(token)}`
+        expect(getAuthFailureTokenRateKey({ token })).toBe(
+            `auth-failure:token:${tokenToKey(token)}`
         );
 
-        expect(__cloudTestUtils.getAuthFailureTokenRateKey({
+        expect(getAuthFailureTokenRateKey({
             authHeader: 'Bearer malformed',
-        })).toBe(`auth-failure:header:${__cloudTestUtils.tokenToKey('Bearer malformed')}`);
+        })).toBe(`auth-failure:header:${tokenToKey('Bearer malformed')}`);
     });
 
     test('rejects invalid app data payload', () => {
-        const result = __cloudTestUtils.validateAppData({ tasks: 'invalid', projects: [] });
+        const result = validateAppData({ tasks: 'invalid', projects: [] });
         expect(result.ok).toBe(false);
     });
 
@@ -221,7 +261,7 @@ describe('cloud server utils', () => {
     });
 
     test('includes a request id in internal server error responses', async () => {
-        const response = __cloudTestUtils.createInternalServerErrorResponse('Internal server error', 'req-test-123');
+        const response = createInternalServerErrorResponse('Internal server error', 'req-test-123');
 
         expect(response.status).toBe(500);
         expect(response.headers.get('X-Request-Id')).toBe('req-test-123');
@@ -231,7 +271,7 @@ describe('cloud server utils', () => {
     });
 
     test('rejects invalid task status and timestamps in app data', () => {
-        const invalidStatus = __cloudTestUtils.validateAppData({
+        const invalidStatus = validateAppData({
             tasks: [{
                 id: 't1',
                 title: 'Task 1',
@@ -243,7 +283,7 @@ describe('cloud server utils', () => {
         });
         expect(invalidStatus.ok).toBe(false);
 
-        const invalidTimestamp = __cloudTestUtils.validateAppData({
+        const invalidTimestamp = validateAppData({
             tasks: [{
                 id: 't1',
                 title: 'Task 1',
@@ -258,7 +298,7 @@ describe('cloud server utils', () => {
 
     test('accepts null optional deletedAt timestamps while requiring area createdAt/updatedAt', () => {
      const iso = '2024-01-01T00:00:00.000Z';
-     const result = __cloudTestUtils.validateAppData({
+     const result = validateAppData({
          tasks: [{
              id: 't1',
              title: 'Task',
@@ -297,7 +337,7 @@ describe('cloud server utils', () => {
     test('rejects live records with broken project, section, or area references', () => {
         const iso = '2024-01-01T00:00:00.000Z';
 
-        const invalidTaskProject = __cloudTestUtils.validateAppData({
+        const invalidTaskProject = validateAppData({
             tasks: [{
                 id: 't1',
                 title: 'Task',
@@ -312,7 +352,7 @@ describe('cloud server utils', () => {
         });
         expect(invalidTaskProject.ok).toBe(false);
 
-        const invalidTaskSection = __cloudTestUtils.validateAppData({
+        const invalidTaskSection = validateAppData({
             tasks: [{
                 id: 't1',
                 title: 'Task',
@@ -337,7 +377,7 @@ describe('cloud server utils', () => {
         });
         expect(invalidTaskSection.ok).toBe(false);
 
-        const invalidProjectArea = __cloudTestUtils.validateAppData({
+        const invalidProjectArea = validateAppData({
             tasks: [],
             projects: [{
                 id: 'p1',
@@ -357,13 +397,13 @@ describe('cloud server utils', () => {
     });
 
     test('accepts only core task statuses', () => {
-        expect(__cloudTestUtils.asStatus('reference')).toBe('reference');
-        expect(__cloudTestUtils.asStatus('todo')).toBeNull();
-        expect(__cloudTestUtils.asStatus('in-progress')).toBeNull();
+        expect(asStatus('reference')).toBe('reference');
+        expect(asStatus('todo')).toBeNull();
+        expect(asStatus('in-progress')).toBeNull();
     });
 
     test('rejects reserved task creation props', () => {
-        expect(__cloudTestUtils.validateTaskCreationProps({
+        expect(validateTaskCreationProps({
             status: 'next',
             energyLevel: 'medium',
             assignedTo: 'person-1',
@@ -372,7 +412,7 @@ describe('cloud server utils', () => {
             suppressMindwtrReminders: true,
         }).ok).toBe(true);
 
-        const invalid = __cloudTestUtils.validateTaskCreationProps({
+        const invalid = validateTaskCreationProps({
             status: 'next',
             rev: 99,
             deletedAt: '2026-01-01T00:00:00.000Z',
@@ -384,7 +424,7 @@ describe('cloud server utils', () => {
     });
 
     test('rejects reserved task patch props', () => {
-        expect(__cloudTestUtils.validateTaskPatchProps({
+        expect(validateTaskPatchProps({
             title: 'Renamed',
             status: 'next',
             energyLevel: 'low',
@@ -393,7 +433,7 @@ describe('cloud server utils', () => {
             suppressMindwtrReminders: false,
         }).ok).toBe(true);
 
-        const invalid = __cloudTestUtils.validateTaskPatchProps({
+        const invalid = validateTaskPatchProps({
             id: 'override',
             createdAt: '2026-01-01T00:00:00.000Z',
             arbitrary: 'value',
@@ -406,33 +446,33 @@ describe('cloud server utils', () => {
     });
 
     test('validates schedule task prop values before REST writes', () => {
-        expect(__cloudTestUtils.validateTaskCreationProps({
+        expect(validateTaskCreationProps({
             status: 'next',
             repeatReminderMinutes: 15,
             relativeStartOffset: { amount: -3, unit: 'day' },
             recurrence: { rule: 'weekly', byDay: ['MO'] },
         }).ok).toBe(true);
-        expect(__cloudTestUtils.validateTaskPatchProps({
+        expect(validateTaskPatchProps({
             repeatReminderMinutes: 0,
             recurrence: 'FREQ=DAILY;INTERVAL=2',
         }).ok).toBe(true);
 
-        const invalidRepeat = __cloudTestUtils.validateTaskCreationProps({ repeatReminderMinutes: 7 });
+        const invalidRepeat = validateTaskCreationProps({ repeatReminderMinutes: 7 });
         expect(invalidRepeat.ok).toBe(false);
         if (invalidRepeat.ok) throw new Error('Expected invalid repeatReminderMinutes');
         expect(invalidRepeat.error).toContain('repeatReminderMinutes');
 
-        const invalidOffset = __cloudTestUtils.validateTaskPatchProps({ relativeStartOffset: { amount: 3, unit: 'day' } });
+        const invalidOffset = validateTaskPatchProps({ relativeStartOffset: { amount: 3, unit: 'day' } });
         expect(invalidOffset.ok).toBe(false);
         if (invalidOffset.ok) throw new Error('Expected invalid relativeStartOffset');
         expect(invalidOffset.error).toContain('relativeStartOffset');
 
-        const invalidRecurrence = __cloudTestUtils.validateTaskPatchProps({ recurrence: { rule: 'daily', arbitrary: true } });
+        const invalidRecurrence = validateTaskPatchProps({ recurrence: { rule: 'daily', arbitrary: true } });
         expect(invalidRecurrence.ok).toBe(false);
         if (invalidRecurrence.ok) throw new Error('Expected invalid recurrence');
         expect(invalidRecurrence.error).toContain('recurrence');
 
-        const invalidRecurrenceValue = __cloudTestUtils.validateTaskPatchProps({ recurrence: { rule: 'weekly', byDay: ['NOPE'] } });
+        const invalidRecurrenceValue = validateTaskPatchProps({ recurrence: { rule: 'weekly', byDay: ['NOPE'] } });
         expect(invalidRecurrenceValue.ok).toBe(false);
         if (invalidRecurrenceValue.ok) throw new Error('Expected invalid recurrence value');
         expect(invalidRecurrenceValue.error).toContain('recurrence');
@@ -441,7 +481,7 @@ describe('cloud server utils', () => {
     test('validates schedule task prop values in app data snapshots', () => {
         const baseTask = makeTestTask({ id: 't1', title: 'Task' });
 
-        const valid = __cloudTestUtils.validateAppData({
+        const valid = validateAppData({
             tasks: [{
                 ...baseTask,
                 repeatReminderMinutes: 15,
@@ -452,7 +492,7 @@ describe('cloud server utils', () => {
         });
         expect(valid.ok).toBe(true);
 
-        const invalidRepeat = __cloudTestUtils.validateAppData({
+        const invalidRepeat = validateAppData({
             tasks: [{ ...baseTask, repeatReminderMinutes: 7 }],
             projects: [],
         });
@@ -460,7 +500,7 @@ describe('cloud server utils', () => {
         if (invalidRepeat.ok) throw new Error('Expected invalid repeatReminderMinutes');
         expect(invalidRepeat.error).toContain('repeatReminderMinutes');
 
-        const invalidOffset = __cloudTestUtils.validateAppData({
+        const invalidOffset = validateAppData({
             tasks: [{ ...baseTask, relativeStartOffset: { amount: 3, unit: 'day' } }],
             projects: [],
         });
@@ -468,7 +508,7 @@ describe('cloud server utils', () => {
         if (invalidOffset.ok) throw new Error('Expected invalid relativeStartOffset');
         expect(invalidOffset.error).toContain('relativeStartOffset');
 
-        const invalidRecurrence = __cloudTestUtils.validateAppData({
+        const invalidRecurrence = validateAppData({
             tasks: [{ ...baseTask, recurrence: { rule: 'weekly', byDay: ['NOPE'] } }],
             projects: [],
         });
@@ -485,7 +525,7 @@ describe('cloud server utils', () => {
             sections: [],
             areas: [],
         };
-        const valid = __cloudTestUtils.validateAppData({
+        const valid = validateAppData({
             ...base,
             settings: {
                 attachments: {
@@ -500,7 +540,7 @@ describe('cloud server utils', () => {
         });
         expect(valid.ok).toBe(true);
 
-        const invalidCloudKey = __cloudTestUtils.validateAppData({
+        const invalidCloudKey = validateAppData({
             ...base,
             settings: {
                 attachments: {
@@ -510,7 +550,7 @@ describe('cloud server utils', () => {
         });
         expect(invalidCloudKey.ok).toBe(false);
 
-        const invalidAttempts = __cloudTestUtils.validateAppData({
+        const invalidAttempts = validateAppData({
             ...base,
             settings: {
                 attachments: {
@@ -522,9 +562,9 @@ describe('cloud server utils', () => {
     });
 
     test('normalizes rate limit routes for task item endpoints', () => {
-        expect(__cloudTestUtils.toRateLimitRoute('/v1/tasks/abc')).toBe('/v1/tasks/:id');
-        expect(__cloudTestUtils.toRateLimitRoute('/v1/tasks/abc/complete')).toBe('/v1/tasks/:id/:action');
-        expect(__cloudTestUtils.toRateLimitRoute('/v1/tasks')).toBe('/v1/tasks');
+        expect(toRateLimitRoute('/v1/tasks/abc')).toBe('/v1/tasks/:id');
+        expect(toRateLimitRoute('/v1/tasks/abc/complete')).toBe('/v1/tasks/:id/:action');
+        expect(toRateLimitRoute('/v1/tasks')).toBe('/v1/tasks');
     });
 
     test('enforces JSON body size limit without relying on content-length', async () => {
@@ -539,9 +579,9 @@ describe('cloud server utils', () => {
             }),
             duplex: 'half' as RequestDuplex,
         });
-        const parsed = await __cloudTestUtils.readJsonBody(req, 10);
-        expect(__cloudTestUtils.isBodyReadError(parsed)).toBe(true);
-        if (!__cloudTestUtils.isBodyReadError(parsed)) throw new Error('Expected body read error');
+        const parsed = await readJsonBody(req, 10);
+        expect(isBodyReadError(parsed)).toBe(true);
+        if (!isBodyReadError(parsed)) throw new Error('Expected body read error');
         expect(parsed.__mindwtrError.message).toBe('Payload too large');
         expect(parsed.__mindwtrError.status).toBe(413);
     });
@@ -562,28 +602,28 @@ describe('cloud server utils', () => {
         });
 
         controller.abort(new Error('Request timed out'));
-        const parsed = await __cloudTestUtils.readJsonBody(req, 1024, controller.signal);
-        expect(__cloudTestUtils.isBodyReadError(parsed)).toBe(true);
-        if (!__cloudTestUtils.isBodyReadError(parsed)) throw new Error('Expected body read error');
+        const parsed = await readJsonBody(req, 1024, controller.signal);
+        expect(isBodyReadError(parsed)).toBe(true);
+        if (!isBodyReadError(parsed)) throw new Error('Expected body read error');
         expect(parsed.__mindwtrError.message).toBe('Request timed out');
         expect(parsed.__mindwtrError.status).toBe(408);
     });
 
     test('normalizes attachment paths with allowlist and segment checks', () => {
-        expect(__cloudTestUtils.normalizeAttachmentRelativePath('folder/file.txt')).toBe('folder/file.txt');
-        expect(__cloudTestUtils.normalizeAttachmentRelativePath('/folder/file.txt/')).toBe('folder/file.txt');
-        expect(__cloudTestUtils.normalizeAttachmentRelativePath('%2e%2e/secret')).toBeNull();
-        expect(__cloudTestUtils.normalizeAttachmentRelativePath('%252e%252e/secret')).toBeNull();
-        expect(__cloudTestUtils.normalizeAttachmentRelativePath('%25252e%25252e/secret')).toBeNull();
-        expect(__cloudTestUtils.normalizeAttachmentRelativePath('../secret')).toBeNull();
-        expect(__cloudTestUtils.normalizeAttachmentRelativePath('folder\\\\file.txt')).toBeNull();
-        expect(__cloudTestUtils.normalizeAttachmentRelativePath('folder/file?.txt')).toBeNull();
+        expect(normalizeAttachmentRelativePath('folder/file.txt')).toBe('folder/file.txt');
+        expect(normalizeAttachmentRelativePath('/folder/file.txt/')).toBe('folder/file.txt');
+        expect(normalizeAttachmentRelativePath('%2e%2e/secret')).toBeNull();
+        expect(normalizeAttachmentRelativePath('%252e%252e/secret')).toBeNull();
+        expect(normalizeAttachmentRelativePath('%25252e%25252e/secret')).toBeNull();
+        expect(normalizeAttachmentRelativePath('../secret')).toBeNull();
+        expect(normalizeAttachmentRelativePath('folder\\\\file.txt')).toBeNull();
+        expect(normalizeAttachmentRelativePath('folder/file?.txt')).toBeNull();
     });
 
     test('checks whether resolved path stays inside root directory', () => {
-        expect(__cloudTestUtils.isPathWithinRoot('/data/ns/attachments/file.txt', '/data/ns/attachments')).toBe(true);
-        expect(__cloudTestUtils.isPathWithinRoot('/data/ns/attachments', '/data/ns/attachments')).toBe(true);
-        expect(__cloudTestUtils.isPathWithinRoot('/data/ns/attachments-evil/file.txt', '/data/ns/attachments')).toBe(false);
+        expect(isPathWithinRoot('/data/ns/attachments/file.txt', '/data/ns/attachments')).toBe(true);
+        expect(isPathWithinRoot('/data/ns/attachments', '/data/ns/attachments')).toBe(true);
+        expect(isPathWithinRoot('/data/ns/attachments-evil/file.txt', '/data/ns/attachments')).toBe(false);
     });
 
     test('detects symlink segments in attachment paths', () => {
@@ -595,11 +635,11 @@ describe('cloud server utils', () => {
 
         const normalDir = join(root, 'plain');
         mkdirSync(normalDir, { recursive: true });
-        expect(__cloudTestUtils.pathContainsSymlink(root, normalDir)).toBe(false);
+        expect(pathContainsSymlink(root, normalDir)).toBe(false);
 
         const linkDir = join(root, 'linked');
         symlinkSync(outside, linkDir);
-        expect(__cloudTestUtils.pathContainsSymlink(root, linkDir)).toBe(true);
+        expect(pathContainsSymlink(root, linkDir)).toBe(true);
 
         rmSync(sandbox, { recursive: true, force: true });
     });
@@ -613,7 +653,7 @@ describe('cloud server utils', () => {
         mkdirSync(outside, { recursive: true });
         symlinkSync(outside, join(dataDirForTest, key), 'dir');
 
-        const resolvedPath = __cloudTestUtils.resolveAttachmentPath(dataDirForTest, key, 'folder/file.bin');
+        const resolvedPath = resolveAttachmentPath(dataDirForTest, key, 'folder/file.bin');
 
         expect(resolvedPath).toBeNull();
         expect(existsSync(join(outside, 'attachments'))).toBe(false);
@@ -622,7 +662,7 @@ describe('cloud server utils', () => {
     });
 
     test('write lock runner executes each queued write once, even after a failure', async () => {
-        const withWriteLock = __cloudTestUtils.createWriteLockRunner();
+        const withWriteLock = createWriteLockRunner();
         let failingCalls = 0;
         let succeedingCalls = 0;
 
@@ -647,10 +687,10 @@ describe('cloud server utils', () => {
         const dir = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-write-data-'));
         const filePath = join(dir, 'data.json');
 
-        __cloudTestUtils.writeData(filePath, { ok: true, version: 1 });
+        writeData(filePath, { ok: true, version: 1 });
         expect(JSON.parse(readFileSync(filePath, 'utf8'))).toEqual({ ok: true, version: 1 });
 
-        __cloudTestUtils.writeData(filePath, { ok: true, version: 2 });
+        writeData(filePath, { ok: true, version: 2 });
         expect(JSON.parse(readFileSync(filePath, 'utf8'))).toEqual({ ok: true, version: 2 });
         expect(readdirSync(dir)).toEqual(['data.json']);
 
@@ -675,10 +715,10 @@ describe('cloud server utils', () => {
         };
 
         try {
-            __cloudTestUtils.clearDataCaches();
+            __serverDataCacheTestUtils.clearDataCaches();
             writeFileSync(filePath, JSON.stringify(data));
 
-            const first = __cloudTestUtils.loadAppData(filePath);
+            const first = loadAppData(filePath);
             first.tasks.push(makeTestTask({
                 id: 'caller-mutation',
                 title: 'Caller mutation',
@@ -686,12 +726,12 @@ describe('cloud server utils', () => {
                 updatedAt: iso,
             }));
 
-            const second = __cloudTestUtils.loadAppData(filePath);
+            const second = loadAppData(filePath);
 
-            expect(__cloudTestUtils.getParsedDataCacheSize()).toBe(1);
+            expect(__serverDataCacheTestUtils.getParsedDataCacheSize()).toBe(1);
             expect(second.tasks.map((task) => task.id)).toEqual(['task-1']);
         } finally {
-            __cloudTestUtils.clearDataCaches();
+            __serverDataCacheTestUtils.clearDataCaches();
             rmSync(dir, { recursive: true, force: true });
         }
     });
@@ -714,8 +754,8 @@ describe('cloud server utils', () => {
         };
 
         try {
-            __cloudTestUtils.clearDataCaches();
-            __cloudTestUtils.writeCloudData(filePath, data);
+            __serverDataCacheTestUtils.clearDataCaches();
+            writeCloudData(filePath, data);
             data.tasks.push(makeTestTask({
                 id: 'caller-mutation',
                 title: 'Caller mutation',
@@ -723,12 +763,12 @@ describe('cloud server utils', () => {
                 updatedAt: iso,
             }));
 
-            const loaded = __cloudTestUtils.loadAppData(filePath);
+            const loaded = loadAppData(filePath);
 
-            expect(__cloudTestUtils.getParsedDataCacheSize()).toBe(1);
+            expect(__serverDataCacheTestUtils.getParsedDataCacheSize()).toBe(1);
             expect(loaded.tasks.map((task) => task.id)).toEqual(['task-1']);
         } finally {
-            __cloudTestUtils.clearDataCaches();
+            __serverDataCacheTestUtils.clearDataCaches();
             rmSync(dir, { recursive: true, force: true });
         }
     });
@@ -738,11 +778,11 @@ describe('cloud server utils', () => {
         const iso = '2026-01-01T00:00:00.000Z';
 
         try {
-            __cloudTestUtils.clearDataCaches();
-            const maxEntries = __cloudTestUtils.getParsedDataCacheMaxEntries();
+            __serverDataCacheTestUtils.clearDataCaches();
+            const maxEntries = __serverDataCacheTestUtils.getDataCacheMaxEntries();
             for (let index = 0; index < maxEntries + 3; index += 1) {
                 const filePath = join(dir, `data-${index}.json`);
-                __cloudTestUtils.writeCloudData(filePath, {
+                writeCloudData(filePath, {
                     tasks: [makeTestTask({
                         id: `task-${index}`,
                         title: `Task ${index}`,
@@ -756,9 +796,9 @@ describe('cloud server utils', () => {
                 });
             }
 
-            expect(__cloudTestUtils.getParsedDataCacheSize()).toBe(maxEntries);
+            expect(__serverDataCacheTestUtils.getParsedDataCacheSize()).toBe(maxEntries);
         } finally {
-            __cloudTestUtils.clearDataCaches();
+            __serverDataCacheTestUtils.clearDataCaches();
             rmSync(dir, { recursive: true, force: true });
         }
     });
@@ -768,13 +808,13 @@ describe('cloud server utils', () => {
         const iso = '2026-01-01T00:00:00.000Z';
 
         try {
-            __cloudTestUtils.clearDataCaches();
-            const maxEntries = __cloudTestUtils.getParsedDataCacheMaxEntries();
+            __serverDataCacheTestUtils.clearDataCaches();
+            const maxEntries = __serverDataCacheTestUtils.getDataCacheMaxEntries();
             const filePaths: string[] = [];
             for (let index = 0; index < maxEntries; index += 1) {
                 const filePath = join(dir, `data-${index}.json`);
                 filePaths.push(filePath);
-                __cloudTestUtils.writeCloudData(filePath, {
+                writeCloudData(filePath, {
                     tasks: [makeTestTask({
                         id: `task-${index}`,
                         title: `Task ${index}`,
@@ -788,8 +828,8 @@ describe('cloud server utils', () => {
                 });
             }
 
-            __cloudTestUtils.loadAppData(filePaths[0]!);
-            __cloudTestUtils.writeCloudData(join(dir, 'data-extra.json'), {
+            loadAppData(filePaths[0]!);
+            writeCloudData(join(dir, 'data-extra.json'), {
                 tasks: [makeTestTask({
                     id: 'task-extra',
                     title: 'Task extra',
@@ -802,10 +842,10 @@ describe('cloud server utils', () => {
                 settings: {},
             });
 
-            expect(__cloudTestUtils.hasParsedDataCacheEntry(filePaths[0]!)).toBe(true);
-            expect(__cloudTestUtils.hasParsedDataCacheEntry(filePaths[1]!)).toBe(false);
+            expect(__serverDataCacheTestUtils.hasParsedDataCacheEntry(filePaths[0]!)).toBe(true);
+            expect(__serverDataCacheTestUtils.hasParsedDataCacheEntry(filePaths[1]!)).toBe(false);
         } finally {
-            __cloudTestUtils.clearDataCaches();
+            __serverDataCacheTestUtils.clearDataCaches();
             rmSync(dir, { recursive: true, force: true });
         }
     });
@@ -815,13 +855,13 @@ describe('cloud server utils', () => {
         const iso = '2026-01-01T00:00:00.000Z';
 
         try {
-            __cloudTestUtils.clearDataCaches();
-            const maxEntries = __cloudTestUtils.getDataCacheMaxEntries();
+            __serverDataCacheTestUtils.clearDataCaches();
+            const maxEntries = __serverDataCacheTestUtils.getDataCacheMaxEntries();
             const filePaths: string[] = [];
             for (let index = 0; index < maxEntries; index += 1) {
                 const filePath = join(dir, `data-${index}.json`);
                 filePaths.push(filePath);
-                __cloudTestUtils.writeCloudData(filePath, {
+                writeCloudData(filePath, {
                     tasks: [makeTestTask({
                         id: `task-${index}`,
                         title: `Task ${index}`,
@@ -833,13 +873,13 @@ describe('cloud server utils', () => {
                     areas: [],
                     settings: {},
                 });
-                __cloudTestUtils.dataMetadataResponse(filePath);
+                dataMetadataResponse(filePath);
             }
 
-            expect(__cloudTestUtils.isTrustedValidatedDataFile(filePaths[0]!)).toBe(true);
-            __cloudTestUtils.dataMetadataResponse(filePaths[0]!);
+            expect(isTrustedValidatedDataFile(filePaths[0]!)).toBe(true);
+            dataMetadataResponse(filePaths[0]!);
             const extraPath = join(dir, 'data-extra.json');
-            __cloudTestUtils.writeCloudData(extraPath, {
+            writeCloudData(extraPath, {
                 tasks: [makeTestTask({
                     id: 'task-extra',
                     title: 'Task extra',
@@ -851,16 +891,16 @@ describe('cloud server utils', () => {
                 areas: [],
                 settings: {},
             });
-            __cloudTestUtils.dataMetadataResponse(extraPath);
+            dataMetadataResponse(extraPath);
 
-            expect(__cloudTestUtils.getValidatedDataCacheSize()).toBe(maxEntries);
-            expect(__cloudTestUtils.getDataMetadataCacheSize()).toBe(maxEntries);
-            expect(__cloudTestUtils.hasValidatedDataCacheEntry(filePaths[0]!)).toBe(true);
-            expect(__cloudTestUtils.hasValidatedDataCacheEntry(filePaths[1]!)).toBe(false);
-            expect(__cloudTestUtils.hasDataMetadataCacheEntry(filePaths[0]!)).toBe(true);
-            expect(__cloudTestUtils.hasDataMetadataCacheEntry(filePaths[1]!)).toBe(false);
+            expect(__serverDataCacheTestUtils.getValidatedDataCacheSize()).toBe(maxEntries);
+            expect(__serverDataCacheTestUtils.getDataMetadataCacheSize()).toBe(maxEntries);
+            expect(__serverDataCacheTestUtils.hasValidatedDataCacheEntry(filePaths[0]!)).toBe(true);
+            expect(__serverDataCacheTestUtils.hasValidatedDataCacheEntry(filePaths[1]!)).toBe(false);
+            expect(__serverDataCacheTestUtils.hasDataMetadataCacheEntry(filePaths[0]!)).toBe(true);
+            expect(__serverDataCacheTestUtils.hasDataMetadataCacheEntry(filePaths[1]!)).toBe(false);
         } finally {
-            __cloudTestUtils.clearDataCaches();
+            __serverDataCacheTestUtils.clearDataCaches();
             rmSync(dir, { recursive: true, force: true });
         }
     });
@@ -881,7 +921,7 @@ describe('cloud server utils', () => {
             settings: {},
         };
 
-        const resolved = Date.parse(__cloudTestUtils.resolveServerMergeTimestamp(data));
+        const resolved = Date.parse(resolveServerMergeTimestamp(data));
         expect(Number.isFinite(resolved)).toBe(true);
         expect(resolved).toBeGreaterThanOrEqual(startedAt);
         expect(resolved).toBeLessThanOrEqual(Date.now());
@@ -904,7 +944,7 @@ describe('cloud server utils', () => {
             settings: {},
         };
 
-        const resolved = Date.parse(__cloudTestUtils.resolveServerMergeTimestamp(data));
+        const resolved = Date.parse(resolveServerMergeTimestamp(data));
         expect(Number.isFinite(resolved)).toBe(true);
         expect(resolved).toBeGreaterThanOrEqual(startedAt);
         expect(resolved).toBeLessThanOrEqual(Date.now());
@@ -1143,7 +1183,7 @@ describe('cloud server api', () => {
     });
 
     test('rejects writes when stored namespace data is corrupt before atomic write', async () => {
-        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const key = tokenToKey(integrationToken);
         const filePath = join(dataDir, `${key}.json`);
         const corruptPayload = '{"tasks":[';
         writeFileSync(filePath, corruptPayload);
@@ -1337,9 +1377,9 @@ describe('cloud server api', () => {
         });
         expect(seedResponse.status).toBe(200);
 
-        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const key = tokenToKey(integrationToken);
         const filePath = join(dataDir, `${key}.json`);
-        expect(__cloudTestUtils.isTrustedValidatedDataFile(filePath)).toBe(true);
+        expect(isTrustedValidatedDataFile(filePath)).toBe(true);
 
         const parseSpy = spyOn(JSON, 'parse').mockImplementation(() => {
             throw new Error('trusted GET should not parse JSON');
@@ -1358,12 +1398,12 @@ describe('cloud server api', () => {
         const filePath = join(tempDir, 'data.json');
         try {
             writeFileSync(filePath, JSON.stringify({ version: 1 }));
-            const first = __cloudTestUtils.dataMetadataResponse(filePath);
-            const second = __cloudTestUtils.dataMetadataResponse(filePath);
+            const first = dataMetadataResponse(filePath);
+            const second = dataMetadataResponse(filePath);
 
             expect(second.headers.get('etag')).toBe(first.headers.get('etag'));
             expect(first.headers.get('etag')).toMatch(/^W\/"mindwtr-/);
-            expect(__cloudTestUtils.getDataMetadataCacheSize()).toBeGreaterThan(0);
+            expect(__serverDataCacheTestUtils.getDataMetadataCacheSize()).toBeGreaterThan(0);
         } finally {
             rmSync(tempDir, { recursive: true, force: true });
         }
@@ -2039,7 +2079,7 @@ describe('cloud server api', () => {
         });
         expect(uploadReferenced.status).toBe(200);
         expect(uploadOrphan.status).toBe(200);
-        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const key = tokenToKey(integrationToken);
         expireFileForOrphanGc(join(dataDir, key, 'attachments', orphanPath));
 
         const iso = '2026-01-01T00:00:00.000Z';
@@ -2113,7 +2153,7 @@ describe('cloud server api', () => {
     });
 
     test('does not garbage-collect through a symlinked attachment root', async () => {
-        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const key = tokenToKey(integrationToken);
         const namespaceDir = join(dataDir, key);
         const outsideDir = mkdtempSync(join(tmpdir(), 'mindwtr-cloud-outside-'));
         const outsideFile = join(outsideDir, 'private.bin');
@@ -2188,7 +2228,7 @@ describe('cloud server api', () => {
 
     test('rejects attachment uploads when target path is a symlink', async () => {
         const token = integrationToken;
-        const key = __cloudTestUtils.tokenToKey(token);
+        const key = tokenToKey(token);
         const attachmentDir = join(dataDir, key, 'attachments', 'folder');
         mkdirSync(attachmentDir, { recursive: true });
 
@@ -2211,7 +2251,7 @@ describe('cloud server api', () => {
 
     test('rejects attachment uploads when parent directory is a symlink', async () => {
         const token = integrationToken;
-        const key = __cloudTestUtils.tokenToKey(token);
+        const key = tokenToKey(token);
         const attachmentRoot = join(dataDir, key, 'attachments');
         mkdirSync(attachmentRoot, { recursive: true });
 
@@ -2393,7 +2433,7 @@ describe('cloud server api', () => {
 
     test('serializes concurrent /v1/data read-merge-write cycles against existing data', async () => {
         const iso = '2026-01-01T00:00:00.000Z';
-        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const key = tokenToKey(integrationToken);
         writeFileSync(join(dataDir, `${key}.json`), JSON.stringify({
             tasks: [makeTestTask({
                 id: 'seed-task',
@@ -2457,7 +2497,7 @@ describe('cloud server api', () => {
     test('uses server timestamps for server-side merge repairs', async () => {
         const deletedProjectAt = '2026-01-01T00:00:00.000Z';
         const sectionAt = '2026-01-02T00:00:00.000Z';
-        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const key = tokenToKey(integrationToken);
         writeFileSync(join(dataDir, `${key}.json`), JSON.stringify({
             tasks: [],
             projects: [{
@@ -2518,7 +2558,7 @@ describe('cloud server api', () => {
     test('clamps adversarial future payload timestamps for server-side repairs', async () => {
         const deletedProjectAt = '2026-01-01T00:00:00.000Z';
         const futureSectionAt = '2099-01-01T00:00:00.000Z';
-        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const key = tokenToKey(integrationToken);
         writeFileSync(join(dataDir, `${key}.json`), JSON.stringify({
             tasks: [],
             projects: [{
@@ -2725,7 +2765,7 @@ describe('cloud server api', () => {
     });
 
     test('rejects /v1/data merge when existing on-disk state is invalid', async () => {
-        const key = __cloudTestUtils.tokenToKey(integrationToken);
+        const key = tokenToKey(integrationToken);
         const filePath = join(dataDir, `${key}.json`);
         writeFileSync(filePath, JSON.stringify({
             tasks: [],

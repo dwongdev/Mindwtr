@@ -226,3 +226,10 @@ export function preflightResponse(init: ResponseInit = {}) {
 export function errorResponse(message: string, status = 400) {
     return jsonResponse({ error: message }, { status });
 }
+
+export function createInternalServerErrorResponse(message: string, requestId: string): Response {
+    return jsonResponse(
+        { error: message, requestId },
+        { status: 500, headers: { 'X-Request-Id': requestId } },
+    );
+}
