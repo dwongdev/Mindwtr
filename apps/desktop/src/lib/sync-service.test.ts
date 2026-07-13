@@ -808,17 +808,16 @@ describe('SyncService orchestration', () => {
             }),
             setError: vi.fn(),
         };
-        const prepareSpy = vi.spyOn(SyncService as any, 'prepareSyncExecutionContext').mockImplementation(
-            async (...args: unknown[]) => {
-                const context = (args[0] as { context: Record<string, unknown> }).context;
-                context.backend = 'file';
-                context.fileBaseDir = '';
-            }
-        );
-        const preSyncSpy = vi.spyOn(SyncService as any, 'runPreSyncAttachmentPhase').mockResolvedValue(undefined);
-        const postMergeSpy = vi.spyOn(SyncService as any, 'runPostMergeAttachmentPhase').mockImplementation(
-            async (...args: unknown[]) => args[1] as AppData
-        );
+        const setupSpy = vi.spyOn(SyncService as any, 'setupDesktopCycle').mockImplementation(async () => ({
+            kind: 'ready',
+            backend: 'file',
+            cloudProvider: 'selfhosted',
+            fastSyncScope: null,
+            io: {
+                readRemote: vi.fn(async () => null),
+                writeRemote: vi.fn(async () => undefined),
+            },
+        }));
 
         try {
             __syncServiceTestUtils.setDependenciesForTests({
@@ -852,9 +851,7 @@ describe('SyncService orchestration', () => {
             expect(storeState.fetchData).not.toHaveBeenCalled();
             expect(storeState.updateSettings).not.toHaveBeenCalled();
         } finally {
-            prepareSpy.mockRestore();
-            preSyncSpy.mockRestore();
-            postMergeSpy.mockRestore();
+            setupSpy.mockRestore();
         }
     });
 
@@ -881,27 +878,40 @@ describe('SyncService orchestration', () => {
             updateSettings: vi.fn(async () => undefined),
             setError: vi.fn(),
         };
-        const prepareSpy = vi.spyOn(SyncService as any, 'prepareSyncExecutionContext').mockImplementation(
-            async (...args: unknown[]) => {
-                const context = (args[0] as { context: Record<string, unknown> }).context;
-                context.backend = 'file';
-                context.fileBaseDir = '';
-            }
-        );
-        const preSyncSpy = vi.spyOn(SyncService as any, 'runPreSyncAttachmentPhase').mockResolvedValue(undefined);
-        const postMergeSpy = vi.spyOn(SyncService as any, 'runPostMergeAttachmentPhase').mockImplementation(
-            async (...args: unknown[]) => ({
-                ...(args[1] as AppData),
-                tasks: [{
-                    ...(args[1] as AppData).tasks[0],
-                    title: 'After cleanup',
-                }],
-            })
-        );
-        const recordFastSyncSpy = vi.spyOn(SyncService as any, 'recordFastSyncState').mockResolvedValue(undefined);
+        const readRemoteFingerprint = vi.fn(async () => 'remote-fp-1');
+        // Post-merge attachment pass changes the payload; recording fast-sync
+        // state afterwards would cache a stale local fingerprint.
+        const setupSpy = vi.spyOn(SyncService as any, 'setupDesktopCycle').mockImplementation(async () => ({
+            kind: 'ready',
+            backend: 'file',
+            cloudProvider: 'selfhosted',
+            fastSyncScope: 'scope-fast-state-test',
+            io: {
+                readRemote: vi.fn(async () => null),
+                writeRemote: vi.fn(async () => undefined),
+                readRemoteFingerprint,
+                syncAttachments: vi.fn(async (data: AppData) => ({
+                    ...data,
+                    tasks: [{
+                        ...data.tasks[0],
+                        title: 'After cleanup',
+                    }],
+                })),
+            },
+        }));
+        localStorage.removeItem('mindwtr-fast-sync-state-v1');
 
         try {
             __syncServiceTestUtils.setDependenciesForTests({
+                isTauriRuntime: () => true,
+                invoke: vi.fn(async (command: string) => (
+                    command === 'get_data' ? (syncedData as unknown) : undefined
+                )) as any,
+                markLocalWrite: vi.fn(),
+                markLocalSqliteWrite: vi.fn(),
+                applySyncedDataToStore: vi.fn(),
+                getExternalCalendars: () => [],
+                setExternalCalendars: vi.fn(),
                 flushPendingSave: vi.fn(async () => undefined),
                 getStoreState: () => storeState as any,
                 performSyncCycle: vi.fn(async () => ({
@@ -919,12 +929,11 @@ describe('SyncService orchestration', () => {
             const result = await SyncService.performSync();
 
             expect(result.success).toBe(true);
-            expect(recordFastSyncSpy).not.toHaveBeenCalled();
+            expect(localStorage.getItem('mindwtr-fast-sync-state-v1')).toBeNull();
+            expect(readRemoteFingerprint).not.toHaveBeenCalled();
         } finally {
-            prepareSpy.mockRestore();
-            preSyncSpy.mockRestore();
-            postMergeSpy.mockRestore();
-            recordFastSyncSpy.mockRestore();
+            setupSpy.mockRestore();
+            localStorage.removeItem('mindwtr-fast-sync-state-v1');
         }
     });
 });

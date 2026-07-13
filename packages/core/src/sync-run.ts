@@ -153,7 +153,7 @@ class SharedSyncRunMachine {
         this.notifier.onDiagnostic?.({ event: 'flush' });
         this.state.localSnapshotChangeAt = this.store.getLastDataChangeAt();
 
-        const setup = await this.hooks.setupCycle();
+        const setup = await this.hooks.setupCycle({ setStep: (step) => this.setStep(step) });
         if (setup.kind === 'disabled') {
             return { success: true };
         }
@@ -370,7 +370,7 @@ class SharedSyncRunMachine {
         }
         if (this.backend === 'webdav') {
             state.webdavRemoteCorrupted = false;
-            this.notifier.tracePayload?.('write-remote', sanitized, {
+            this.notifier.tracePayload?.('remote-write-completed', sanitized, {
                 backend: this.backend,
                 remoteFingerprint: fingerprint ?? '',
             });

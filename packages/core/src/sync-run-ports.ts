@@ -111,6 +111,7 @@ export type SyncPayloadTraceEvent =
     | 'read-remote'
     | 'write-local'
     | 'write-remote'
+    | 'remote-write-completed'
     | 'remote-write-skipped-unchanged'
     | 'core-result'
     | 'post-attachment';
@@ -220,7 +221,7 @@ export interface SyncRunPlatformHooks {
      *  the pre-sync data snapshot, registers its offline listener, and runs
      *  CloudKit setup; mobile resolves/normalizes sync paths and runs CloudKit
      *  setup. Return `{ kind: 'disabled' }` for backend "off"/unconfigured. */
-    setupCycle(): Promise<SyncRunCycleSetup>;
+    setupCycle(context: { setStep(step: string): void }): Promise<SyncRunCycleSetup>;
     /** Queue a follow-up sync cycle with the current cycle's options. */
     requestFollowUp(): void;
     /** Throw when the platform knows the network is gone (remote backends
