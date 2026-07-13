@@ -325,6 +325,11 @@ export type {
     SyncCloudProvider,
 } from './sync-service-utils';
 
+export {
+    createDefaultSyncRunStoreBridge,
+    normalizeRemoteWriteResult,
+    runSharedSyncCycle,
+} from './sync-run';
 export { SyncRemoteWriteConflict } from './sync-run-ports';
 export type {
     SyncBackendIO,

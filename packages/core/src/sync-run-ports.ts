@@ -115,10 +115,11 @@ export type SyncPayloadTraceEvent =
     | 'core-result'
     | 'post-attachment';
 
+/** Phase checkpoints for mobile's elapsed-time/payload-shape diagnostics
+ *  (issue #766 log analysis). Desktop leaves `onDiagnostic` unset. */
 export type SyncRunDiagnosticEvent = {
     event:
         | 'flush'
-        | 'attachments-prepare-skipped'
         | 'attachments-prepare-complete'
         | 'merge-complete'
         | 'merge-skipped'
@@ -185,7 +186,9 @@ export type SyncRunAttachmentPhase = 'prepare' | 'post-merge';
 
 export type SyncRunAttachmentCleanupContext = {
     setStep(step: string): void;
-    ensureLocalSnapshotFresh(): void;
+    /** Abort (requeue) when local data changed mid-cycle; pass the data this
+     *  cycle synced to allow the desktop covered-snapshot acceptance. */
+    ensureLocalSnapshotFresh(expectedData?: AppData): void;
     ensureNetworkStillAvailable(): Promise<void>;
 };
 
@@ -199,6 +202,13 @@ export type SyncRunErrorStatusDetails = {
 export type SyncRunSuccessInfo = {
     status: 'success' | 'conflict';
     wroteLocal: boolean;
+    /** The machine's snapshot stamp, for follow-up bookkeeping (desktop clears
+     *  a queued run whose changes this cycle already covered). */
+    getLocalSnapshotChangeAt(): number;
+    /** Desktop: mark the current store state as covered by the synced data;
+     *  advances the machine's snapshot stamp when accepted. False when the
+     *  platform has no covered-snapshot hook. */
+    acceptCoveredSnapshot(expectedData: AppData): boolean;
 };
 
 /** Platform-specific behavior the two orchestrators do not share. Every hook
