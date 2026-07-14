@@ -185,8 +185,9 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
                 return;
             }
             if (task.status === 'next') {
-                const start = safeParseDate(task.startTime);
-                if (start && start > now) return;
+                // Same deferral rule as Focus: a recurring chore carrying only a
+                // due date is not reviewable until it starts (#843, #867).
+                if (!shouldShowTaskForStart(task, { showFutureStarts, now })) return;
                 addCandidate(task);
                 return;
             }

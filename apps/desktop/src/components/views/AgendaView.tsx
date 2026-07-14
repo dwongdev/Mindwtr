@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '../ErrorBoundary';
+import { FutureStartNotice } from './FutureStartNotice';
 import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, criteriaFromSelections, removeAdvancedFilterCriteriaChip, selectionsFromCriteria, formatFocusTaskLimitText,
     getFocusStarBlockedText, formatTimeEstimateLabel, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, getProjectDeadlineBoosts, getTaskMetadataFilterVisibility, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isFocusSequentialCandidate, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, sortTasksBySavedPreference, translateWithFallback } from '@mindwtr/core';
 import type { FilterCriteria, FocusGroupBy, MultiValueFilterMatchMode, ProjectDeadlineBoost, SavedFilter, SortField, Task, TaskEnergyLevel } from '@mindwtr/core';
@@ -420,16 +421,6 @@ export function AgendaView() {
             },
         }).catch(() => undefined);
     }, [settings.appearance, showFutureStarts, updateSettings]);
-    const formatFutureStartNotice = useCallback((count: number, shown: boolean) => {
-        const template = shown
-            ? (count === 1
-                ? resolveText('agenda.futureStartsShownOne', '1 future-start task shown')
-                : resolveText('agenda.futureStartsShownMany', '{count} future-start tasks shown'))
-            : (count === 1
-                ? resolveText('agenda.futureStartsHiddenOne', '1 task hidden (future start)')
-                : resolveText('agenda.futureStartsHiddenMany', '{count} tasks hidden (future start)'));
-        return template.replace('{count}', String(count));
-    }, [resolveText]);
     const removeAdvancedSavedFilterCriterion = useCallback((chipId: string) => {
         if (!activeSavedFilter) return;
         const nextCriteria = removeAdvancedFilterCriteriaChip(activeSavedFilter.criteria, chipId);
@@ -1103,22 +1094,12 @@ export function AgendaView() {
                 </div>
             )}
 
-            {hiddenFutureStartCount > 0 && (
-                <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/25 px-3 py-2 text-sm">
-                    <span className="text-muted-foreground">
-                        {formatFutureStartNotice(hiddenFutureStartCount, showFutureStarts)}
-                    </span>
-                    <button
-                        type="button"
-                        className="text-sm font-medium text-primary hover:text-primary/80"
-                        onClick={toggleFutureStarts}
-                    >
-                        {showFutureStarts
-                            ? resolveText('agenda.hideFutureStarts', 'Hide')
-                            : resolveText('agenda.showFutureStarts', 'Show')}
-                    </button>
-                </div>
-            )}
+            <FutureStartNotice
+                count={hiddenFutureStartCount}
+                shown={showFutureStarts}
+                onToggle={toggleFutureStarts}
+                resolveText={resolveText}
+            />
 
             {top3Only ? (
                 <div className="space-y-4">

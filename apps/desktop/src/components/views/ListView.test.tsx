@@ -215,6 +215,47 @@ describe('ListView', () => {
     }
   });
 
+  it('defers a due-only recurring chore out of Next until it starts, and reveals it on Show', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-07-14T10:00:00Z'));
+
+      // The #867 shape: a bimonthly chore respawned by "repeat after completion"
+      // carries a future due date and no start date. Focus already defers it;
+      // Next used to show it the moment it was recreated.
+      useTaskStore.setState({
+        _allTasks: [
+          makeTask('chore', {
+            title: 'Descale the kettle',
+            status: 'next',
+            dueDate: '2026-09-14',
+            recurrence: 'monthly',
+          }),
+          makeTask('actionable', { title: 'Email the plumber', status: 'next' }),
+        ],
+        lastDataChangeAt: 1,
+      });
+
+      const deferred = renderListView('next', 'Next');
+      expect(deferred.queryByText('Email the plumber')).toBeInTheDocument();
+      expect(deferred.queryByText('Descale the kettle')).not.toBeInTheDocument();
+      expect(deferred.queryByText('1 task hidden (future start)')).toBeInTheDocument();
+      deferred.unmount();
+
+      useTaskStore.setState({
+        settings: { appearance: { showFutureStarts: true } },
+        lastDataChangeAt: 2,
+      });
+
+      const revealed = renderListView('next', 'Next');
+      expect(revealed.queryByText('Descale the kettle')).toBeInTheDocument();
+      expect(revealed.queryByText('1 future-start task shown')).toBeInTheDocument();
+      revealed.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not show filtering feedback after a background task refresh settles', async () => {
     useTaskStore.setState({
       _allTasks: [makeTask('1')],
