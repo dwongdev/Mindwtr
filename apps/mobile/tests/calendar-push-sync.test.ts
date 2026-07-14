@@ -38,7 +38,6 @@ const {
     mockGetAllCalendarSyncEntries,
     mockGetState,
     mockSubscribe,
-    mockCreateProjectedRecurringTask,
     mockLogInfo,
     mockLogWarn,
     mockLogError,
@@ -82,7 +81,6 @@ const {
         _selectorOrListener: ((state: MockCalendarStoreState) => unknown) | ((state: MockCalendarStoreState) => void),
         _listener?: (selected: unknown) => void
     ) => () => {}),
-    mockCreateProjectedRecurringTask: vi.fn((_task: unknown, _projectedAtIso?: string) => null as unknown | null),
     mockLogInfo: vi.fn(),
     mockLogWarn: vi.fn(),
     mockLogError: vi.fn(),
@@ -128,12 +126,12 @@ vi.mock('react-native', () => ({
     Platform: mockPlatform,
 }));
 
-vi.mock('@mindwtr/core', () => ({
+vi.mock('@mindwtr/core', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@mindwtr/core')>()),
     useTaskStore: {
         getState: mockGetState,
         subscribe: mockSubscribe,
     },
-    createProjectedRecurringTask: mockCreateProjectedRecurringTask,
     buildCalendarPushEventFields: (
         task: { description?: string; attachments?: { kind?: string; uri?: string; deletedAt?: string }[] },
         context: { leadingNote?: string | null } = {},
@@ -149,11 +147,6 @@ vi.mock('@mindwtr/core', () => ({
         ].filter(Boolean);
         return { notes: blocks.join('\n\n'), url: links[0] ?? null };
     },
-    expandCalendarRecurringTasks: (task: unknown, projectedAtIso?: string): unknown[] => {
-        const projectedTask = mockCreateProjectedRecurringTask(task, projectedAtIso);
-        return projectedTask ? [task, projectedTask] : [task];
-    },
-    getProjectedRecurringTaskId: (taskId: string): string => `${taskId}:projected-recurrence`,
     getTaskCalendarOccurrenceDate: (task: { startTime?: string; dueDate?: string }): string | undefined =>
         task.startTime ?? task.dueDate,
     hasTimeComponent: (dateStr: string | null | undefined): boolean =>
@@ -178,8 +171,6 @@ vi.mock('@mindwtr/core', () => ({
     },
     isProjectedRecurringTask: (task: unknown): boolean =>
         Boolean(task && typeof task === 'object' && (task as { isProjectedRecurringTask?: unknown }).isProjectedRecurringTask === true),
-    isProjectedRecurringTaskId: (taskId: string | null | undefined): boolean =>
-        typeof taskId === 'string' && taskId.endsWith(':projected-recurrence'),
     safeFormatDate: (dateStr: string | Date | null | undefined, formatStr: string, fallback = ''): string => {
         if (!dateStr) return fallback;
         const date = typeof dateStr === 'string'
@@ -343,7 +334,6 @@ beforeEach(() => {
     // Default: no prior sync entries
     mockGetCalendarSyncEntry.mockResolvedValue(null);
     mockGetAllCalendarSyncEntries.mockResolvedValue([]);
-    mockCreateProjectedRecurringTask.mockReturnValue(null);
 });
 
 afterEach(() => {
@@ -805,6 +795,7 @@ describe('buildEventDetails — date-only calendar events stay on the intended d
     });
 
     it('creates a calendar event for an opted-in projected recurring task', async () => {
+        vi.setSystemTime(new Date('2026-04-20T12:00:00.000Z'));
         setupEnabled();
         const task = makeTask({
             id: 'task-recurring',
@@ -821,7 +812,6 @@ describe('buildEventDetails — date-only calendar events stay on the intended d
             dueDate: '2026-05-01',
             updatedAt: '2026-04-20T00:00:00.000Z',
         };
-        mockCreateProjectedRecurringTask.mockReturnValue(projectedTask);
         setStoreTasks([task]);
 
         await runFullCalendarSync();
@@ -1235,6 +1225,7 @@ describe('runFullCalendarSync — startup reconciliation', () => {
 
 describe('startCalendarPushSync', () => {
     it('syncs the projected recurring event when the projection setting changes', async () => {
+        vi.setSystemTime(new Date('2026-04-20T12:00:00.000Z'));
         setupEnabled();
 
         const task = makeTask({
@@ -1265,9 +1256,6 @@ describe('startCalendarPushSync', () => {
         };
 
         mockGetState.mockImplementation(() => storeState);
-        mockCreateProjectedRecurringTask.mockImplementation((candidate: unknown) => (
-            (candidate as ReturnType<typeof makeTask>).showFutureRecurrence ? projectedTask : null
-        ));
 
         startCalendarPushSync();
         const selector = mockSubscribe.mock.calls[0]?.[0] as ((state: typeof storeState) => unknown) | undefined;

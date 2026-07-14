@@ -8,16 +8,16 @@
  */
 import {
     buildCalendarPushEventFields,
-    expandCalendarRecurringTasks,
-    getProjectedRecurringTaskId,
     getTaskCalendarOccurrenceDate,
     hasTimeComponent,
     isProjectedRecurringTask,
-    isProjectedRecurringTaskId,
+    runCalendarPushFullSync,
+    runCalendarPushPartialSync,
     safeFormatDate,
     safeParseDate,
     timeEstimateToMinutes,
     useTaskStore,
+    type CalendarPushRunPorts,
     type CalendarSyncEntry,
     type Task,
 } from '@mindwtr/core';
@@ -298,117 +298,61 @@ function buildEventDetails(task: Task, target: CalendarPushTarget): SystemCalend
     };
 }
 
-function shouldRemoveFromCalendar(task: Task): boolean {
-    return (!task.dueDate && !task.startTime)
-        || !!task.deletedAt
-        || task.status === 'done'
-        || task.status === 'archived'
-        || task.status === 'reference';
-}
-
 function isMissingCalendarEventResult(result: SystemCalendarEventWriteResult): boolean {
     return result.error === 'event-not-found';
 }
 
-async function removeCalendarEntry(entry: CalendarSyncEntry): Promise<void> {
-    const result = await dependencies.deleteEvent(entry.calendarEventId);
-    if (!result.ok) {
-        void logWarn('Failed to delete macOS calendar event; keeping local sync mapping for retry', {
-            scope: 'calendar-push',
-            extra: {
-                taskId: entry.taskId,
-                eventId: entry.calendarEventId,
-                error: result.error ?? 'unknown',
-            },
-        });
-        throw new Error(result.error ?? 'calendar-delete-failed');
-    }
-    await dependencies.deleteSyncEntry(entry.taskId, PLATFORM);
-}
-
-async function removeTaskFromCalendar(taskId: string): Promise<void> {
-    const entry = await dependencies.getSyncEntry(taskId, PLATFORM);
-    if (!entry) return;
-    await removeCalendarEntry(entry);
-}
-
-async function syncTaskToCalendar(task: Task, target: CalendarPushTarget): Promise<void> {
-    if (shouldRemoveFromCalendar(task)) {
-        await removeTaskFromCalendar(task.id);
-        return;
-    }
-
-    const details = buildEventDetails(task, target);
-    const existing = await dependencies.getSyncEntry(task.id, PLATFORM);
-
-    if (existing && existing.calendarId === target.id) {
-        const updateResult = await dependencies.updateEvent(existing.calendarEventId, details);
-        if (updateResult.ok && updateResult.eventId) {
-            await dependencies.upsertSyncEntry({
-                taskId: task.id,
-                calendarEventId: updateResult.eventId,
-                calendarId: target.id,
-                platform: PLATFORM,
-                lastSyncedAt: dependencies.nowIso(),
-            });
-            return;
-        }
-        if (!isMissingCalendarEventResult(updateResult)) {
+function createCalendarPushRunPorts(target: CalendarPushTarget): CalendarPushRunPorts {
+    return {
+        platform: PLATFORM,
+        nowIso: dependencies.nowIso,
+        createEvent: async (task) => {
+            const result = await dependencies.createEvent(buildEventDetails(task, target));
+            if (!result.ok || !result.eventId) {
+                throw new Error(result.error ?? 'calendar-create-failed');
+            }
+            return result.eventId;
+        },
+        updateEvent: async (entry, task) => {
+            const result = await dependencies.updateEvent(
+                entry.calendarEventId,
+                buildEventDetails(task, target)
+            );
+            if (result.ok && result.eventId) {
+                return { status: 'updated', eventId: result.eventId };
+            }
+            if (isMissingCalendarEventResult(result)) {
+                return { status: 'missing' };
+            }
             void logWarn('Failed to update macOS calendar event; keeping local sync mapping for retry', {
                 scope: 'calendar-push',
                 extra: {
-                    taskId: task.id,
-                    eventId: existing.calendarEventId,
-                    error: updateResult.error ?? 'unknown',
+                    taskId: entry.taskId,
+                    eventId: entry.calendarEventId,
+                    error: result.error ?? 'unknown',
                 },
             });
-            throw new Error(updateResult.error ?? 'calendar-update-failed');
-        }
-        await dependencies.deleteSyncEntry(task.id, PLATFORM);
-    } else if (existing) {
-        await removeCalendarEntry(existing);
-    }
-
-    const createResult = await dependencies.createEvent(details);
-    if (!createResult.ok || !createResult.eventId) {
-        throw new Error(createResult.error ?? 'calendar-create-failed');
-    }
-    await dependencies.upsertSyncEntry({
-        taskId: task.id,
-        calendarEventId: createResult.eventId,
-        calendarId: target.id,
-        platform: PLATFORM,
-        lastSyncedAt: dependencies.nowIso(),
-    });
-}
-
-function getCalendarPushTasks(tasks: Task[]): Task[] {
-    const projectedAtIso = dependencies.nowIso();
-    return tasks.flatMap((task) => expandCalendarRecurringTasks(task, projectedAtIso));
-}
-
-async function runLimitedSettled<T>(
-    items: T[],
-    runner: (item: T) => Promise<void>
-): Promise<PromiseSettledResult<void>[]> {
-    if (items.length === 0) return [];
-    const results: PromiseSettledResult<void>[] = new Array(items.length);
-    let cursor = 0;
-    const workerCount = Math.min(CALENDAR_SYNC_CONCURRENCY, items.length);
-    const workers = Array.from({ length: workerCount }, async () => {
-        while (cursor < items.length) {
-            const index = cursor;
-            cursor += 1;
-            try {
-                await runner(items[index]!);
-                results[index] = { status: 'fulfilled', value: undefined };
-            } catch (reason) {
-                results[index] = { status: 'rejected', reason };
-            }
-        }
-    });
-    await Promise.all(workers);
-    return results;
+            throw new Error(result.error ?? 'calendar-update-failed');
+        },
+        deleteEvent: async (entry) => {
+            const result = await dependencies.deleteEvent(entry.calendarEventId);
+            if (result.ok) return 'deleted';
+            if (isMissingCalendarEventResult(result)) return 'missing';
+            void logWarn('Failed to delete macOS calendar event; keeping local sync mapping for retry', {
+                scope: 'calendar-push',
+                extra: {
+                    taskId: entry.taskId,
+                    eventId: entry.calendarEventId,
+                    error: result.error ?? 'unknown',
+                },
+            });
+            throw new Error(result.error ?? 'calendar-delete-failed');
+        },
+        getSyncEntry: (taskId) => dependencies.getSyncEntry(taskId, PLATFORM),
+        getAllSyncEntries: () => dependencies.getAllSyncEntries(PLATFORM),
+        upsertSyncEntry: dependencies.upsertSyncEntry,
+        deleteSyncEntry: (taskId) => dependencies.deleteSyncEntry(taskId, PLATFORM),
+    };
 }
 
 // Serialize all calendar writes so a full sync (fired on mount) and the
@@ -435,23 +379,18 @@ const runFullDesktopCalendarPushSyncUnsafe = async (): Promise<void> => {
     if (!target) return;
 
     const { _allTasks } = dependencies.getStoreState();
-    const calendarTasks = getCalendarPushTasks(_allTasks as Task[]);
-    const results = await runLimitedSettled(calendarTasks, (task) => syncTaskToCalendar(task, target));
-
-    const activeEventIds = new Set(
-        calendarTasks.filter((task) => !shouldRemoveFromCalendar(task)).map((task) => task.id)
-    );
-    const syncedEntries = await dependencies.getAllSyncEntries(PLATFORM);
-    const staleEntries = syncedEntries.filter((entry) => !activeEventIds.has(entry.taskId));
-    await runLimitedSettled(staleEntries, removeCalendarEntry);
-
-    const failed = results.filter((result) => result.status === 'rejected').length;
+    const result = await runCalendarPushFullSync({
+        tasks: _allTasks as Task[],
+        target,
+        ports: createCalendarPushRunPorts(target),
+        concurrency: CALENDAR_SYNC_CONCURRENCY,
+    });
     void logInfo('Full macOS calendar push sync complete', {
         scope: 'calendar-push',
         extra: {
-            total: String(calendarTasks.length),
-            failed: String(failed),
-            stale: String(staleEntries.length),
+            total: String(result.total),
+            failed: String(result.failed),
+            stale: String(result.stale),
         },
     });
 };
@@ -484,30 +423,13 @@ const runPartialDesktopCalendarPushSyncUnsafe = async (taskIds: string[]): Promi
     if (!target) return;
 
     const { _tasksById } = dependencies.getStoreState();
-    const targets: Task[] = [];
-    const removedIds: string[] = [];
-
-    for (const id of taskIds) {
-        if (isProjectedRecurringTaskId(id)) {
-            removedIds.push(id);
-            continue;
-        }
-        const task = _tasksById.get(id);
-        if (!task) {
-            removedIds.push(id, getProjectedRecurringTaskId(id));
-            continue;
-        }
-        const expandedTasks = expandCalendarRecurringTasks(task);
-        targets.push(...expandedTasks);
-        if (!expandedTasks.some((candidate) => candidate.id === getProjectedRecurringTaskId(task.id))) {
-            removedIds.push(getProjectedRecurringTaskId(task.id));
-        }
-    }
-
-    await Promise.allSettled([
-        ...targets.map((task) => syncTaskToCalendar(task, target)),
-        ...removedIds.map((id) => removeTaskFromCalendar(id)),
-    ]);
+    await runCalendarPushPartialSync({
+        taskIds,
+        tasksById: _tasksById as Map<string, Task>,
+        target,
+        ports: createCalendarPushRunPorts(target),
+        concurrency: CALENDAR_SYNC_CONCURRENCY,
+    });
 };
 
 let unsubscribeStore: (() => void) | null = null;

@@ -11,16 +11,16 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     buildCalendarPushEventFields,
-    expandCalendarRecurringTasks,
-    getProjectedRecurringTaskId,
     getTaskCalendarOccurrenceDate,
     hasTimeComponent,
     isProjectedRecurringTask,
-    isProjectedRecurringTaskId,
+    runCalendarPushFullSync,
+    runCalendarPushPartialSync,
     safeFormatDate,
     safeParseDate,
     timeEstimateToMinutes,
     useTaskStore,
+    type CalendarPushRunPorts,
     type Task,
 } from '@mindwtr/core';
 
@@ -617,116 +617,57 @@ function isCalendarEventMissingError(error: unknown): boolean {
         || (message.includes('event') && message.includes('not found'));
 }
 
-async function deleteCalendarEventAndMapping(entry: { taskId: string; calendarEventId: string }): Promise<void> {
-    try {
-        await Calendar.deleteEventAsync(entry.calendarEventId);
-    } catch (error) {
-        if (!isCalendarEventMissingError(error)) {
-            void logWarn('Failed to delete calendar event; keeping local sync mapping for retry', {
-                scope: 'calendar-push',
-                extra: {
-                    taskId: entry.taskId,
-                    eventId: entry.calendarEventId,
-                    error: getCalendarErrorMessage(error),
-                },
-            });
-            throw error;
-        }
-    }
-    await deleteCalendarSyncEntry(entry.taskId, PLATFORM);
-}
-
-async function removeTaskFromCalendar(taskId: string): Promise<void> {
-    const entry = await getCalendarSyncEntry(taskId, PLATFORM);
-    if (!entry) return;
-    await deleteCalendarEventAndMapping(entry);
-}
-
-/** Returns true for tasks that should not have a calendar event. */
-function shouldRemoveFromCalendar(task: Task): boolean {
-    return (!task.dueDate && !task.startTime)
-        || !!task.deletedAt
-        || task.status === 'done'
-        || task.status === 'archived'
-        || task.status === 'reference';
-}
-
-async function syncTaskToCalendar(task: Task, target: CalendarPushTarget): Promise<void> {
-    if (shouldRemoveFromCalendar(task)) {
-        await removeTaskFromCalendar(task.id);
-        return;
-    }
-
-    const details = buildEventDetails(task);
-    const calendarId = target.id;
-    const existing = await getCalendarSyncEntry(task.id, PLATFORM);
-
-    if (existing && existing.calendarId === calendarId) {
-        try {
-            await Calendar.updateEventAsync(existing.calendarEventId, details);
-            await upsertCalendarSyncEntry({
-                taskId: task.id,
-                calendarEventId: existing.calendarEventId,
-                calendarId,
-                platform: PLATFORM,
-                lastSyncedAt: new Date().toISOString(),
-            });
-            return;
-        } catch (error) {
-            if (!isCalendarEventMissingError(error)) {
+function createCalendarPushRunPorts(target: CalendarPushTarget): CalendarPushRunPorts {
+    return {
+        platform: PLATFORM,
+        nowIso: () => new Date().toISOString(),
+        createEvent: async (task) => {
+            const details = buildEventDetails(task);
+            return Calendar.createEventAsync(target.id, { ...details, calendarId: target.id });
+        },
+        updateEvent: async (entry, task) => {
+            try {
+                await Calendar.updateEventAsync(entry.calendarEventId, buildEventDetails(task));
+                return { status: 'updated', eventId: entry.calendarEventId };
+            } catch (error) {
+                if (isCalendarEventMissingError(error)) {
+                    return { status: 'missing' };
+                }
                 void logWarn('Failed to update calendar event; keeping local sync mapping for retry', {
                     scope: 'calendar-push',
                     extra: {
-                        taskId: task.id,
-                        eventId: existing.calendarEventId,
+                        taskId: entry.taskId,
+                        eventId: entry.calendarEventId,
                         error: getCalendarErrorMessage(error),
                     },
                 });
                 throw error;
             }
-            await deleteCalendarSyncEntry(task.id, PLATFORM);
-        }
-    } else if (existing) {
-        await deleteCalendarEventAndMapping(existing);
-    }
-
-    const eventId = await Calendar.createEventAsync(calendarId, { ...details, calendarId });
-    await upsertCalendarSyncEntry({
-        taskId: task.id,
-        calendarEventId: eventId,
-        calendarId,
-        platform: PLATFORM,
-        lastSyncedAt: new Date().toISOString(),
-    });
-}
-
-function getCalendarPushTasks(tasks: Task[]): Task[] {
-    const projectedAtIso = new Date().toISOString();
-    return tasks.flatMap((task) => expandCalendarRecurringTasks(task, projectedAtIso));
-}
-
-async function runLimitedSettled<T>(
-    items: T[],
-    runner: (item: T) => Promise<void>
-): Promise<PromiseSettledResult<void>[]> {
-    if (items.length === 0) return [];
-    const results: PromiseSettledResult<void>[] = new Array(items.length);
-    let cursor = 0;
-    const workerCount = Math.min(CALENDAR_SYNC_CONCURRENCY, items.length);
-    const workers = Array.from({ length: workerCount }, async () => {
-        while (cursor < items.length) {
-            const index = cursor;
-            cursor += 1;
+        },
+        deleteEvent: async (entry) => {
             try {
-                await runner(items[index]!);
-                results[index] = { status: 'fulfilled', value: undefined };
-            } catch (reason) {
-                results[index] = { status: 'rejected', reason };
+                await Calendar.deleteEventAsync(entry.calendarEventId);
+                return 'deleted';
+            } catch (error) {
+                if (isCalendarEventMissingError(error)) {
+                    return 'missing';
+                }
+                void logWarn('Failed to delete calendar event; keeping local sync mapping for retry', {
+                    scope: 'calendar-push',
+                    extra: {
+                        taskId: entry.taskId,
+                        eventId: entry.calendarEventId,
+                        error: getCalendarErrorMessage(error),
+                    },
+                });
+                throw error;
             }
-        }
-    });
-    await Promise.all(workers);
-    return results;
+        },
+        getSyncEntry: (taskId) => getCalendarSyncEntry(taskId, PLATFORM),
+        getAllSyncEntries: () => getAllCalendarSyncEntries(PLATFORM),
+        upsertSyncEntry: upsertCalendarSyncEntry,
+        deleteSyncEntry: (taskId) => deleteCalendarSyncEntry(taskId, PLATFORM),
+    };
 }
 
 // MARK: - Full sync
@@ -751,28 +692,18 @@ const runFullCalendarSyncUnsafe = async (): Promise<void> => {
     if (!target) return;
 
     const { _allTasks } = useTaskStore.getState();
-    const calendarTasks = getCalendarPushTasks(_allTasks as Task[]);
-
-    // Sync all tasks currently in the store
-    const results = await runLimitedSettled(calendarTasks, (task) => syncTaskToCalendar(task, target));
-
-    // Reconcile: remove stale calendar_sync entries for tasks that are no
-    // longer in the store or that should not have an event (completed between
-    // sessions, archived, etc.)
-    const activeEventIds = new Set(
-        calendarTasks.filter((task) => !shouldRemoveFromCalendar(task)).map((task) => task.id)
-    );
-    const syncedEntries = await getAllCalendarSyncEntries(PLATFORM);
-    const staleEntries = syncedEntries.filter((e) => !activeEventIds.has(e.taskId));
-    await runLimitedSettled(staleEntries, (entry) => removeTaskFromCalendar(entry.taskId));
-
-    const failed = results.filter((r) => r.status === 'rejected').length;
+    const result = await runCalendarPushFullSync({
+        tasks: _allTasks as Task[],
+        target,
+        ports: createCalendarPushRunPorts(target),
+        concurrency: CALENDAR_SYNC_CONCURRENCY,
+    });
     void logInfo('Full calendar sync complete', {
         scope: 'calendar-push',
         extra: {
-            total: String(calendarTasks.length),
-            failed: String(failed),
-            stale: String(staleEntries.length),
+            total: String(result.total),
+            failed: String(result.failed),
+            stale: String(result.stale),
         },
     });
 };
@@ -804,30 +735,13 @@ const runPartialCalendarSyncUnsafe = async (taskIds: string[]): Promise<void> =>
     if (!target) return;
 
     const { _tasksById } = useTaskStore.getState();
-    const targets: Task[] = [];
-    const removedIds: string[] = [];
-
-    for (const id of taskIds) {
-        if (isProjectedRecurringTaskId(id)) {
-            removedIds.push(id);
-            continue;
-        }
-        const task = _tasksById.get(id);
-        if (!task) {
-            removedIds.push(id, getProjectedRecurringTaskId(id));
-            continue;
-        }
-        const expandedTasks = expandCalendarRecurringTasks(task);
-        targets.push(...expandedTasks);
-        if (!expandedTasks.some((candidate) => candidate.id === getProjectedRecurringTaskId(task.id))) {
-            removedIds.push(getProjectedRecurringTaskId(task.id));
-        }
-    }
-
-    await Promise.allSettled([
-        ...targets.map((t) => syncTaskToCalendar(t, target)),
-        ...removedIds.map((id) => removeTaskFromCalendar(id)),
-    ]);
+    await runCalendarPushPartialSync({
+        taskIds,
+        tasksById: _tasksById as Map<string, Task>,
+        target,
+        ports: createCalendarPushRunPorts(target),
+        concurrency: CALENDAR_SYNC_CONCURRENCY,
+    });
 };
 
 // MARK: - Store subscription

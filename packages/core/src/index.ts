@@ -693,6 +693,22 @@ export type {
 } from './calendar-scheduling';
 
 export {
+    runCalendarPushFullSync,
+    runCalendarPushPartialSync,
+    shouldRemoveCalendarPushTask,
+} from './calendar-push-run';
+export type {
+    CalendarPushDeleteResult,
+    CalendarPushFullSyncOptions,
+    CalendarPushFullSyncResult,
+    CalendarPushPartialSyncOptions,
+    CalendarPushPartialSyncResult,
+    CalendarPushRunPorts,
+    CalendarPushRunTarget,
+    CalendarPushUpdateResult,
+} from './calendar-push-run';
+
+export {
     getDueReminderRepeatTimes,
     getNextScheduledAt,
     getUpcomingSchedules,
