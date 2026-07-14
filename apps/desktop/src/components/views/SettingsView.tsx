@@ -44,7 +44,7 @@ import {
 } from "../../lib/external-calendar-source";
 import { reportError } from "../../lib/report-error";
 import { SyncService } from "../../lib/sync-service";
-import { isSupportedProxyUrl, normalizeProxyUrl } from "../../lib/tauri-http";
+import { isSupportedProxyUrl, normalizeProxyUrl, syncNativeProxyUrl } from "../../lib/tauri-http";
 import { clearLog, readRecentLogText } from "../../lib/app-log";
 import {
   markSettingsOpenTrace,
@@ -465,9 +465,20 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
       showToast(t.networkProxyInvalid, "error");
       return;
     }
+    try {
+      // Native sync requests read the proxy from config.toml; keep it in
+      // step with the setting or they keep going out direct (#864).
+      await syncNativeProxyUrl(trimmedProxyUrl);
+    } catch (error) {
+      reportError("Failed to apply proxy to native sync", error);
+      showToast(error instanceof Error ? error.message : String(error), "error");
+      return;
+    }
     await updateSettings({
       network: {
-        proxyUrl: trimmedProxyUrl || undefined,
+        // Empty string is an explicit clear; undefined would read as
+        // "never configured" and skip the native mirror on startup.
+        proxyUrl: trimmedProxyUrl,
       },
     });
     setNetworkProxyUrl(trimmedProxyUrl);

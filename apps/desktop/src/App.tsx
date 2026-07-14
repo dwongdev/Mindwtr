@@ -55,6 +55,8 @@ import type { ExternalSyncChange, ExternalSyncChangeResolution } from './lib/syn
 import { migratePortableAttachments } from './lib/portable-migration';
 import * as LocalDataWatcher from './lib/local-data-watcher';
 import { getInstallSourceOrFallback, isFlatpakRuntime, isTauriRuntime } from './lib/runtime';
+import { reportError as reportAppError } from './lib/report-error';
+import { syncNativeProxyUrl } from './lib/tauri-http';
 import { persistLastView, readRestorableLastView } from './lib/session-restore';
 import { logError, logInfo } from './lib/app-log';
 import { createDesktopAutoSyncController } from './lib/auto-sync-controller';
@@ -262,6 +264,7 @@ function App() {
     ));
     const showTray = useTaskStore((state) => state.settings?.window?.showTray);
     const settingsTheme = useTaskStore((state) => state.settings?.theme);
+    const settingsProxyUrl = useTaskStore((state) => state.settings?.network?.proxyUrl);
     const settingsTextSize = useTaskStore((state) => state.settings?.appearance?.textSize);
     const settingsLanguage = useTaskStore((state) => state.settings?.language);
     const settingsDateFormat = useTaskStore((state) => state.settings?.dateFormat);
@@ -401,6 +404,15 @@ function App() {
             document.removeEventListener('visibilitychange', reapplyThemeWhenVisible);
         };
     }, [applyActiveNativeTheme, hasHydratedSettings]);
+
+    useEffect(() => {
+        if (!hasHydratedSettings) return;
+        // Native sync reads the proxy from config.toml; re-mirror after every
+        // hydration so upgrades and synced-in changes take effect (#864).
+        syncNativeProxyUrl(settingsProxyUrl).catch((error) => {
+            reportAppError('Failed to apply proxy to native sync', error);
+        });
+    }, [hasHydratedSettings, settingsProxyUrl]);
 
     useEffect(() => {
         if (!hasHydratedSettings) return;

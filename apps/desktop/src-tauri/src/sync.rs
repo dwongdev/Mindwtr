@@ -13,12 +13,27 @@ pub(crate) struct RemoteJsonWriteResult {
 
 const NATIVE_HTTP_TIMEOUT_SECS: u64 = 30;
 
-fn blocking_http_client() -> Result<reqwest::blocking::Client, String> {
-    reqwest::blocking::Client::builder()
+// The saved Proxy URL must reach every native request: env vars
+// (HTTP_PROXY/HTTPS_PROXY) still apply as reqwest defaults when no proxy is
+// configured in the app (#864).
+fn blocking_http_client(proxy_url: Option<&str>) -> Result<reqwest::blocking::Client, String> {
+    let mut builder = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(NATIVE_HTTP_TIMEOUT_SECS))
-        .use_native_tls()
+        .use_native_tls();
+    if let Some(url) = proxy_url.map(str::trim).filter(|url| !url.is_empty()) {
+        let proxy = reqwest::Proxy::all(url)
+            .map_err(|error| format!("Invalid proxy URL ({url}): {error}"))?;
+        builder = builder.proxy(proxy);
+    }
+    builder
         .build()
         .map_err(|error| format!("Failed to create HTTP client: {error}"))
+}
+
+fn app_blocking_http_client(
+    app: &tauri::AppHandle,
+) -> Result<reqwest::blocking::Client, String> {
+    blocking_http_client(read_config(app).proxy_url.as_deref())
 }
 
 fn format_error_with_source_chain(
@@ -348,8 +363,9 @@ fn exchange_dropbox_auth_code(
     code: &str,
     verifier: &str,
     redirect_uri: &str,
+    proxy_url: Option<&str>,
 ) -> Result<DropboxTokenBundle, String> {
-    let client = blocking_http_client()?;
+    let client = blocking_http_client(proxy_url)?;
     let response = client
         .post(DROPBOX_TOKEN_ENDPOINT)
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -392,8 +408,12 @@ fn exchange_dropbox_auth_code(
     })
 }
 
-fn refresh_dropbox_token(client_id: &str, refresh_token: &str) -> Result<(String, i64), String> {
-    let client = blocking_http_client()?;
+fn refresh_dropbox_token(
+    client_id: &str,
+    refresh_token: &str,
+    proxy_url: Option<&str>,
+) -> Result<(String, i64), String> {
+    let client = blocking_http_client(proxy_url)?;
     let response = client
         .post(DROPBOX_TOKEN_ENDPOINT)
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -506,7 +526,9 @@ fn get_valid_dropbox_access_token(
     if !force_refresh && now_unix_ms() < tokens.expires_at - DROPBOX_TOKEN_REFRESH_SKEW_MS {
         return Ok(tokens.access_token);
     }
-    let (access_token, expires_at) = refresh_dropbox_token(&client_id, &tokens.refresh_token)?;
+    let proxy_url = read_config(app).proxy_url;
+    let (access_token, expires_at) =
+        refresh_dropbox_token(&client_id, &tokens.refresh_token, proxy_url.as_deref())?;
     tokens.access_token = access_token;
     tokens.expires_at = expires_at;
     write_dropbox_tokens(app, &tokens)?;
@@ -550,7 +572,13 @@ fn run_dropbox_oauth(app: &tauri::AppHandle, client_id: &str) -> Result<(), Stri
 
     let code = wait_for_dropbox_auth_code(&listener, &state)?;
     let tokens =
-        exchange_dropbox_auth_code(&normalized_client_id, &code, &verifier, &redirect_uri)?;
+        exchange_dropbox_auth_code(
+            &normalized_client_id,
+            &code,
+            &verifier,
+            &redirect_uri,
+            read_config(app).proxy_url.as_deref(),
+        )?;
     write_dropbox_tokens(app, &tokens)?;
     Ok(())
 }
@@ -940,7 +968,7 @@ fn webdav_get_json_blocking(app: &tauri::AppHandle) -> Result<Value, String> {
     .or(config.webdav_password.clone())
     .ok_or_else(|| "WebDAV password not configured".to_string())?;
 
-    let client = blocking_http_client()?;
+    let client = blocking_http_client(config.proxy_url.as_deref())?;
     let response = client
         .get(url)
         .basic_auth(username, Some(password))
@@ -995,7 +1023,7 @@ fn webdav_put_json_blocking(
 
     let payload = serde_json::to_string_pretty(&data)
         .map_err(|e| format!("Failed to encode WebDAV payload: {e}"))?;
-    let client = blocking_http_client()?;
+    let client = blocking_http_client(config.proxy_url.as_deref())?;
     let send_put = || {
         client
             .put(url.clone())
@@ -1072,7 +1100,7 @@ fn cloud_get_json_blocking(app: &tauri::AppHandle) -> Result<Value, String> {
     assert_cloud_url_allowed(&url, allow_insecure_http)?;
 
     let token = read_cloud_token(app, &config);
-    let client = blocking_http_client()?;
+    let client = blocking_http_client(config.proxy_url.as_deref())?;
     let response = cloud_request_builder(&client, reqwest::Method::GET, &url, &token)
         .send()
         .map_err(|e| format_reqwest_send_error("Cloud request failed", &e))?;
@@ -1118,7 +1146,7 @@ fn cloud_put_json_blocking(
     let token = read_cloud_token(app, &config);
     let payload = serde_json::to_string_pretty(data)
         .map_err(|e| format!("Failed to encode Cloud payload: {e}"))?;
-    let client = blocking_http_client()?;
+    let client = blocking_http_client(config.proxy_url.as_deref())?;
     let response = cloud_request_builder(&client, reqwest::Method::PUT, &url, &token)
         .header("Content-Type", "application/json")
         .body(payload)
@@ -1152,6 +1180,50 @@ pub(crate) async fn cloud_put_json(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn blocking_http_client_accepts_missing_or_blank_proxy() {
+        assert!(blocking_http_client(None).is_ok());
+        assert!(blocking_http_client(Some("")).is_ok());
+        assert!(blocking_http_client(Some("   ")).is_ok());
+    }
+
+    #[test]
+    fn blocking_http_client_rejects_invalid_proxy_url() {
+        let error = blocking_http_client(Some("not a proxy url")).unwrap_err();
+        assert!(error.contains("Invalid proxy URL"), "unexpected error: {error}");
+    }
+
+    #[test]
+    fn blocking_http_client_routes_requests_through_configured_proxy() {
+        use std::io::{Read, Write};
+
+        // Fake proxy: accept one connection, capture the request line, answer.
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind fake proxy");
+        let proxy_addr = listener.local_addr().expect("proxy addr");
+        let handle = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept proxied request");
+            let mut buffer = [0u8; 1024];
+            let read = stream.read(&mut buffer).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buffer[..read]).to_string();
+            let _ = stream.write_all(
+                b"HTTP/1.1 204 No Content\r\nConnection: close\r\ncontent-length: 0\r\n\r\n",
+            );
+            request
+        });
+
+        let client = blocking_http_client(Some(&format!("http://{proxy_addr}")))
+            .expect("client with proxy");
+        // The target host does not resolve; reaching our listener proves the
+        // request went to the proxy instead of connecting directly.
+        let _ = client.get("http://mindwtr-proxy-test.invalid/ping").send();
+
+        let request = handle.join().expect("proxy thread");
+        assert!(
+            request.contains("mindwtr-proxy-test.invalid"),
+            "proxy did not receive the request: {request}"
+        );
+    }
 
     #[test]
     fn strips_windows_verbatim_prefix_from_sync_path_display() {
@@ -1385,7 +1457,7 @@ pub(crate) async fn disconnect_dropbox(
         let normalized_client_id = normalize_dropbox_client_id(&client_id)?;
         if let Ok(Some(tokens)) = read_dropbox_tokens(&app) {
             if tokens.client_id == normalized_client_id && !tokens.access_token.trim().is_empty() {
-                let Ok(client) = blocking_http_client() else {
+                let Ok(client) = app_blocking_http_client(&app) else {
                     clear_dropbox_tokens(&app)?;
                     return Ok::<(), String>(());
                 };

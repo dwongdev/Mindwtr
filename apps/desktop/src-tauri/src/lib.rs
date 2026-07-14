@@ -70,7 +70,8 @@ use config::{
     check_obsidian_vault_marker, expand_external_calendar_file_scopes, expand_obsidian_vault_scope,
     get_ai_key, get_cloud_config, get_external_calendars, get_obsidian_config, get_sync_backend,
     get_webdav_config, get_webdav_password, list_obsidian_vaults, set_ai_key, set_cloud_config,
-    set_external_calendars, set_obsidian_config, set_sync_backend, set_webdav_config,
+    set_external_calendars, set_network_proxy, set_obsidian_config, set_sync_backend,
+    set_webdav_config,
 };
 use email_capture::{
     email_capture_commit, email_capture_poll, get_email_capture_config, set_email_capture_config,
@@ -488,6 +489,7 @@ struct AppConfigToml {
     cloud_url: Option<String>,
     cloud_token: Option<String>,
     cloud_allow_insecure_http: Option<String>,
+    proxy_url: Option<String>,
     dropbox_tokens: Option<String>,
     obsidian_config: Option<String>,
     external_calendars: Option<String>,
@@ -1540,6 +1542,7 @@ pub fn run() {
             webdav_put_json,
             get_cloud_config,
             set_cloud_config,
+            set_network_proxy,
             cloud_get_json,
             cloud_put_json,
             get_dropbox_redirect_uri,

@@ -174,6 +174,8 @@ pub(crate) fn read_config_toml(path: &Path) -> AppConfigToml {
             config.cloud_token = parse_toml_string_value(value);
         } else if key == "cloud_allow_insecure_http" {
             config.cloud_allow_insecure_http = parse_toml_string_value(value);
+        } else if key == "proxy_url" {
+            config.proxy_url = parse_toml_string_value(value);
         } else if key == "dropbox_tokens" {
             config.dropbox_tokens = parse_toml_string_value(value);
         } else if key == "obsidian_config" {
@@ -288,6 +290,12 @@ fn write_config_toml_with_header(
             serialize_toml_string_value(cloud_allow_insecure_http)
         ));
     }
+    if let Some(proxy_url) = &config.proxy_url {
+        lines.push(format!(
+            "proxy_url = {}",
+            serialize_toml_string_value(proxy_url)
+        ));
+    }
     if let Some(dropbox_tokens) = &config.dropbox_tokens {
         lines.push(format!(
             "dropbox_tokens = {}",
@@ -398,6 +406,9 @@ fn merge_config(base: &mut AppConfigToml, overrides: AppConfigToml) {
     if overrides.cloud_allow_insecure_http.is_some() {
         base.cloud_allow_insecure_http = overrides.cloud_allow_insecure_http;
     }
+    if overrides.proxy_url.is_some() {
+        base.proxy_url = overrides.proxy_url;
+    }
     if overrides.dropbox_tokens.is_some() {
         base.dropbox_tokens = overrides.dropbox_tokens;
     }
@@ -505,6 +516,7 @@ fn config_has_values(config: &AppConfigToml) -> bool {
         || config.cloud_url.is_some()
         || config.cloud_token.is_some()
         || config.cloud_allow_insecure_http.is_some()
+        || config.proxy_url.is_some()
         || config.dropbox_tokens.is_some()
         || config.obsidian_config.is_some()
         || config.external_calendars.is_some()
@@ -1111,6 +1123,31 @@ pub(crate) fn set_cloud_config(
         }
     }
 
+    write_config_files(&config_path, &get_secrets_path(&app), &config)?;
+    Ok(true)
+}
+
+#[tauri::command]
+pub(crate) fn set_network_proxy(app: tauri::AppHandle, proxy_url: String) -> Result<bool, String> {
+    let trimmed = proxy_url.trim().to_string();
+    if !trimmed.is_empty() {
+        let parsed =
+            reqwest::Url::parse(&trimmed).map_err(|error| format!("Invalid proxy URL: {error}"))?;
+        if parsed.scheme() != "http" && parsed.scheme() != "https" {
+            return Err("Proxy URL must use http:// or https://".to_string());
+        }
+    }
+    let next = if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    };
+    let config_path = get_config_path(&app);
+    let mut config = read_config(&app);
+    if config.proxy_url == next {
+        return Ok(true);
+    }
+    config.proxy_url = next;
     write_config_files(&config_path, &get_secrets_path(&app), &config)?;
     Ok(true)
 }
