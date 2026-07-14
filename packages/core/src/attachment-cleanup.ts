@@ -27,10 +27,10 @@ export function findOrphanedAttachments(appData: AppData): Attachment[] {
     }
 
     for (const project of appData.projects) {
-        const projectDeleted = Boolean(project.deletedAt);
+        const projectPurged = Boolean(project.purgedAt);
         for (const attachment of project.attachments || []) {
             allAttachments.set(attachment.id, attachment);
-            if (!projectDeleted && !attachment.deletedAt) {
+            if (!projectPurged && !attachment.deletedAt) {
                 activeReferenceIds.add(attachment.id);
             }
         }

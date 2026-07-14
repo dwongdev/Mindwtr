@@ -101,6 +101,34 @@ describe('findOrphanedAttachments', () => {
         expect(orphaned.map((a) => a.id)).toEqual(['a1']);
     });
 
+    it('keeps attachments on deleted but restorable projects until purge', () => {
+        const data = buildData();
+        data.projects.push({
+            id: 'p1',
+            title: 'Project',
+            status: 'active',
+            color: '#2563eb',
+            order: 0,
+            tagIds: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: new Date().toISOString(),
+            attachments: [{
+                id: 'a1',
+                kind: 'file',
+                title: 'file',
+                uri: '/tmp/project-file',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            }],
+        });
+
+        expect(findOrphanedAttachments(data)).toHaveLength(0);
+
+        data.projects[0].purgedAt = new Date().toISOString();
+        expect(findOrphanedAttachments(data).map((attachment) => attachment.id)).toEqual(['a1']);
+    });
+
     it('keeps attachments referenced by active tasks', () => {
         const data = buildData();
         data.tasks.push({
