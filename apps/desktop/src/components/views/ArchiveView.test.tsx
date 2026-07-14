@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { Task } from '@mindwtr/core';
 import { safeFormatDate, useTaskStore } from '@mindwtr/core';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -24,6 +24,7 @@ describe('ArchiveView', () => {
         useTaskStore.setState({
             tasks: [],
             _allTasks: [archivedTask],
+            _tasksById: new Map([[archivedTask.id, archivedTask]]),
             settings: {},
         });
     });
@@ -39,5 +40,22 @@ describe('ArchiveView', () => {
 
         expect(getByText('Archived task')).toBeInTheDocument();
         expect(getByText(`Completed: ${completionLabel}`)).toBeInTheDocument();
+    });
+
+    it('moves an archived task to Trash instead of purging it', async () => {
+        render(
+            <LanguageProvider>
+                <ArchiveView />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(screen.getByTitle('Delete'));
+        fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+
+        await waitFor(() => {
+            const deletedTask = useTaskStore.getState()._tasksById.get(archivedTask.id);
+            expect(deletedTask?.deletedAt).toBeTruthy();
+            expect(deletedTask?.purgedAt).toBeUndefined();
+        });
     });
 });

@@ -360,6 +360,7 @@ export type {
 
 export {
     buildTaskUpdatesFromSpeechResult,
+    buildTrashTimeline,
     FOCUS_NEXT_DUE_SOON_WINDOW_DAYS,
     FOCUS_ELIGIBILITY_ACTIVE_STATUSES,
     getCalendarPlanningCandidates,
@@ -399,6 +400,7 @@ export type {
     TaskFocusEligibilityResult,
     TaskLifecycleCounts,
     SpeechUpdatePlan,
+    TrashTimelineItem,
 } from './task-utils';
 
 export {

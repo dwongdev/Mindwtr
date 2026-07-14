@@ -590,6 +590,44 @@ export function sortTasks(tasks: Task[]): Task[] {
     });
 }
 
+function compareDeletedAtDesc(
+    left: { id: string; deletedAt?: string },
+    right: { id: string; deletedAt?: string }
+): number {
+    const leftDeletedAt = safeTime(left.deletedAt, Number.NEGATIVE_INFINITY);
+    const rightDeletedAt = safeTime(right.deletedAt, Number.NEGATIVE_INFINITY);
+    if (leftDeletedAt !== rightDeletedAt) {
+        return rightDeletedAt > leftDeletedAt ? 1 : -1;
+    }
+    return left.id.localeCompare(right.id);
+}
+
+export type TrashTimelineItem =
+    | { type: 'project'; project: Project }
+    | { type: 'task'; task: Task };
+
+const getTrashTimelineEntity = (item: TrashTimelineItem): Project | Task => (
+    item.type === 'project' ? item.project : item.task
+);
+
+export function buildTrashTimeline(
+    tasks: readonly Task[],
+    projects: readonly Project[]
+): TrashTimelineItem[] {
+    const items: TrashTimelineItem[] = [
+        ...projects
+            .filter((project) => project.deletedAt && !project.purgedAt)
+            .map((project) => ({ type: 'project' as const, project })),
+        ...tasks
+            .filter((task) => task.deletedAt && !task.purgedAt)
+            .map((task) => ({ type: 'task' as const, task })),
+    ];
+    return items.sort((left, right) => compareDeletedAtDesc(
+        getTrashTimelineEntity(left),
+        getTrashTimelineEntity(right)
+    ));
+}
+
 /**
  * Sort tasks by a user-selected sort option.
  * Falls back to default sortTasks when sortBy is 'default' or undefined.

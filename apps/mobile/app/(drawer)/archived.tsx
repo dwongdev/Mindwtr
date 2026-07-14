@@ -118,11 +118,11 @@ function ArchivedTaskItem({
 }
 
 export default function ArchivedScreen() {
-    const { _allTasks, projects, updateTask, purgeTask, highlightTaskId, setHighlightTask } = useTaskStore((state) => ({
+    const { _allTasks, projects, updateTask, deleteTask, highlightTaskId, setHighlightTask } = useTaskStore((state) => ({
         _allTasks: state._allTasks,
         projects: state.projects,
         updateTask: state.updateTask,
-        purgeTask: state.purgeTask,
+        deleteTask: state.deleteTask,
         highlightTaskId: state.highlightTaskId,
         setHighlightTask: state.setHighlightTask,
     }), shallow);
@@ -198,18 +198,20 @@ export default function ArchivedScreen() {
 
     const handleDelete = useCallback((taskId: string) => {
         Alert.alert(
-            'Delete Permanently?',
-            'This action cannot be undone.',
+            t('common.delete') || 'Delete',
+            t('task.deleteConfirmBody') || 'Move this task to Trash?',
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel') || 'Cancel', style: 'cancel' },
                 {
-                    text: 'Delete',
+                    text: t('common.delete') || 'Delete',
                     style: 'destructive',
-                    onPress: () => purgeTask(taskId)
+                    onPress: () => {
+                        void deleteTask(taskId);
+                    },
                 },
             ]
         );
-    }, [purgeTask]);
+    }, [deleteTask, t]);
 
     const renderArchivedTask = useCallback(({ item }: { item: Task }) => (
         <ArchivedTaskItem

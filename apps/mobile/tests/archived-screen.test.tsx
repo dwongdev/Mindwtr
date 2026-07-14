@@ -5,16 +5,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ArchivedScreen from '../app/(drawer)/archived';
 
 const mocks = vi.hoisted(() => {
+  const alert = vi.fn();
+  const deleteTask = vi.fn();
   const updateTask = vi.fn();
   const purgeTask = vi.fn();
   const setHighlightTask = vi.fn();
   return {
+    alert,
+    deleteTask,
     updateTask,
     purgeTask,
     setHighlightTask,
     storeState: {
       _allTasks: [] as any[],
       projects: [] as any[],
+      deleteTask,
       updateTask,
       purgeTask,
       highlightTaskId: null as string | null,
@@ -27,6 +32,15 @@ vi.mock('react-native', async () => {
   const actual = await vi.importActual<any>('react-native');
   return {
     ...actual,
+    Alert: {
+      ...actual.Alert,
+      alert: mocks.alert,
+    },
+    Pressable: ({ children, ...props }: any) => React.createElement(
+      'Pressable',
+      props,
+      typeof children === 'function' ? children({ pressed: false }) : children,
+    ),
     FlatList: ({ data = [], renderItem, keyExtractor, ListEmptyComponent, ...props }: any) => {
       const children = data.length > 0
         ? data.map((item: any, index: number) => (
@@ -66,8 +80,11 @@ vi.mock('../contexts/language-context', () => ({
     t: (key: string) => ({
       'archived.empty': 'No archived tasks',
       'archived.emptyHint': 'Archived tasks appear here',
+      'common.cancel': 'Cancel',
+      'common.delete': 'Delete',
       'common.tasks': 'tasks',
       'list.done': 'Completed',
+      'task.deleteConfirmBody': 'Move this task to Trash?',
     }[key] ?? key),
   }),
 }));
@@ -105,7 +122,7 @@ vi.mock('react-native-gesture-handler', () => ({
   Swipeable: ({ children, renderLeftActions, renderRightActions }: any) => (
     React.createElement(
       'Swipeable',
-      {},
+      { renderLeftActions, renderRightActions },
       renderLeftActions?.(),
       renderRightActions?.(),
       children,
@@ -178,5 +195,28 @@ describe('ArchivedScreen', () => {
     expect(mocks.updateTask).toHaveBeenCalledWith('task-1', { description: 'Updated archived details' });
     modal = tree.root.findByType(taskEditModalType);
     expect(modal.props.visible).toBe(false);
+  });
+
+  it('moves an archived task to Trash instead of purging it', () => {
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(<ArchivedScreen />);
+    });
+
+    const swipeable = tree.root.findByType('Swipeable' as unknown as React.ElementType);
+    const deleteAction = swipeable.props.renderRightActions();
+
+    renderer.act(() => {
+      deleteAction.props.onPress();
+    });
+
+    const alertButtons = mocks.alert.mock.calls[0]?.[2] as { style?: string; onPress?: () => void }[];
+    const confirmButton = alertButtons.find((button) => button.style === 'destructive');
+    renderer.act(() => {
+      confirmButton?.onPress?.();
+    });
+
+    expect(mocks.deleteTask).toHaveBeenCalledWith('task-1');
+    expect(mocks.purgeTask).not.toHaveBeenCalled();
   });
 });

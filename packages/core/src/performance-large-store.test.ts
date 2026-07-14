@@ -2,6 +2,7 @@ import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
 import {
     buildTasksByProjectId,
+    buildTrashTimeline,
     getProjectDeadlineBoosts,
     sortFocusNextActions,
     sortTasksBy,
@@ -322,6 +323,25 @@ const operations: BudgetedOperation[] = [
 const describePerf = process.env.MINDWTR_PERF_TEST === '1' ? describe : describe.skip;
 
 describePerf('large-store performance budgets', () => {
+    it('builds a 5k-item Trash timeline within budget', () => {
+        const fixture = createLargeStoreFixture(10_000);
+        const tasks = fixture.tasks.slice(0, 4_750).map((task, index) => ({
+            ...task,
+            deletedAt: new Date(Date.parse(BASE_ISO) + index * 1_000).toISOString(),
+            purgedAt: undefined,
+        }));
+        const projects = fixture.projects.slice(0, 250).map((project, index) => ({
+            ...project,
+            deletedAt: new Date(Date.parse(BASE_ISO) + (index + tasks.length) * 1_000).toISOString(),
+            purgedAt: undefined,
+        }));
+
+        const result = measureBest(() => buildTrashTimeline(tasks, projects).length);
+
+        expect(result.value).toBe(5_000);
+        expectWithinBudget('Trash timeline derivation', 10_000, result.durationMs, 100);
+    });
+
     it('keeps generated core hot paths within explicit budgets', () => {
         const measurements = new Map<BudgetedOperationId, Map<LargeStoreSize, number>>();
 

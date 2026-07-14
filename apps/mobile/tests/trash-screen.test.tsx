@@ -1,0 +1,141 @@
+import React from 'react';
+import renderer from 'react-test-renderer';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import TrashScreen from '../app/(drawer)/trash';
+
+const mocks = vi.hoisted(() => ({
+  storeState: {
+    _allTasks: [] as any[],
+    _allProjects: [] as any[],
+    projects: [] as any[],
+    restoreTask: vi.fn(),
+    restoreProject: vi.fn(),
+    purgeTask: vi.fn(),
+    purgeProject: vi.fn(),
+    purgeDeletedTasks: vi.fn(),
+    purgeDeletedProjects: vi.fn(),
+    highlightTaskId: null as string | null,
+    setHighlightTask: vi.fn(),
+  },
+}));
+
+vi.mock('react-native', async () => {
+  const actual = await vi.importActual<any>('react-native');
+  return {
+    ...actual,
+    FlatList: ({ data = [], renderItem, keyExtractor, ListEmptyComponent, ...props }: any) => {
+      const children = data.length > 0
+        ? data.map((item: any, index: number) => (
+          <React.Fragment key={keyExtractor?.(item, index) ?? index}>
+            {renderItem?.({ item, index })}
+          </React.Fragment>
+        ))
+        : typeof ListEmptyComponent === 'function'
+          ? <ListEmptyComponent />
+          : ListEmptyComponent;
+
+      return React.createElement('FlatList', { ...props, data }, children);
+    },
+  };
+});
+
+vi.mock('@mindwtr/core', async () => {
+  const actual = await vi.importActual<any>('@mindwtr/core');
+  return {
+    ...actual,
+    shallow: Object.is,
+    useTaskStore: () => mocks.storeState,
+    getInlineMarkdownPreview: vi.fn((markdown: string) => markdown),
+    projectMatchesAreaFilter: vi.fn(() => true),
+    taskMatchesAreaFilter: vi.fn(() => true),
+  };
+});
+
+vi.mock('@/components/markdown-text', () => ({
+  MarkdownInlineText: ({ markdown, ...props }: any) => React.createElement('MarkdownInlineText', props, markdown),
+}));
+
+vi.mock('../contexts/theme-context', () => ({
+  useTheme: vi.fn(),
+}));
+
+vi.mock('../contexts/language-context', () => ({
+  useLanguage: () => ({
+    t: (key: string) => ({
+      'common.tasks': 'tasks',
+      'projects.title': 'Projects',
+      'trash.deletedAt': 'Deleted',
+      'trash.projectType': 'Project',
+      'trash.taskType': 'Task',
+    }[key] ?? key),
+  }),
+}));
+
+vi.mock('@/hooks/use-mobile-area-filter', () => ({
+  useMobileAreaFilter: () => ({
+    areaById: new Map(),
+    resolvedAreaFilter: '__all__',
+  }),
+}));
+
+vi.mock('@/hooks/use-theme-colors', () => ({
+  useThemeColors: () => ({
+    bg: '#000000',
+    border: '#222222',
+    cardBg: '#111111',
+    taskItemBg: '#111111',
+    text: '#ffffff',
+    secondaryText: '#999999',
+    tint: '#3b82f6',
+  }),
+}));
+
+vi.mock('react-native-gesture-handler', () => ({
+  GestureHandlerRootView: ({ children, ...props }: any) => (
+    React.createElement('GestureHandlerRootView', props, children)
+  ),
+  Swipeable: ({ children }: any) => React.createElement('Swipeable', {}, children),
+}));
+
+describe('TrashScreen', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.storeState._allTasks = [{
+      id: 'recent-task',
+      title: 'Recently deleted task',
+      status: 'inbox',
+      tags: [],
+      contexts: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-07-13T12:00:00.000Z',
+      deletedAt: '2026-07-13T12:00:00.000Z',
+    }];
+    mocks.storeState._allProjects = [{
+      id: 'older-project',
+      title: 'Older deleted project',
+      status: 'archived',
+      color: '#64748b',
+      order: 0,
+      tagIds: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-07-01T12:00:00.000Z',
+      deletedAt: '2026-07-01T12:00:00.000Z',
+    }];
+    mocks.storeState.projects = [];
+  });
+
+  it('passes one newest-deleted-first task and project timeline to FlatList', () => {
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(<TrashScreen />);
+    });
+
+    const flatList = tree.root.findByType('FlatList' as unknown as React.ElementType);
+    const itemIds = flatList.props.data.map((item: any) => (
+      item.type === 'task' ? item.task.id : item.project.id
+    ));
+
+    expect(itemIds).toEqual(['recent-task', 'older-project']);
+  });
+});

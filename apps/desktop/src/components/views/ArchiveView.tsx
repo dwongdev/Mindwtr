@@ -72,7 +72,7 @@ const ArchiveTaskRowInner = memo(function ArchiveTaskRowInner({
                 <button
                     onClick={handleDelete}
                     className="p-2 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors"
-                    title={t('archived.deletePermanently')}
+                    title={t('common.delete')}
                 >
                     <Trash2 className="w-4 h-4" />
                 </button>
@@ -115,11 +115,11 @@ const VirtualArchiveTaskRow = memo(function VirtualArchiveTaskRow({
 
 export function ArchiveView() {
     const perf = usePerformanceMonitor('ArchiveView');
-    const { _allTasks, updateTask, purgeTask, settings } = useTaskStore(
+    const { _allTasks, updateTask, deleteTask, settings } = useTaskStore(
         (state) => ({
             _allTasks: state._allTasks,
             updateTask: state.updateTask,
-            purgeTask: state.purgeTask,
+            deleteTask: state.deleteTask,
             settings: state.settings,
         }),
         shallow
@@ -216,13 +216,13 @@ export function ArchiveView() {
         if (!task) return;
         const confirmed = await requestConfirmation({
             title: task.title,
-            description: t('trash.deleteConfirmBody'),
+            description: t('task.deleteConfirmBody'),
             confirmLabel: t('common.delete'),
             cancelLabel: t('common.cancel') || 'Cancel',
         });
         if (!confirmed) return;
-        purgeTask(taskId);
-    }, [_allTasks, purgeTask, requestConfirmation, t]);
+        await deleteTask(taskId);
+    }, [_allTasks, deleteTask, requestConfirmation, t]);
 
     return (
         <ErrorBoundary>

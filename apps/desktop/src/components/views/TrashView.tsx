@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, sortTasksBy, safeFormatDate } from '@mindwtr/core';
-import type { TaskSortBy, Project } from '@mindwtr/core';
+import { buildTrashTimeline, shallow, useTaskStore, safeFormatDate } from '@mindwtr/core';
+import type { Project } from '@mindwtr/core';
 import { Undo2, Trash2 } from 'lucide-react';
 import { useLanguage } from '../../contexts/language-context';
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
@@ -19,7 +19,6 @@ export function TrashView() {
         purgeProject,
         purgeDeletedTasks,
         purgeDeletedProjects,
-        settings,
     } = useTaskStore(
         (state) => ({
             _allTasks: state._allTasks,
@@ -30,14 +29,12 @@ export function TrashView() {
             purgeProject: state.purgeProject,
             purgeDeletedTasks: state.purgeDeletedTasks,
             purgeDeletedProjects: state.purgeDeletedProjects,
-            settings: state.settings,
         }),
         shallow
     );
     const { t } = useLanguage();
     const { requestConfirmation, confirmModal } = useConfirmDialog();
     const [searchQuery, setSearchQuery] = useState('');
-    const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
 
     useEffect(() => {
         if (!perf.enabled) return;
@@ -49,26 +46,24 @@ export function TrashView() {
 
     const trashedTasks = useMemo(() => {
         const filtered = _allTasks.filter((task) => task.deletedAt && !task.purgedAt);
-        const sorted = sortTasksBy(filtered, sortBy);
-        if (!searchQuery) return sorted;
+        if (!searchQuery) return filtered;
         const query = searchQuery.toLowerCase();
-        return sorted.filter((task) => task.title.toLowerCase().includes(query));
-    }, [_allTasks, searchQuery, sortBy]);
+        return filtered.filter((task) => task.title.toLowerCase().includes(query));
+    }, [_allTasks, searchQuery]);
 
     const trashedProjects = useMemo(() => {
         const filtered = _allProjects.filter((project) => project.deletedAt && !project.purgedAt);
-        const sorted = [...filtered].sort((left, right) => {
-            const leftDeletedAt = left.deletedAt ?? '';
-            const rightDeletedAt = right.deletedAt ?? '';
-            if (leftDeletedAt !== rightDeletedAt) return rightDeletedAt.localeCompare(leftDeletedAt);
-            return left.title.localeCompare(right.title);
-        });
-        if (!searchQuery) return sorted;
+        if (!searchQuery) return filtered;
         const query = searchQuery.toLowerCase();
-        return sorted.filter((project) => project.title.toLowerCase().includes(query));
+        return filtered.filter((project) => project.title.toLowerCase().includes(query));
     }, [_allProjects, searchQuery]);
 
-    const trashedItemCount = trashedTasks.length + trashedProjects.length;
+    const trashItems = useMemo(
+        () => buildTrashTimeline(trashedTasks, trashedProjects),
+        [trashedProjects, trashedTasks]
+    );
+
+    const trashedItemCount = trashItems.length;
 
     const handleClearTrash = async () => {
         if (trashedItemCount === 0) return;
@@ -148,85 +143,77 @@ export function TrashView() {
                         <p className="text-xs mt-2">{t('trash.emptyHintWithProjects')}</p>
                     </div>
                 ) : (
-                    <>
-                        {trashedProjects.length > 0 && (
-                            <section className="space-y-2">
-                                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('projects.title')}</h3>
-                                <div className="divide-y divide-border/30">
-                                    {trashedProjects.map((project) => (
-                                        <div
-                                            key={project.id}
-                                            className="rounded-lg px-3 py-3 flex items-center justify-between group hover:bg-muted/50 transition-colors"
-                                        >
-                                            <div>
-                                                <h4 className="font-medium text-foreground line-through opacity-70">{project.title}</h4>
-                                                <p className="text-xs text-muted-foreground mt-1">
-                                                    {renderDeletedAt(project.deletedAt)}
-                                                </p>
-                                            </div>
-                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => restoreProject(project.id)}
-                                                    className="p-2 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors"
-                                                    title={t('trash.restoreProject')}
-                                                >
-                                                    <Undo2 className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        void handlePurgeProject(project);
-                                                    }}
-                                                    className="p-2 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors"
-                                                    title={t('trash.deletePermanently')}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
+                    <div className="divide-y divide-border/30">
+                        {trashItems.map((item) => {
+                            if (item.type === 'project') {
+                                const { project } = item;
+                                return (
+                                    <div
+                                        key={`project-${project.id}`}
+                                        className="rounded-lg px-3 py-3 flex items-center justify-between group hover:bg-muted/50 transition-colors"
+                                    >
+                                        <div>
+                                            <h4 className="font-medium text-foreground line-through opacity-70">{project.title}</h4>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                {t('trash.projectType')} · {renderDeletedAt(project.deletedAt)}
+                                            </p>
                                         </div>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
+                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => restoreProject(project.id)}
+                                                className="p-2 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors"
+                                                title={t('trash.restoreProject')}
+                                            >
+                                                <Undo2 className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    void handlePurgeProject(project);
+                                                }}
+                                                className="p-2 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors"
+                                                title={t('trash.deletePermanently')}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            }
 
-                        {trashedTasks.length > 0 && (
-                            <section className="space-y-2">
-                                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('common.tasks')}</h3>
-                                <div className="divide-y divide-border/30">
-                                    {trashedTasks.map((task) => (
-                                        <div
-                                            key={task.id}
-                                            className="rounded-lg px-3 py-3 flex items-center justify-between group hover:bg-muted/50 transition-colors"
+                            const { task } = item;
+                            return (
+                                <div
+                                    key={`task-${task.id}`}
+                                    className="rounded-lg px-3 py-3 flex items-center justify-between group hover:bg-muted/50 transition-colors"
+                                >
+                                    <div>
+                                        <h4 className="font-medium text-foreground line-through opacity-70">{task.title}</h4>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            {t('trash.taskType')} · {renderDeletedAt(task.deletedAt)}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={() => restoreTask(task.id)}
+                                            className="p-2 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors"
+                                            title={t('trash.restoreToInbox')}
                                         >
-                                            <div>
-                                                <h4 className="font-medium text-foreground line-through opacity-70">{task.title}</h4>
-                                                <p className="text-xs text-muted-foreground mt-1">
-                                                    {renderDeletedAt(task.deletedAt)}
-                                                </p>
-                                            </div>
-                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => restoreTask(task.id)}
-                                                    className="p-2 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors"
-                                                    title={t('trash.restoreToInbox')}
-                                                >
-                                                    <Undo2 className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        void handlePurgeTask(task.id);
-                                                    }}
-                                                    className="p-2 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors"
-                                                    title={t('trash.deletePermanently')}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                            <Undo2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                void handlePurgeTask(task.id);
+                                            }}
+                                            className="p-2 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors"
+                                            title={t('trash.deletePermanently')}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
-                            </section>
-                        )}
-                    </>
+                            );
+                        })}
+                    </div>
                 )}
             </div>
             </div>

@@ -3,6 +3,7 @@ import { performance } from 'node:perf_hooks';
 import {
     summarizeTaskLifecycleCounts,
     buildTasksByProjectId,
+    buildTrashTimeline,
     getCalendarPlanningCandidates,
     sortTasks,
     sortFocusNextActions,
@@ -26,6 +27,25 @@ import {
 import { Project, Task } from './types';
 
 describe('task-utils', () => {
+    describe('buildTrashTimeline', () => {
+        it('orders mixed deleted entities newest first and excludes purged records', () => {
+            const tasks = [
+                { id: 'older-task', deletedAt: '2026-07-01T12:00:00.000Z' },
+                { id: 'purged-task', deletedAt: '2026-07-14T12:00:00.000Z', purgedAt: '2026-07-14T13:00:00.000Z' },
+            ] as Task[];
+            const projects = [
+                { id: 'same-time-b', deletedAt: '2026-07-13T12:00:00.000Z' },
+                { id: 'same-time-a', deletedAt: '2026-07-13T12:00:00.000Z' },
+            ] as Project[];
+
+            const timeline = buildTrashTimeline(tasks, projects);
+
+            expect(timeline.map((item) => (
+                item.type === 'task' ? item.task.id : item.project.id
+            ))).toEqual(['same-time-a', 'same-time-b', 'older-task']);
+        });
+    });
+
     describe('sortDoneTasksForListView', () => {
         const createDoneTask = (id: string, title: string, completedAt?: string): Task => ({
             id,

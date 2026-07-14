@@ -1,5 +1,5 @@
 import { View, Text, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
-import { getInlineMarkdownPreview, projectMatchesAreaFilter, shallow, taskMatchesAreaFilter, useTaskStore } from '@mindwtr/core';
+import { buildTrashTimeline, getInlineMarkdownPreview, projectMatchesAreaFilter, shallow, taskMatchesAreaFilter, useTaskStore } from '@mindwtr/core';
 import type { Project, Task } from '@mindwtr/core';
 import { MarkdownInlineText } from '@/components/markdown-text';
 import { useTheme } from '../../contexts/theme-context';
@@ -8,11 +8,7 @@ import { useLanguage } from '../../contexts/language-context';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useThemeColors, ThemeColors } from '@/hooks/use-theme-colors';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-
-type TrashListItem =
-  | { type: 'project'; project: Project }
-  | { type: 'task'; task: Task };
+import React, { useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 function TrashSwipeRow({
   children,
@@ -178,23 +174,16 @@ export default function TrashScreen() {
     && taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById)
   )), [_allTasks, areaById, projectById, resolvedAreaFilter]);
 
-  const trashedProjects = useMemo(() => _allProjects
-    .filter((project) => (
+  const trashedProjects = useMemo(() => _allProjects.filter((project) => (
       project.deletedAt
       && !project.purgedAt
       && projectMatchesAreaFilter(project, resolvedAreaFilter, areaById)
-    ))
-    .sort((left, right) => {
-      const leftDeletedAt = left.deletedAt ?? '';
-      const rightDeletedAt = right.deletedAt ?? '';
-      if (leftDeletedAt !== rightDeletedAt) return rightDeletedAt.localeCompare(leftDeletedAt);
-      return left.title.localeCompare(right.title);
-    }), [_allProjects, areaById, resolvedAreaFilter]);
+    )), [_allProjects, areaById, resolvedAreaFilter]);
 
-  const trashItems = useMemo<TrashListItem[]>(() => [
-    ...trashedProjects.map((project) => ({ type: 'project' as const, project })),
-    ...trashedTasks.map((task) => ({ type: 'task' as const, task })),
-  ], [trashedProjects, trashedTasks]);
+  const trashItems = useMemo(
+    () => buildTrashTimeline(trashedTasks, trashedProjects),
+    [trashedProjects, trashedTasks],
+  );
 
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
