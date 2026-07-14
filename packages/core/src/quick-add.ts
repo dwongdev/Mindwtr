@@ -63,7 +63,7 @@ export interface ProjectNextActionParseContext {
 export function parseProjectNextActionInput(
     input: string,
     context: ProjectNextActionParseContext,
-): { title: string; props: Partial<Task> } {
+): { title: string; props: Partial<Task>; invalidDateCommands?: string[] } {
     const { projectId, sectionId, projects, areas, now = new Date(), parseOptions } = context;
     const parsed = parseQuickAdd(input, projects, now, areas, parseOptions);
     const props: Partial<Task> = { ...parsed.props };
@@ -81,7 +81,7 @@ export function parseProjectNextActionInput(
     if (!props.status) {
         props.status = 'next';
     }
-    return { title: title || input.trim(), props };
+    return { title: title || input.trim(), props, invalidDateCommands: parsed.invalidDateCommands };
 }
 
 export interface QuickAddDateCommandsResult {

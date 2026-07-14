@@ -3,11 +3,13 @@ import {
     createAIProvider,
     DEFAULT_AREA_COLOR,
     formatI18nTemplate,
+    getPersonOptionNames,
     getStaleItems,
     getUsedTaskTokens,
     isDueForReview,
     isTaskInActiveProject,
-    parseQuickAddDateCommands,
+    normalizeClockTimeInput,
+    parseProjectNextActionInput,
     partitionByReviewDate,
     safeFormatDate,
     safeParseDate,
@@ -85,6 +87,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
     );
     const addTask = useTaskStore((state) => state.addTask);
     const showToast = useUiStore((state) => state.showToast);
+    const setEditingTaskId = useUiStore((state) => state.setEditingTaskId);
     const areaById = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas]);
     const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
     const activeTasks = useMemo(
@@ -501,32 +504,53 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
         });
     };
 
-    const confirmProjectTaskPrompt = (value: string) => {
+    const createProjectTaskFromPrompt = async (value: string): Promise<string | null> => {
         const targetProject = projectTaskPrompt;
-        if (!targetProject) return;
+        if (!targetProject) return null;
 
         const trimmed = value.trim();
-        if (!trimmed) return;
+        if (!trimmed) return null;
 
-        const { title, props, invalidDateCommands } = parseQuickAddDateCommands(trimmed, new Date(), {
-            preserveText: settings.quickAddAutoClean !== true,
+        // Same quick-add grammar as the quick-add box, matching the project
+        // next-action prompt (#859). Read people lazily: the prompt is rare
+        // and the modal shouldn't subscribe to more of the store for it.
+        const state = useTaskStore.getState();
+        const { title, props, invalidDateCommands } = parseProjectNextActionInput(trimmed, {
+            projectId: targetProject.projectId,
+            projects: state.projects,
+            areas: state.areas,
+            parseOptions: {
+                knownContexts: allContexts,
+                knownTags: allTags,
+                knownPeople: getPersonOptionNames(state.people, state.tasks),
+                defaultScheduleTime: normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || undefined,
+                preserveText: settings.quickAddAutoClean !== true,
+            },
         });
         if (invalidDateCommands && invalidDateCommands.length > 0) {
             showToast(`${t('quickAdd.invalidDateCommand')}: ${invalidDateCommands.join(', ')}`, 'error');
-            return;
+            return null;
         }
 
-        const parsedTitle = title.trim();
-        if (!parsedTitle) return;
+        const result = await addTask(title, props);
+        if (!result.success) {
+            showToast(result.error || t('calendar.saveTaskFailed'), 'error');
+            return null;
+        }
+        setProjectTaskPrompt(null);
+        return result.id ?? null;
+    };
 
-        void (async () => {
-            await addTask(parsedTitle, {
-                projectId: targetProject.projectId,
-                status: 'next',
-                ...props,
-            });
-            setProjectTaskPrompt(null);
-        })();
+    const confirmProjectTaskPrompt = (value: string) => {
+        void createProjectTaskFromPrompt(value);
+    };
+
+    const saveAndEditProjectTask = (value: string) => {
+        void createProjectTaskFromPrompt(value).then((taskId) => {
+            // The new task renders as a TaskItem in the project step; claiming
+            // editingTaskId opens its inline editor without leaving the review.
+            if (taskId) setEditingTaskId(taskId);
+        });
     };
 
     const renderMindSweepNudge = () => (
@@ -1092,6 +1116,8 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                 defaultValue=""
                 confirmLabel={t('common.add')}
                 cancelLabel={t('common.cancel')}
+                secondaryLabel={t('quickAdd.saveAndEdit')}
+                onSecondary={saveAndEditProjectTask}
                 onCancel={() => setProjectTaskPrompt(null)}
                 onConfirm={confirmProjectTaskPrompt}
             />

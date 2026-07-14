@@ -5,6 +5,8 @@ import {
     getStaleItems,
     isTaskInActiveProject,
     isDueForReview,
+    normalizeClockTimeInput,
+    parseProjectNextActionInput,
     partitionByReviewDate,
     safeParseDate,
     safeParseDueDate,
@@ -111,6 +113,7 @@ export function useReviewModalController({
     const [expandedContextGroups, setExpandedContextGroups] = useState<Set<string>>(new Set());
     const [projectTaskPrompt, setProjectTaskPrompt] = useState<{ projectId: string; projectTitle: string } | null>(null);
     const [projectTaskTitle, setProjectTaskTitle] = useState('');
+    const [editModalTab, setEditModalTab] = useState<'task' | 'view'>('view');
 
     const labels = useMemo(() => getReviewLabels(t), [t]);
     const tc = useThemeColors();
@@ -126,6 +129,7 @@ export function useReviewModalController({
     }, [onClose]);
 
     const handleTaskPress = useCallback((task: Task) => {
+        setEditModalTab('view');
         setEditingTask(task);
         setShowEditModal(true);
     }, []);
@@ -160,20 +164,42 @@ export function useReviewModalController({
         setProjectTaskTitle('');
     }, []);
 
-    const submitProjectTask = useCallback(async () => {
-        const title = projectTaskTitle.trim();
+    const submitProjectTask = useCallback(async (options?: { openEditor?: boolean }) => {
+        const rawTitle = projectTaskTitle.trim();
         const targetProject = projectTaskPrompt;
-        if (!title || !targetProject) return;
+        if (!rawTitle || !targetProject) return;
         try {
-            await addTask(title, { projectId: targetProject.projectId, status: 'next' });
+            // Same quick-add grammar as the capture sheet, matching the
+            // project next-action prompt (#859).
+            const { title, props } = parseProjectNextActionInput(rawTitle, {
+                projectId: targetProject.projectId,
+                projects,
+                areas,
+                parseOptions: {
+                    defaultScheduleTime: normalizeClockTimeInput(settings?.gtd?.defaultScheduleTime) || undefined,
+                    preserveText: settings?.quickAddAutoClean !== true,
+                },
+            });
+            const result = await addTask(title, props);
+            if (result && result.success === false) {
+                throw new Error(result.error || 'Failed to add task');
+            }
             closeProjectTaskPrompt();
+            if (options?.openEditor && result?.id) {
+                const created = useTaskStore.getState().tasks.find((task) => task.id === result.id);
+                if (created) {
+                    setEditModalTab('task');
+                    setEditingTask(created);
+                    setShowEditModal(true);
+                }
+            }
         } catch (error) {
             void logError(error, {
                 scope: 'review',
                 extra: { message: 'Failed to add task from project review', projectId: targetProject.projectId },
             });
         }
-    }, [addTask, closeProjectTaskPrompt, projectTaskPrompt, projectTaskTitle]);
+    }, [addTask, areas, closeProjectTaskPrompt, projects, projectTaskPrompt, projectTaskTitle, settings]);
 
     const toggleExternalDayExpanded = useCallback((dayKey: string) => {
         setExpandedExternalDays((prev) => {
@@ -571,6 +597,7 @@ export function useReviewModalController({
         closeProjectTaskPrompt,
         contextReviewGroups,
         currentStep: displayedStep,
+        editModalTab,
         editingTask,
         expandedContextGroups,
         expandedExternalDays,

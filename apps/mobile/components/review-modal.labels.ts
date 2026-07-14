@@ -40,6 +40,7 @@ type ReviewLabelKey =
     | 'less'
     | 'addTask'
     | 'addTaskPlaceholder'
+    | 'saveAndEdit'
     | 'cancel'
     | 'add'
     | 'waitingDesc'
@@ -110,6 +111,7 @@ const defaultReviewLabels: ReviewLabels = {
     less: 'less',
     addTask: 'Add task',
     addTaskPlaceholder: 'Enter task title',
+    saveAndEdit: 'Save & edit',
     cancel: 'Cancel',
     add: 'Add',
     waitingDesc: 'Follow Up on Waiting Items',
@@ -177,6 +179,7 @@ const reviewLabelTranslationKeys: Record<ReviewLabelKey, string> = {
     less: 'common.less',
     addTask: 'nav.addTask',
     addTaskPlaceholder: 'review.addTaskPlaceholder',
+    saveAndEdit: 'quickAdd.saveAndEdit',
     cancel: 'common.cancel',
     add: 'common.add',
     waitingDesc: 'review.waitingStepDesc',

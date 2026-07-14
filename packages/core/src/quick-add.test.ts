@@ -777,5 +777,23 @@ describe('quick-add', () => {
             expect(result.title).toBe('Chase reply /waiting');
             expect(result.props.status).toBe('waiting');
         });
+
+        it('reports invalid date commands so prompts can warn instead of silently dropping them', () => {
+            const result = parseProjectNextActionInput('Call plumber /due:notadate', {
+                projectId: 'p1',
+                projects,
+                now,
+            });
+            expect(result.invalidDateCommands).toEqual(['/due:notadate']);
+        });
+
+        it('reports no invalid date commands for valid input', () => {
+            const result = parseProjectNextActionInput('Call plumber /due:2025-01-05', {
+                projectId: 'p1',
+                projects,
+                now,
+            });
+            expect(result.invalidDateCommands).toBeUndefined();
+        });
     });
 });

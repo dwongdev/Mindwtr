@@ -66,6 +66,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
         closeProjectTaskPrompt,
         contextReviewGroups,
         currentStep,
+        editModalTab,
         editingTask,
         expandedContextGroups,
         expandedExternalDays,
@@ -843,7 +844,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                     task={editingTask}
                     onClose={closeEditModal}
                     onSave={handleSaveTask}
-                    defaultTab="view"
+                    defaultTab={editModalTab}
                     onProjectNavigate={handleNavigateToProject}
                     onContextNavigate={handleNavigateToToken}
                     onTagNavigate={handleNavigateToToken}
@@ -895,6 +896,21 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                                     onPress={closeProjectTaskPrompt}
                                 >
                                     <Text style={[styles.promptButtonText, { color: tc.text }]}>{labels.cancel}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.promptButton,
+                                        {
+                                            borderColor: tc.border,
+                                            opacity: projectTaskTitle.trim().length > 0 ? 1 : 0.5,
+                                        },
+                                    ]}
+                                    onPress={() => {
+                                        void submitProjectTask({ openEditor: true });
+                                    }}
+                                    disabled={projectTaskTitle.trim().length === 0}
+                                >
+                                    <Text style={[styles.promptButtonText, { color: tc.text }]}>{labels.saveAndEdit}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[

@@ -81,8 +81,13 @@ vi.mock('react-native', async () => {
 });
 
 vi.mock('@mindwtr/core', () => ({
-    useTaskStore: () => storeState,
+    useTaskStore: Object.assign(() => storeState, { getState: () => storeState }),
     shallow: vi.fn((a, b) => a === b),
+    normalizeClockTimeInput: vi.fn(() => null),
+    parseProjectNextActionInput: vi.fn((input: string, context: { projectId: string }) => ({
+        title: input,
+        props: { projectId: context.projectId, status: 'next' },
+    })),
     getMindSweepGroups: vi.fn(() => [
         {
             id: 'test-group',
@@ -321,5 +326,67 @@ describe('ReviewModal', () => {
         expect(hasText('Review Complete!')).toBe(true);
         expect(hasText('Inbox')).toBe(true);
         expect(hasText('Calendar')).toBe(true);
+    });
+
+    it('parses the project-step prompt and Save & edit opens the created task in the editor', async () => {
+        storeState.addTask.mockImplementation(async (title: string, props: Record<string, unknown>) => {
+            storeState.tasks.push({
+                id: 'new-task-1',
+                title,
+                contexts: [],
+                tags: [],
+                createdAt: '2026-03-15T00:00:00.000Z',
+                updatedAt: '2026-03-15T00:00:00.000Z',
+                ...props,
+            } as (typeof storeState.tasks)[number]);
+            return { success: true, id: 'new-task-1' };
+        });
+        let tree!: ReturnType<typeof create>;
+
+        await act(async () => {
+            tree = create(<ReviewModal visible onClose={vi.fn()} />);
+        });
+
+        const pressByText = async (text: string) => {
+            const matches = tree.root.findAll((node) => flattenText(node.props?.children) === text);
+            for (const label of matches) {
+                let target = label.parent;
+                while (target && typeof target.props?.onPress !== 'function') {
+                    target = target.parent;
+                }
+                if (target) {
+                    await act(async () => {
+                        target!.props.onPress({ stopPropagation: () => {} });
+                    });
+                    return;
+                }
+            }
+            throw new Error(`No pressable found for "${text}"`);
+        };
+
+        // Walk forward to the projects step (empty steps are skipped).
+        for (let i = 0; i < 6; i += 1) {
+            if (tree.root.findAll((node) => flattenText(node.props?.children).includes('Review Your Projects')).length > 0) break;
+            await pressByText('Next →');
+        }
+
+        await pressByText('Add task');
+
+        const input = tree.root.find((node) => node.props?.placeholder === 'Enter task title');
+        await act(async () => {
+            input.props.onChangeText('Buy cable @errands');
+        });
+
+        await pressByText('Save & edit');
+
+        expect(storeState.addTask).toHaveBeenCalledWith('Buy cable @errands', {
+            projectId: 'project-1',
+            status: 'next',
+        });
+
+        const editModal = tree.root.find((node) => (node.type as unknown) === 'TaskEditModal');
+        expect(editModal.props.visible).toBe(true);
+        expect(editModal.props.task?.id).toBe('new-task-1');
+        expect(editModal.props.defaultTab).toBe('task');
     });
 });

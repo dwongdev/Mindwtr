@@ -411,6 +411,7 @@ export const styles = StyleSheet.create({
     },
     promptActions: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         justifyContent: 'flex-end',
         gap: 8,
         marginTop: 14,

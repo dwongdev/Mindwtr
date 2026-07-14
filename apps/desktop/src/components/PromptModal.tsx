@@ -16,7 +16,7 @@ interface PromptModalProps {
     browseLabel?: string;
     onBrowse?: () => Promise<string | null>;
     secondaryLabel?: string;
-    onSecondary?: () => void;
+    onSecondary?: (value: string) => void;
     confirmLabel: string;
     cancelLabel: string;
     onConfirm: (value: string) => void;
@@ -142,7 +142,18 @@ export function PromptModal({
                             </Button>
                         )}
                         {secondaryLabel && onSecondary && (
-                            <Button variant="secondary" onMouseDown={keepInputFocus} onClick={onSecondary}>
+                            <Button
+                                variant="secondary"
+                                onMouseDown={keepInputFocus}
+                                onClick={() => {
+                                    if (canConfirm) {
+                                        onSecondary(value);
+                                    } else {
+                                        setHasInteracted(true);
+                                    }
+                                }}
+                                disabled={!canConfirm}
+                            >
                                 {secondaryLabel}
                             </Button>
                         )}
