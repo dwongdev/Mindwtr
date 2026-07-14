@@ -143,8 +143,22 @@ function triggerQuickAdd() {
 
 function getAppScopedShortcutKey(event: KeyboardEvent): string {
     if (event.key.length !== 1) return event.key;
-    if (event.shiftKey && event.key.toLowerCase() === 'a') return 'A';
+    // Caps Lock reports 'A' without Shift; decide the a/A pair by Shift alone
+    // so Caps Lock doesn't arm the area chord instead of quick add (#865).
+    if (event.key.toLowerCase() === 'a') return event.shiftKey ? 'A' : 'a';
     return event.key;
+}
+
+// A modifier pressed mid-chord (re-pressing Shift before the digit) must not
+// consume and cancel the pending chord (#865).
+const CHORD_MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'AltGraph']);
+
+function getAreaChordKey(event: KeyboardEvent): string {
+    // Users often hold Shift from the chord prefix into the digit (Shift+1
+    // reports '!'), and some layouts put digits on shifted keys. Read the
+    // digit from the physical key so the chord still lands (#865).
+    const digit = /^(?:Digit|Numpad)(\d)$/.exec(event.code)?.[1];
+    return digit ?? event.key;
 }
 
 function triggerTaskEditCancel(taskId: string) {
@@ -625,6 +639,7 @@ export function KeybindingProvider({
 
             const pending = pendingRef.current.key;
             if (pending) {
+                if (CHORD_MODIFIER_KEYS.has(e.key)) return;
                 e.preventDefault();
                 if (pending === 'g') {
                     if (e.key === 'g') {
@@ -633,7 +648,7 @@ export function KeybindingProvider({
                         onNavigate(vimGoMap[e.key]);
                     }
                 } else if (pending === 'A') {
-                    applyAreaFilterShortcut(e.key);
+                    applyAreaFilterShortcut(getAreaChordKey(e));
                 } else if (pending === 'd') {
                     if (e.key === 'd') {
                         scope?.deleteSelected();
@@ -733,6 +748,7 @@ export function KeybindingProvider({
 
             const pending = pendingRef.current.key;
             if (pending) {
+                if (CHORD_MODIFIER_KEYS.has(e.key)) return;
                 e.preventDefault();
                 if (pending === 'g') {
                     if (e.key === 'g') {
@@ -741,7 +757,7 @@ export function KeybindingProvider({
                         onNavigate(vimGoMap[e.key]);
                     }
                 } else if (pending === 'A') {
-                    applyAreaFilterShortcut(e.key);
+                    applyAreaFilterShortcut(getAreaChordKey(e));
                 }
                 pendingRef.current.key = null;
                 return;
@@ -948,9 +964,10 @@ export function KeybindingProvider({
                 if ((pendingRef.current.key === 'A' || pendingRef.current.key === 's') && now - pendingRef.current.timestamp > 700) {
                     pendingRef.current.key = null;
                 }
+                if (pendingRef.current.key && CHORD_MODIFIER_KEYS.has(e.key)) return;
                 if (pendingRef.current.key === 'A') {
                     e.preventDefault();
-                    applyAreaFilterShortcut(appShortcutKey);
+                    applyAreaFilterShortcut(getAreaChordKey(e));
                     pendingRef.current.key = null;
                     return;
                 }

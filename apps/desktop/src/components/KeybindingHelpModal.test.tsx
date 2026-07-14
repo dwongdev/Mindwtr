@@ -30,8 +30,8 @@ describe('KeybindingHelpModal', () => {
         expect(getByText('Global quick add')).toBeInTheDocument();
         expect(getByText('In-app quick add')).toBeInTheDocument();
         expect(getByText('gi')).toBeInTheDocument();
-        expect(getByText('A1-A9')).toBeInTheDocument();
-        expect(getByText('A0')).toBeInTheDocument();
+        expect(getByText('Shift+A 1-9')).toBeInTheDocument();
+        expect(getByText('Shift+A 0')).toBeInTheDocument();
         expect(getByText('dd')).toBeInTheDocument();
         expect(queryByText('Alt-i')).not.toBeInTheDocument();
     });

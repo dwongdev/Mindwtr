@@ -357,6 +357,103 @@ describe('KeybindingProvider (vim)', () => {
         });
     });
 
+    it('applies the area chord when Shift stays held through the digit', async () => {
+        useTaskStore.setState((state) => ({
+            ...state,
+            _allAreas: [
+                { id: 'area-home', name: 'Home', order: 0, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+                { id: 'area-work', name: 'Work', order: 1, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+            ],
+            settings: {
+                ...state.settings,
+                filters: {
+                    ...(state.settings?.filters ?? {}),
+                    areaId: AREA_FILTER_ALL,
+                },
+            },
+        }));
+
+        render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="inbox" onNavigate={vi.fn()}>
+                    <DummyList />
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        fireEvent.keyDown(window, { key: 'A', shiftKey: true });
+        fireEvent.keyDown(window, { key: '!', code: 'Digit2', shiftKey: true });
+
+        await waitFor(() => {
+            expect(useTaskStore.getState().settings?.filters?.areaId).toBe('area-work');
+        });
+    });
+
+    it('keeps the area chord pending when Shift is pressed before the digit', async () => {
+        useTaskStore.setState((state) => ({
+            ...state,
+            _allAreas: [
+                { id: 'area-home', name: 'Home', order: 0, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+            ],
+            settings: {
+                ...state.settings,
+                filters: {
+                    ...(state.settings?.filters ?? {}),
+                    areaId: AREA_FILTER_ALL,
+                },
+            },
+        }));
+
+        render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="inbox" onNavigate={vi.fn()}>
+                    <DummyList />
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        fireEvent.keyDown(window, { key: 'A', shiftKey: true });
+        fireEvent.keyDown(window, { key: 'Shift', shiftKey: true });
+        fireEvent.keyDown(window, { key: '1', code: 'Digit1' });
+
+        await waitFor(() => {
+            expect(useTaskStore.getState().settings?.filters?.areaId).toBe('area-home');
+        });
+    });
+
+    it('opens quick add for Caps Lock A without Shift instead of arming the chord', async () => {
+        useTaskStore.setState((state) => ({
+            ...state,
+            _allAreas: [
+                { id: 'area-home', name: 'Home', order: 0, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+            ],
+            settings: {
+                ...state.settings,
+                filters: {
+                    ...(state.settings?.filters ?? {}),
+                    areaId: AREA_FILTER_ALL,
+                },
+            },
+        }));
+        const quickAddListener = vi.fn();
+        window.addEventListener('mindwtr:quick-add', quickAddListener);
+
+        render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="inbox" onNavigate={vi.fn()}>
+                    <DummyList />
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        fireEvent.keyDown(window, { key: 'A', shiftKey: false });
+        fireEvent.keyDown(window, { key: '1', code: 'Digit1' });
+
+        expect(quickAddListener).toHaveBeenCalledTimes(1);
+        expect(useTaskStore.getState().settings?.filters?.areaId).toBe(AREA_FILTER_ALL);
+        window.removeEventListener('mindwtr:quick-add', quickAddListener);
+    });
+
     it('can switch area filters repeatedly with A number chords', async () => {
         useTaskStore.setState((state) => ({
             ...state,
