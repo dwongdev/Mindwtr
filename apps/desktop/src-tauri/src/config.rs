@@ -186,6 +186,10 @@ pub(crate) fn read_config_toml(path: &Path) -> AppConfigToml {
             config.ai_key_anthropic = parse_toml_string_value(value);
         } else if key == "ai_key_gemini" {
             config.ai_key_gemini = parse_toml_string_value(value);
+        } else if key == "email_capture_config" {
+            config.email_capture_config = parse_toml_string_value(value);
+        } else if key == "email_capture_password" {
+            config.email_capture_password = parse_toml_string_value(value);
         } else if key == "local_api_enabled" {
             config.local_api_enabled = parse_toml_string_value(value);
         } else if key == "local_api_port" {
@@ -320,6 +324,18 @@ fn write_config_toml_with_header(
             serialize_toml_string_value(ai_key_gemini)
         ));
     }
+    if let Some(email_capture_config) = &config.email_capture_config {
+        lines.push(format!(
+            "email_capture_config = {}",
+            serialize_toml_string_value(email_capture_config)
+        ));
+    }
+    if let Some(email_capture_password) = &config.email_capture_password {
+        lines.push(format!(
+            "email_capture_password = {}",
+            serialize_toml_string_value(email_capture_password)
+        ));
+    }
     if let Some(local_api_enabled) = &config.local_api_enabled {
         lines.push(format!(
             "local_api_enabled = {}",
@@ -400,6 +416,12 @@ fn merge_config(base: &mut AppConfigToml, overrides: AppConfigToml) {
     if overrides.ai_key_gemini.is_some() {
         base.ai_key_gemini = overrides.ai_key_gemini;
     }
+    if overrides.email_capture_config.is_some() {
+        base.email_capture_config = overrides.email_capture_config;
+    }
+    if overrides.email_capture_password.is_some() {
+        base.email_capture_password = overrides.email_capture_password;
+    }
     if overrides.local_api_enabled.is_some() {
         base.local_api_enabled = overrides.local_api_enabled;
     }
@@ -459,6 +481,10 @@ fn split_config_for_secrets(config: &AppConfigToml) -> (AppConfigToml, AppConfig
         secrets_config.ai_key_gemini = Some(value);
         public_config.ai_key_gemini = None;
     }
+    if let Some(value) = config.email_capture_password.clone() {
+        secrets_config.email_capture_password = Some(value);
+        public_config.email_capture_password = None;
+    }
     if let Some(value) = config.local_api_token.clone() {
         secrets_config.local_api_token = Some(value);
         public_config.local_api_token = None;
@@ -485,6 +511,8 @@ fn config_has_values(config: &AppConfigToml) -> bool {
         || config.ai_key_openai.is_some()
         || config.ai_key_anthropic.is_some()
         || config.ai_key_gemini.is_some()
+        || config.email_capture_config.is_some()
+        || config.email_capture_password.is_some()
         || config.local_api_enabled.is_some()
         || config.local_api_port.is_some()
         || config.local_api_token.is_some()
@@ -546,6 +574,12 @@ fn migrate_legacy_secrets(app: &tauri::AppHandle, config: &mut AppConfigToml) {
     if let Some(value) = config.ai_key_gemini.clone() {
         if set_keyring_secret(app, KEYRING_AI_GEMINI, Some(value)).is_ok() {
             config.ai_key_gemini = None;
+            migrated = true;
+        }
+    }
+    if let Some(value) = config.email_capture_password.clone() {
+        if set_keyring_secret(app, KEYRING_EMAIL_CAPTURE_PASSWORD, Some(value)).is_ok() {
+            config.email_capture_password = None;
             migrated = true;
         }
     }

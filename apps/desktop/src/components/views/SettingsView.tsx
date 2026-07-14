@@ -1240,6 +1240,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
         <SettingsIntegrationsPage
           t={t}
           isTauri={isTauri}
+          showSaved={showSaved}
           newCalendarName={newCalendarName}
           newCalendarUrl={newCalendarUrl}
           calendarError={calendarError}

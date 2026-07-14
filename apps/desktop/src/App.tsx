@@ -58,6 +58,11 @@ import { getInstallSourceOrFallback, isFlatpakRuntime, isTauriRuntime } from './
 import { persistLastView, readRestorableLastView } from './lib/session-restore';
 import { logError, logInfo } from './lib/app-log';
 import { createDesktopAutoSyncController } from './lib/auto-sync-controller';
+import {
+    createEmailCaptureController,
+    registerEmailCaptureController,
+    type EmailCaptureController,
+} from './lib/email-capture';
 import { canDesktopAutoSync } from './lib/desktop-auto-sync-eligibility';
 import { beginSettingsOpenTrace, markSettingsOpenTrace, wrapSettingsOpenImport } from './lib/settings-open-diagnostics';
 import {
@@ -626,6 +631,23 @@ function App() {
             },
         });
 
+        let emailCaptureController: EmailCaptureController | null = null;
+        if (isTauriRuntime()) {
+            emailCaptureController = createEmailCaptureController({
+                addTasks: (items) => useTaskStore.getState().addTasks(items),
+                flushPendingSave,
+                reportError,
+                logInfo: (message, extra) => {
+                    void logInfo(message, { scope: 'email-capture', extra });
+                },
+                onTerminalError: (error) => {
+                    showToast(`Email capture: ${error.message}`, 'error', 6000);
+                },
+            });
+            registerEmailCaptureController(emailCaptureController);
+            emailCaptureController.start();
+        }
+
         const focusListener = () => {
             autoSyncController.handleFocus();
         };
@@ -677,6 +699,8 @@ function App() {
             }
             storeUnsubscribe();
             autoSyncController.dispose();
+            registerEmailCaptureController(null);
+            emailCaptureController?.dispose();
             stopCalendarPush?.();
             stopDesktopCalendarPushSync();
             stopDesktopNotifications();

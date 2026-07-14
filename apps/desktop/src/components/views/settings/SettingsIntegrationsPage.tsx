@@ -2,6 +2,7 @@ import type { ExternalCalendarSubscription } from '@mindwtr/core';
 import type { SystemCalendarPermissionStatus, SystemCalendarPushTarget } from '../../../lib/system-calendar';
 
 import { SettingsCalendarPage } from './SettingsCalendarPage';
+import { SettingsEmailCaptureSection } from './SettingsEmailCaptureSection';
 import { SettingsObsidianSection } from './SettingsObsidianSection';
 
 type Labels = {
@@ -63,11 +64,30 @@ type Labels = {
     obsidianNeverScanned: string;
     obsidianMissingMarker: string;
     browse: string;
+    emailCapture: string;
+    emailCaptureDesc: string;
+    emailCaptureHost: string;
+    emailCapturePort: string;
+    emailCaptureUsername: string;
+    emailCapturePassword: string;
+    emailCapturePasswordHint: string;
+    emailCapturePasswordStored: string;
+    emailCaptureFolder: string;
+    emailCaptureFolderHint: string;
+    emailCaptureSave: string;
+    emailCaptureRemove: string;
+    emailCaptureCheckNow: string;
+    emailCaptureChecking: string;
+    emailCaptureLastChecked: string;
+    emailCaptureNeverChecked: string;
+    emailCaptureImportedCount: string;
+    emailCaptureSaveFailed: string;
 };
 
 type SettingsIntegrationsPageProps = {
     t: Labels;
     isTauri: boolean;
+    showSaved: () => void;
     newCalendarName: string;
     newCalendarUrl: string;
     calendarError: string | null;
@@ -120,6 +140,7 @@ type SettingsIntegrationsPageProps = {
 export function SettingsIntegrationsPage({
     t,
     isTauri,
+    showSaved,
     newCalendarName,
     newCalendarUrl,
     calendarError,
@@ -224,6 +245,12 @@ export function SettingsIntegrationsPage({
                 onSaveObsidian={onSaveObsidian}
                 onRemoveObsidian={onRemoveObsidian}
                 onRescanObsidian={onRescanObsidian}
+            />
+
+            <SettingsEmailCaptureSection
+                t={t}
+                isTauri={isTauri}
+                showSaved={showSaved}
             />
         </div>
     );

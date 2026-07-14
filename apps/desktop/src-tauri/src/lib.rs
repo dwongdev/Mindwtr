@@ -49,6 +49,7 @@ use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextPar
 mod audio;
 mod autostart;
 mod config;
+mod email_capture;
 mod install;
 mod local_api;
 mod logging;
@@ -70,6 +71,9 @@ use config::{
     get_ai_key, get_cloud_config, get_external_calendars, get_obsidian_config, get_sync_backend,
     get_webdav_config, get_webdav_password, list_obsidian_vaults, set_ai_key, set_cloud_config,
     set_external_calendars, set_obsidian_config, set_sync_backend, set_webdav_config,
+};
+use email_capture::{
+    email_capture_commit, email_capture_poll, get_email_capture_config, set_email_capture_config,
 };
 use install::{
     check_microsoft_store_update, diagnostics_enabled, get_install_source, get_linux_distro,
@@ -93,8 +97,7 @@ use platform::{
     cloudkit_save_attachment_asset, cloudkit_save_records, create_macos_calendar_event,
     delete_macos_calendar_event, ensure_macos_mindwtr_calendar, get_macos_calendar_events,
     get_macos_calendar_permission_status, get_macos_writable_calendars, get_managed_data_dir,
-    import_attachment_file, migrate_portable_attachments,
-    open_path,
+    import_attachment_file, migrate_portable_attachments, open_path,
     request_macos_calendar_permission, set_macos_activation_policy, update_macos_calendar_event,
 };
 use storage::{
@@ -149,6 +152,7 @@ const KEYRING_DROPBOX_TOKENS: &str = "dropbox_tokens";
 const KEYRING_AI_OPENAI: &str = "ai_key_openai";
 const KEYRING_AI_ANTHROPIC: &str = "ai_key_anthropic";
 const KEYRING_AI_GEMINI: &str = "ai_key_gemini";
+const KEYRING_EMAIL_CAPTURE_PASSWORD: &str = "email_capture_password";
 const DROPBOX_AUTH_ENDPOINT: &str = "https://www.dropbox.com/oauth2/authorize";
 const DROPBOX_TOKEN_ENDPOINT: &str = "https://api.dropboxapi.com/oauth2/token";
 const DROPBOX_REVOKE_ENDPOINT: &str = "https://api.dropboxapi.com/2/auth/token/revoke";
@@ -487,6 +491,8 @@ struct AppConfigToml {
     dropbox_tokens: Option<String>,
     obsidian_config: Option<String>,
     external_calendars: Option<String>,
+    email_capture_config: Option<String>,
+    email_capture_password: Option<String>,
     ai_key_openai: Option<String>,
     ai_key_anthropic: Option<String>,
     ai_key_gemini: Option<String>,
@@ -1595,6 +1601,10 @@ pub fn run() {
             send_flatpak_notification,
             get_local_api_server_status,
             set_local_api_server_config,
+            get_email_capture_config,
+            set_email_capture_config,
+            email_capture_poll,
+            email_capture_commit,
             get_desktop_rendering_config,
             set_desktop_rendering_config,
             quit_app
