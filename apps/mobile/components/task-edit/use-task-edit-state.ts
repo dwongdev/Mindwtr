@@ -6,6 +6,7 @@ import {
     getRecurrenceRuleValue,
     getRecurrenceStrategyValue,
 } from './recurrence-utils';
+import { applyTaskDraftDateFieldUpdates } from './task-edit-draft-adapter';
 
 export type TaskEditTab = 'task' | 'view';
 
@@ -48,7 +49,10 @@ export function useTaskEditState({
             if (markDirty) {
                 isDirtyRef.current = true;
             }
-            setEditedTaskState(value);
+            setEditedTaskState((current) => {
+                const next = typeof value === 'function' ? value(current) : value;
+                return applyTaskDraftDateFieldUpdates(current, next, baseTaskRef.current);
+            });
         },
         []
     );
