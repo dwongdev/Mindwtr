@@ -2284,6 +2284,10 @@ mod tests {
             actual_keys, expected_keys,
             "Rust row_to_task_value must return every core Task field"
         );
+        assert_eq!(
+            &mapped, fixture,
+            "Rust Task mapper must preserve every shared fixture value"
+        );
     }
 
     #[test]

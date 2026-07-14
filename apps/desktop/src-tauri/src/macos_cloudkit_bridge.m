@@ -340,6 +340,32 @@ static NSDictionary *ck_json_from_record(CKRecord *record) {
     return result;
 }
 
+#if defined(MINDWTR_NATIVE_MAPPER_FIXTURE_CHECK)
+/// Test-only entry point used by scripts/check-synced-field-parity.ts. It keeps
+/// the fixture harness on the same mapping functions used by production sync.
+char *mindwtr_cloudkit_round_trip_task_json(const char *json_utf8) {
+    @autoreleasepool {
+        if (!json_utf8) return NULL;
+
+        NSData *data = [NSData dataWithBytes:json_utf8 length:strlen(json_utf8)];
+        NSError *error = nil;
+        id parsed = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
+        if (error || ![parsed isKindOfClass:[NSDictionary class]]) return NULL;
+
+        NSDictionary *json = (NSDictionary *)parsed;
+        NSString *taskID = json[@"id"];
+        if (![taskID isKindOfClass:[NSString class]] || taskID.length == 0) return NULL;
+
+        CKRecordZoneID *zoneID = [[CKRecordZoneID alloc] initWithZoneName:@"MindwtrFixtureZone"
+                                                                ownerName:CKCurrentUserDefaultName];
+        CKRecordID *recordID = [[CKRecordID alloc] initWithRecordName:taskID zoneID:zoneID];
+        CKRecord *record = [[CKRecord alloc] initWithRecordType:@"MindwtrTask" recordID:recordID];
+        ck_apply_fields(json, record, @"MindwtrTask");
+        return ck_copy_json(ck_json_from_record(record));
+    }
+}
+#endif
+
 // ---------------------------------------------------------------------------
 // MARK: - Change token serialization
 // ---------------------------------------------------------------------------

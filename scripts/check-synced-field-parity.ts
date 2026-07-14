@@ -1,6 +1,12 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs';
-import { TASK_SYNC_FIELD_SCHEMA } from '../packages/core/src/task-sync-schema';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import {
+    TASK_SYNC_FIELD_SCHEMA,
+    TASK_SYNC_SCHEMA_FIXTURE,
+} from '../packages/core/src/task-sync-schema';
 
 type Entity = 'task' | 'project' | 'section';
 type Surface = 'cloud' | 'sqlite';
@@ -102,7 +108,7 @@ const parseCoreTaskUpdateColumns = (source: string): string[] => {
 };
 
 const parseCoreTaskMigrationColumns = (source: string): string[] => {
-    const match = source.match(/private async ensureTaskColumns\(\) \{([\s\S]*?)\n    \}/);
+    const match = source.match(/private async ensureTaskColumns\(\) \{([\s\S]*?)\n {4}\}/);
     if (!match) throw new Error('Could not find ensureTaskColumns.');
     return unique(
         Array.from(match[1].matchAll(/\{ name: '([^']+)', sql:/g), (entry) => entry[1]),
@@ -158,7 +164,7 @@ const OBJC_KIND_MAP: Record<string, string> = {
 };
 
 const parseSwiftTaskFieldSpecs = (source: string): NativeTaskFieldSpec[] => {
-    const match = source.match(/private static let taskFieldSpecs: \[FieldSpec\] = \[([\s\S]*?)\n    \]/);
+    const match = source.match(/private static let taskFieldSpecs: \[FieldSpec\] = \[([\s\S]*?)\n {4}\]/);
     if (!match) throw new Error('Could not find Swift taskFieldSpecs.');
     const specs = Array.from(
         match[1].matchAll(/FieldSpec\(jsKey: "([^"]+)", ckKey: "([^"]+)", kind: \.([A-Za-z]+)\)/g),
@@ -169,6 +175,7 @@ const parseSwiftTaskFieldSpecs = (source: string): NativeTaskFieldSpec[] => {
         }),
     );
     unique(specs.map((spec) => spec.jsKey), 'Swift taskFieldSpecs');
+    unique(specs.map((spec) => spec.storageKey), 'Swift taskFieldSpecs storage keys');
     return specs;
 };
 
@@ -184,6 +191,7 @@ const parseObjcTaskFieldSpecs = (source: string): NativeTaskFieldSpec[] => {
         }),
     );
     unique(specs.map((spec) => spec.jsKey), 'ObjC kTaskFields');
+    unique(specs.map((spec) => spec.storageKey), 'ObjC kTaskFields storage keys');
     return specs;
 };
 
@@ -273,6 +281,151 @@ const compareNativeTaskFieldSpecs = (
     return failures;
 };
 
+const encodeNativeFixtureValue = (kind: string, value: unknown): unknown => {
+    switch (kind) {
+        case 'string':
+        case 'date':
+            return typeof value === 'string' ? value : undefined;
+        case 'integer':
+            return typeof value === 'number' ? Math.trunc(value) : undefined;
+        case 'boolean':
+            return typeof value === 'boolean' ? (value ? 1 : 0) : undefined;
+        case 'string-array':
+            return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+                ? [...value]
+                : undefined;
+        case 'json-string':
+            return typeof value === 'string' ? value : JSON.stringify(value);
+        default:
+            return undefined;
+    }
+};
+
+const decodeNativeFixtureValue = (kind: string, value: unknown): unknown => {
+    switch (kind) {
+        case 'boolean':
+            return value === 1;
+        case 'json-string':
+            if (typeof value !== 'string') return undefined;
+            try {
+                return JSON.parse(value);
+            } catch {
+                return value;
+            }
+        default:
+            return value;
+    }
+};
+
+const fixtureValuesEqual = (actual: unknown, expected: unknown): boolean => (
+    JSON.stringify(actual) === JSON.stringify(expected)
+);
+
+const compareNativeTaskFixtureRoundTrip = (
+    label: string,
+    specs: NativeTaskFieldSpec[],
+): string[] => {
+    const fixture = TASK_SYNC_SCHEMA_FIXTURE as unknown as Record<string, unknown>;
+    const failures: string[] = [];
+    const stored = new Map<string, unknown>();
+
+    for (const spec of specs) {
+        if (!Object.prototype.hasOwnProperty.call(fixture, spec.jsKey)) {
+            failures.push(`  fixture missing ${spec.jsKey}`);
+            continue;
+        }
+        const encoded = encodeNativeFixtureValue(spec.kind, fixture[spec.jsKey]);
+        if (encoded === undefined) {
+            failures.push(`  ${spec.jsKey} cannot encode as ${spec.kind}`);
+            continue;
+        }
+        stored.set(spec.storageKey, encoded);
+    }
+
+    const roundTrip: Record<string, unknown> = { id: fixture.id };
+    for (const spec of specs) {
+        if (!stored.has(spec.storageKey)) continue;
+        roundTrip[spec.jsKey] = decodeNativeFixtureValue(spec.kind, stored.get(spec.storageKey));
+    }
+
+    for (const field of TASK_SYNC_FIELD_SCHEMA.filter((entry) => entry.cloudKit !== null)) {
+        if (!fixtureValuesEqual(roundTrip[field.name], fixture[field.name])) {
+            failures.push(
+                `  ${field.name} expected ${JSON.stringify(fixture[field.name])}, got ${JSON.stringify(roundTrip[field.name])}`,
+            );
+        }
+    }
+
+    return failures.length > 0 ? [label + ' fixture round-trip:', ...failures] : [];
+};
+
+const runCommand = (label: string, command: string, args: string[]): string[] => {
+    const result = spawnSync(command, args, { encoding: 'utf8' });
+    if (result.error) return [`${label}: ${result.error.message}`];
+    if (result.status === 0) return [];
+
+    const output = [result.stdout, result.stderr]
+        .filter((value): value is string => Boolean(value?.trim()))
+        .join('\n')
+        .trim();
+    return [`${label} failed${result.status === null ? '' : ` (exit ${result.status})`}:`, output || '  no output'];
+};
+
+const runNativeTaskMapperFixtureChecks = (): string[] => {
+    if (process.platform !== 'darwin') return [];
+
+    const fixturePath = resolve('packages/core/src/task-sync-schema.fixture.json');
+    const fixtureFields = TASK_SYNC_FIELD_SCHEMA
+        .filter((field) => field.cloudKit !== null)
+        .map((field) => field.name);
+    const temporaryDirectory = mkdtempSync(join(tmpdir(), 'mindwtr-task-mapper-'));
+    const failures: string[] = [];
+
+    try {
+        const swiftBinary = join(temporaryDirectory, 'swift-task-mapper-check');
+        const swiftCompileFailures = runCommand('compile Swift task mapper fixture', 'xcrun', [
+            '--sdk', 'macosx', 'swiftc',
+            resolve(PATHS.swiftMapper),
+            resolve('scripts/swift-task-mapper-fixture-check.swift'),
+            '-o', swiftBinary,
+        ]);
+        failures.push(...swiftCompileFailures);
+        if (swiftCompileFailures.length === 0) {
+            failures.push(...runCommand(
+                'Swift task mapper fixture round-trip',
+                swiftBinary,
+                [fixturePath, ...fixtureFields],
+            ));
+        }
+
+        const objcBinary = join(temporaryDirectory, 'objc-task-mapper-check');
+        const objcCompileFailures = runCommand('compile Objective-C task mapper fixture', 'xcrun', [
+            '--sdk', 'macosx', 'clang',
+            '-fobjc-arc',
+            '-fblocks',
+            '-DMINDWTR_NATIVE_MAPPER_FIXTURE_CHECK',
+            resolve(PATHS.objcMapper),
+            resolve('scripts/objc-task-mapper-fixture-check.m'),
+            '-framework', 'Foundation',
+            '-framework', 'AppKit',
+            '-framework', 'CloudKit',
+            '-o', objcBinary,
+        ]);
+        failures.push(...objcCompileFailures);
+        if (objcCompileFailures.length === 0) {
+            failures.push(...runCommand(
+                'Objective-C task mapper fixture round-trip',
+                objcBinary,
+                [fixturePath, ...fixtureFields],
+            ));
+        }
+    } finally {
+        rmSync(temporaryDirectory, { recursive: true, force: true });
+    }
+
+    return failures;
+};
+
 const failures: string[] = [];
 
 const coreTypes = read(PATHS.coreTypes);
@@ -282,6 +435,8 @@ const desktopRustSchema = read(PATHS.desktopRustSchema);
 const desktopRustStorage = read(PATHS.desktopRustStorage);
 const swiftMapper = read(PATHS.swiftMapper);
 const objcMapper = read(PATHS.objcMapper);
+const swiftTaskFieldSpecs = parseSwiftTaskFieldSpecs(swiftMapper);
+const objcTaskFieldSpecs = parseObjcTaskFieldSpecs(objcMapper);
 
 failures.push(...compareTaskInterface(coreTypes));
 failures.push(...compareSet('core TASK_SQLITE_COLUMNS', parseCoreTaskColumns(coreSqliteAdapter), EXPECTED.task.sqlite));
@@ -297,12 +452,15 @@ failures.push(...compareSet(
 ));
 failures.push(...compareNativeTaskFieldSpecs(
     'iOS CloudKit task fields',
-    parseSwiftTaskFieldSpecs(swiftMapper),
+    swiftTaskFieldSpecs,
 ));
 failures.push(...compareNativeTaskFieldSpecs(
     'macOS CloudKit task fields',
-    parseObjcTaskFieldSpecs(objcMapper),
+    objcTaskFieldSpecs,
 ));
+failures.push(...compareNativeTaskFixtureRoundTrip('iOS CloudKit task mapper', swiftTaskFieldSpecs));
+failures.push(...compareNativeTaskFixtureRoundTrip('macOS CloudKit task mapper', objcTaskFieldSpecs));
+failures.push(...runNativeTaskMapperFixtureChecks());
 
 for (const entity of ['task', 'project', 'section'] as const) {
     const table = `${entity}s`;
