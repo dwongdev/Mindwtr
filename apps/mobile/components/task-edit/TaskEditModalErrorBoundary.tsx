@@ -55,7 +55,7 @@ export class TaskEditModalErrorBoundary extends React.Component<TaskEditModalErr
                         backgroundColor: this.props.tc.tint,
                     }}
                 >
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>{this.props.t('common.close')}</Text>
+                    <Text style={{ color: this.props.tc.onTint, fontWeight: '700' }}>{this.props.t('common.close')}</Text>
                 </TouchableOpacity>
             </View>
         );

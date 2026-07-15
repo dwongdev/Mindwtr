@@ -118,6 +118,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
     } = useReviewModalController({ visible, onClose });
     const closeLabel = t('common.close');
     const closeText = closeLabel && closeLabel !== 'common.close' ? closeLabel : 'Close';
+    const onFilled = filledButton.textColor ?? tc.onTint;
 
     useEffect(() => {
         if (!visible && showInboxProcessing) {
@@ -196,18 +197,14 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                             style={[
                                 styles.stepRailBadge,
                                 {
-                                    backgroundColor: current
-                                        ? tc.tint
-                                        : complete
-                                            ? tc.success
-                                            : tc.border,
+                                    backgroundColor: current ? tc.tint : tc.cardBg,
                                 },
                             ]}
                         >
                             {complete ? (
-                                <CheckCircle2 size={12} color="#FFFFFF" strokeWidth={2.8} />
+                                <CheckCircle2 size={12} color={tc.text} strokeWidth={2.8} />
                             ) : (
-                                <Text style={styles.stepRailBadgeText}>{index + 1}</Text>
+                                <Text style={[styles.stepRailBadgeText, { color: current ? tc.onTint : tc.text }]}>{index + 1}</Text>
                             )}
                         </View>
                         <CompactText
@@ -443,8 +440,8 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                                 accessibilityRole="button"
                                 accessibilityLabel={t('inbox.processButton')}
                             >
-                                <Play size={14} color={filledButton.textColor ?? '#FFFFFF'} strokeWidth={2.5} fill={filledButton.textColor ?? '#FFFFFF'} />
-                                <Text style={[styles.processButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>
+                                <Play size={14} color={onFilled} strokeWidth={2.5} fill={onFilled} />
+                                <Text style={[styles.processButtonText, { color: onFilled }]}>
                                     {t('inbox.processButton')}
                                 </Text>
                             </TouchableOpacity>
@@ -509,7 +506,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                                         onPress={runAiAnalysis}
                                         disabled={aiLoading}
                                     >
-                                        <Text style={[styles.primaryButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>
+                                        <Text style={[styles.primaryButtonText, { color: onFilled }]}>
                                             {aiLoading ? labels.aiRunning : labels.aiRun}
                                         </Text>
                                     </TouchableOpacity>
@@ -551,7 +548,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                                                     },
                                                 ]}
                                             >
-                                                {aiSelectedIds.has(suggestion.id) && <Text style={styles.aiCheckboxText}>✓</Text>}
+                                                {aiSelectedIds.has(suggestion.id) && <Text style={[styles.aiCheckboxText, { color: tc.onTint }]}>✓</Text>}
                                             </View>
                                             <View style={{ flex: 1 }}>
                                                 <Text style={[styles.aiItemTitle, { color: tc.text }]}>
@@ -564,17 +561,17 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                                         </TouchableOpacity>
                                     );
                                 })}
-                                    {aiSuggestions.length > 0 && (
-                                        <TouchableOpacity
-                                            style={[styles.primaryButton, { backgroundColor: filledButton.backgroundColor, marginTop: 12 }]}
-                                            onPress={applyAiSuggestions}
-                                            disabled={aiSelectedIds.size === 0}
-                                        >
-                                            <Text style={[styles.primaryButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>
-                                                {labels.aiApply} ({aiSelectedIds.size})
-                                            </Text>
-                                        </TouchableOpacity>
-                                    )}
+                                {aiSuggestions.length > 0 && (
+                                    <TouchableOpacity
+                                        style={[styles.primaryButton, { backgroundColor: filledButton.backgroundColor, marginTop: 12 }]}
+                                        onPress={applyAiSuggestions}
+                                        disabled={aiSelectedIds.size === 0}
+                                    >
+                                        <Text style={[styles.primaryButtonText, { color: onFilled }]}>
+                                            {labels.aiApply} ({aiSelectedIds.size})
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                                 </>
                             )}
                         </ScrollView>
@@ -810,8 +807,8 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                             )}
                         </View>
                         {renderMindSweepNudge()}
-                        <TouchableOpacity style={[styles.primaryButton, filledButton.textColor ? { backgroundColor: filledButton.backgroundColor } : null]} onPress={handleFinish}>
-                            <Text style={[styles.primaryButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>
+                        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: filledButton.backgroundColor }]} onPress={handleFinish}>
+                            <Text style={[styles.primaryButtonText, { color: onFilled }]}>
                                 {labels.finish}
                             </Text>
                         </TouchableOpacity>
@@ -862,8 +859,8 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                             <TouchableOpacity style={styles.backButton} onPress={prevStep}>
                                 <Text style={[styles.backButtonText, { color: tc.secondaryText }]}>← {labels.back}</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.primaryButton, filledButton.textColor ? { backgroundColor: filledButton.backgroundColor } : null]} onPress={nextStep}>
-                                <Text style={[styles.primaryButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>{labels.next} →</Text>
+                            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: filledButton.backgroundColor }]} onPress={nextStep}>
+                                <Text style={[styles.primaryButtonText, { color: onFilled }]}>{labels.next} →</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -945,14 +942,17 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                                 <TouchableOpacity
                                     style={[
                                         styles.promptButtonPrimary,
-                                        { opacity: projectTaskTitle.trim().length > 0 ? 1 : 0.5 },
+                                        {
+                                            backgroundColor: filledButton.backgroundColor,
+                                            opacity: projectTaskTitle.trim().length > 0 ? 1 : 0.5,
+                                        },
                                     ]}
                                     onPress={() => {
                                         void submitProjectTask();
                                     }}
                                     disabled={projectTaskTitle.trim().length === 0}
                                 >
-                                    <Text style={styles.promptButtonPrimaryText}>{labels.add}</Text>
+                                    <Text style={[styles.promptButtonPrimaryText, { color: onFilled }]}>{labels.add}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>

@@ -329,7 +329,7 @@ export function ContextsView() {
               <Text
                 style={[
                   styles.contextButtonText,
-                  { color: selectedContexts.length === 0 ? '#FFFFFF' : tc.text },
+                  { color: selectedContexts.length === 0 ? tc.onTint : tc.text },
                 ]}
               >
                 {t('contexts.all')}
@@ -340,14 +340,14 @@ export function ContextsView() {
                   {
                     backgroundColor:
                       selectedContexts.length === 0
-                        ? 'rgba(255, 255, 255, 0.25)'
+                        ? tc.cardBg
                         : isDark
                           ? 'rgba(255, 255, 255, 0.12)'
                           : 'rgba(0, 0, 0, 0.08)',
                   },
                 ]}
               >
-                <Text style={[styles.contextBadgeText, { color: selectedContexts.length === 0 ? '#FFFFFF' : tc.secondaryText }]}>
+                <Text style={[styles.contextBadgeText, { color: selectedContexts.length === 0 ? tc.text : tc.secondaryText }]}>
                   {activeTasks.length}
                 </Text>
               </View>
@@ -366,7 +366,7 @@ export function ContextsView() {
               <Text
                 style={[
                   styles.contextButtonText,
-                  { color: noContextSelected ? '#FFFFFF' : tc.text },
+                  { color: noContextSelected ? tc.onTint : tc.text },
                 ]}
               >
                 {t('contexts.none')}
@@ -376,14 +376,14 @@ export function ContextsView() {
                   styles.contextBadge,
                   {
                     backgroundColor: noContextSelected
-                      ? 'rgba(255, 255, 255, 0.25)'
+                      ? tc.cardBg
                       : isDark
                         ? 'rgba(255, 255, 255, 0.12)'
                         : 'rgba(0, 0, 0, 0.08)',
                   },
                 ]}
               >
-                <Text style={[styles.contextBadgeText, { color: noContextSelected ? '#FFFFFF' : tc.secondaryText }]}>
+                <Text style={[styles.contextBadgeText, { color: noContextSelected ? tc.text : tc.secondaryText }]}>
                   {activeTasks.filter((t) => !hasContext(t)).length}
                 </Text>
               </View>
@@ -421,7 +421,7 @@ export function ContextsView() {
                       <Text
                         style={[
                           styles.contextButtonText,
-                          { color: isActive ? '#FFFFFF' : tc.text },
+                          { color: isActive ? tc.onTint : tc.text },
                         ]}
                       >
                         {context}
@@ -431,14 +431,14 @@ export function ContextsView() {
                           styles.contextBadge,
                           {
                             backgroundColor: isActive
-                              ? 'rgba(255, 255, 255, 0.25)'
+                              ? tc.cardBg
                               : isDark
                                 ? 'rgba(255, 255, 255, 0.12)'
                                 : 'rgba(0, 0, 0, 0.08)',
                           },
                         ]}
                       >
-                        <Text style={[styles.contextBadgeText, { color: isActive ? '#FFFFFF' : tc.secondaryText }]}>{count}</Text>
+                        <Text style={[styles.contextBadgeText, { color: isActive ? tc.text : tc.secondaryText }]}>{count}</Text>
                       </View>
                     </Pressable>
                   );

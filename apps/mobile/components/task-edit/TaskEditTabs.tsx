@@ -45,7 +45,7 @@ export function TaskEditTabs({ editTab, onTabPress, scrollX, containerWidth }: T
           onPress={() => onTabPress('task')}
           activeOpacity={0.85}
         >
-          <Text style={[styles.modeTabText, { color: editTab === 'task' ? '#fff' : tc.text }]}>
+          <Text style={[styles.modeTabText, { color: editTab === 'task' ? tc.onTint : tc.text }]}>
             {t('markdown.edit')}
           </Text>
         </TouchableOpacity>
@@ -54,7 +54,7 @@ export function TaskEditTabs({ editTab, onTabPress, scrollX, containerWidth }: T
           onPress={() => onTabPress('view')}
           activeOpacity={0.85}
         >
-          <Text style={[styles.modeTabText, { color: editTab === 'view' ? '#fff' : tc.text }]}>
+          <Text style={[styles.modeTabText, { color: editTab === 'view' ? tc.onTint : tc.text }]}>
             {t('markdown.preview')}
           </Text>
         </TouchableOpacity>

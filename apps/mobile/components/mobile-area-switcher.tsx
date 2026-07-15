@@ -83,7 +83,7 @@ export function MobileAreaSwitcher() {
         ]}
       >
         <CompactText
-          numberOfLines={2}
+          numberOfLines={1}
           style={[
             styles.triggerText,
             { color: isDefaultScope ? tc.secondaryText : tc.tint },
@@ -141,7 +141,8 @@ export function MobileAreaSwitcher() {
                     ]}
                   >
                     <Text
-                      numberOfLines={2}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
                       style={[
                         styles.optionText,
                         { color: isSelected ? tc.tint : tc.text },
@@ -163,7 +164,7 @@ export function MobileAreaSwitcher() {
 
 const styles = StyleSheet.create({
   trigger: {
-    maxWidth: 136,
+    maxWidth: 160,
     minHeight: 48,
     paddingHorizontal: 6,
     paddingVertical: 8,
@@ -176,9 +177,9 @@ const styles = StyleSheet.create({
   },
   triggerText: {
     flexShrink: 1,
-    fontSize: 12,
-    fontWeight: '500',
-    lineHeight: 15,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
     minWidth: 0,
   },
   modalRoot: {

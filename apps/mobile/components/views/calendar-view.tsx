@@ -21,6 +21,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSequence, with
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TaskEditModal } from '@/components/task-edit-modal';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { useAndroidKeyboardInset } from '@/lib/use-android-keyboard-inset';
 import { styles } from './calendar/calendar-view.styles';
@@ -101,6 +102,7 @@ type ScheduledTaskBlockProps = {
   layoutStyle: TimedBlockInsetStyle;
   openTaskActions: (taskId: string) => void;
   projectedLabel: string;
+  reducedMotion: boolean;
   setTimelineScrollEnabled: (enabled: boolean) => void;
   task: Task;
   tc: ReturnType<typeof useCalendarViewController>['tc'];
@@ -183,6 +185,7 @@ function ScheduledTaskBlock({
   layoutStyle,
   openTaskActions,
   projectedLabel,
+  reducedMotion,
   setTimelineScrollEnabled,
   task,
   tc,
@@ -199,7 +202,7 @@ function ScheduledTaskBlock({
   const panGesture = Gesture.Pan()
     .activateAfterLongPress(140)
     .onStart(() => {
-      scale.value = withSpring(1.02);
+      scale.value = reducedMotion ? 1 : withSpring(1.02);
       zIndex.value = 50;
       runOnJS(triggerDragHaptic)();
       runOnJS(setTimelineScrollEnabled)(false);
@@ -212,8 +215,8 @@ function ScheduledTaskBlock({
       const startMinutes = Math.round((top + event.translationY) / PIXELS_PER_MINUTE / SNAP_MINUTES) * SNAP_MINUTES;
       const clampedMinutes = Math.max(0, Math.min(dayMinutes - durationMinutes, startMinutes));
       runOnJS(commitTaskDrag)(taskId, dayStartMs, clampedMinutes, durationMinutes);
-      translateY.value = withSpring(0);
-      scale.value = withSpring(1);
+      translateY.value = reducedMotion ? 0 : withSpring(0);
+      scale.value = reducedMotion ? 1 : withSpring(1);
       zIndex.value = 1;
     })
     .onFinalize(() => {
@@ -385,6 +388,7 @@ export function CalendarView() {
     weekDays,
     weekLabel,
   } = useCalendarViewController();
+  const reducedMotion = useReducedMotion();
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const composerKeyboardInset = useAndroidKeyboardInset(Boolean(calendarComposer));
@@ -456,18 +460,18 @@ export function CalendarView() {
     requestAnimationFrame(() => {
       const scheduleList = scheduleScrollRef.current;
       if (typeof scheduleList?.scrollToOffset === 'function') {
-        scheduleList.scrollToOffset({ offset: 0, animated: true });
+        scheduleList.scrollToOffset({ offset: 0, animated: !reducedMotion });
         return;
       }
-      scheduleList?.scrollTo?.({ y: 0, animated: true });
+      scheduleList?.scrollTo?.({ y: 0, animated: !reducedMotion });
     });
-  }, [handleToday]);
+  }, [handleToday, reducedMotion]);
 
   useEffect(() => {
     if (selectedDate) {
-      bottomSheetSnap.value = withSpring(collapsedSheetSnap);
+      bottomSheetSnap.value = reducedMotion ? collapsedSheetSnap : withSpring(collapsedSheetSnap);
     }
-  }, [bottomSheetSnap, collapsedSheetSnap, selectedDate]);
+  }, [bottomSheetSnap, collapsedSheetSnap, reducedMotion, selectedDate]);
 
   useEffect(() => {
     if (viewMode !== 'week') {
@@ -543,11 +547,16 @@ export function CalendarView() {
     .onEnd((event) => {
       const shouldHide = bottomSheetSnap.value <= MONTH_DETAILS_HIDE_THRESHOLD || event.velocityY > 900;
       if (shouldHide) {
-        bottomSheetSnap.value = withSpring(0, undefined, (finished) => {
-          if (finished) {
-            runOnJS(closeMonthDetailsPane)();
-          }
-        });
+        if (reducedMotion) {
+          bottomSheetSnap.value = 0;
+          runOnJS(closeMonthDetailsPane)();
+        } else {
+          bottomSheetSnap.value = withSpring(0, undefined, (finished) => {
+            if (finished) {
+              runOnJS(closeMonthDetailsPane)();
+            }
+          });
+        }
         return;
       }
 
@@ -561,7 +570,7 @@ export function CalendarView() {
           nearestDistance = distance;
         }
       }
-      bottomSheetSnap.value = withSpring(nearest);
+      bottomSheetSnap.value = reducedMotion ? nearest : withSpring(nearest);
     });
   const bottomSheetStyle = useAnimatedStyle(() => ({
     height: screenHeight * bottomSheetSnap.value,
@@ -602,7 +611,7 @@ export function CalendarView() {
       velocityX,
     });
     if (!direction) {
-      navigationSwipeOffsetX.value = withSpring(0);
+      navigationSwipeOffsetX.value = reducedMotion ? 0 : withSpring(0);
       return;
     }
 
@@ -610,10 +619,12 @@ export function CalendarView() {
     const snapOffset = direction === 1
       ? Math.min(screenWidth * 0.18, CALENDAR_NAVIGATION_FEEDBACK_DISTANCE)
       : -Math.min(screenWidth * 0.18, CALENDAR_NAVIGATION_FEEDBACK_DISTANCE);
-    navigationSwipeOffsetX.value = withSequence(
-      withTiming(snapOffset, { duration: 70 }),
-      withSpring(0)
-    );
+    navigationSwipeOffsetX.value = reducedMotion
+      ? 0
+      : withSequence(
+        withTiming(snapOffset, { duration: 70 }),
+        withSpring(0)
+      );
 
     if (mode === 'month') {
       suppressMonthDayPressUntilRef.current = Date.now() + 350;
@@ -623,11 +634,11 @@ export function CalendarView() {
     }
 
     shiftSelectedDate(direction);
-  }, [handleNextMonth, handlePrevMonth, navigationSwipeOffsetX, screenWidth, shiftSelectedDate, triggerDragHaptic]);
+  }, [handleNextMonth, handlePrevMonth, navigationSwipeOffsetX, reducedMotion, screenWidth, shiftSelectedDate, triggerDragHaptic]);
 
   const cancelCalendarNavigationSwipe = useCallback(() => {
-    navigationSwipeOffsetX.value = withSpring(0);
-  }, [navigationSwipeOffsetX]);
+    navigationSwipeOffsetX.value = reducedMotion ? 0 : withSpring(0);
+  }, [navigationSwipeOffsetX, reducedMotion]);
 
   const createCalendarNavigationResponder = useCallback((mode: CalendarNavigationMode) => (
     PanResponder.create({
@@ -1074,6 +1085,7 @@ export function CalendarView() {
                         layoutStyle={getTimedBlockInsetStyle(selectedDayTimedLayouts.get(`task:${task.id}`))}
                         openTaskActions={openTaskActions}
                         projectedLabel={tr('calendar.projectedRecurrence')}
+                        reducedMotion={reducedMotion}
                         setTimelineScrollEnabled={setTimelineScrollEnabled}
                         tc={tc}
                         toRgba={toRgba}

@@ -9,16 +9,16 @@ type Resolvable = Pick<ThemeContextType, 'isDark' | 'themeStyle' | 'themePreset'
 export const DEFAULT_LIGHT = {
   bg: '#F6F7FB', cardBg: '#FFFFFF', taskItemBg: '#F1F5F9',
   text: '#0F172A', secondaryText: '#4B5563', icon: '#4B5563',
-  border: '#E2E8F0', tint: '#3B82F6', onTint: '#FFFFFF',
-  tabIconDefault: '#4B5563', tabIconSelected: '#3B82F6',
+  border: '#E2E8F0', tint: '#2563EB', onTint: '#FFFFFF',
+  tabIconDefault: '#4B5563', tabIconSelected: '#2563EB',
   inputBg: '#EEF2F7', danger: '#EF4444', success: '#10B981',
   warning: '#F59E0B', filterBg: '#EEF2F7',
 };
 export const DEFAULT_DARK = {
   bg: '#151718', cardBg: '#1F2937', taskItemBg: '#1F2937',
   text: '#ECEDEE', secondaryText: '#9CA3AF', icon: '#9BA1A6',
-  border: '#374151', tint: '#3B82F6', onTint: '#FFFFFF',
-  tabIconDefault: '#9BA1A6', tabIconSelected: '#3B82F6',
+  border: '#374151', tint: '#60A5FA', onTint: '#0F172A',
+  tabIconDefault: '#9BA1A6', tabIconSelected: '#60A5FA',
   inputBg: '#374151', danger: '#EF4444', success: '#10B981',
   warning: '#F59E0B', filterBg: '#374151',
 };

@@ -392,7 +392,12 @@ function TaskEditFormTabComponent({
                             onPress={applyCopilotSuggestion}
                         >
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start', columnGap: 4 }}>
-                                <Text style={[styles.copilotText, { color: tc.text }]}>✨</Text>
+                                <Ionicons
+                                    name="sparkles-outline"
+                                    size={16}
+                                    color={tc.text}
+                                    accessible={false}
+                                />
                                 <Text style={[styles.copilotText, { color: tc.text, flexShrink: 1 }]}>
                                     {t('copilot.suggested')}{' '}
                                     {copilotSuggestion.context ? `${copilotSuggestion.context} ` : ''}
@@ -408,7 +413,12 @@ function TaskEditFormTabComponent({
                     {aiEnabled && copilotApplied && (
                         <View style={[styles.copilotPill, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start', columnGap: 4 }}>
-                                <Text style={[styles.copilotText, { color: tc.text }]}>✅</Text>
+                                <Ionicons
+                                    name="checkmark-circle-outline"
+                                    size={16}
+                                    color={tc.text}
+                                    accessible={false}
+                                />
                                 <Text style={[styles.copilotText, { color: tc.text, flexShrink: 1 }]}>
                                     {t('copilot.applied')}{' '}
                                     {copilotContext ? `${copilotContext} ` : ''}

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
+import { MoreHorizontal } from 'lucide-react-native';
 
 import { AppPressable } from '../app-pressable';
 
 import { useLanguage } from '../../contexts/language-context';
+import { useReducedMotion } from '../../hooks/use-reduced-motion';
 import { useThemeColors } from '../../hooks/use-theme-colors';
 
 type TaskEditHeaderProps = {
@@ -27,8 +29,11 @@ export function TaskEditHeader({
 }: TaskEditHeaderProps) {
   const { t } = useLanguage();
   const tc = useThemeColors();
+  const reducedMotion = useReducedMotion();
   const [menuVisible, setMenuVisible] = useState(false);
   const createProjectFromTaskLabel = t('task.createProjectFromTask');
+  const moreLabel = t('common.more');
+  const doneLabel = t('common.done');
 
   return (
     <>
@@ -37,16 +42,21 @@ export function TaskEditHeader({
           <TouchableOpacity
             style={[styles.headerActionTouchable, styles.headerActionLeft]}
             onPress={() => setMenuVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel={moreLabel}
+            accessibilityState={{ expanded: menuVisible }}
           >
-            <Text style={[styles.headerBtn, styles.headerMoreBtn, { color: tc.tint }]}>•••</Text>
+            <MoreHorizontal size={24} strokeWidth={2.25} color={tc.tint} accessible={false} />
           </TouchableOpacity>
         </View>
         <View style={[styles.headerSide, styles.headerRight]}>
           <TouchableOpacity
             style={[styles.headerActionTouchable, styles.headerActionRight]}
             onPress={onDone}
+            accessibilityRole="button"
+            accessibilityLabel={doneLabel}
           >
-            <Text style={[styles.headerBtn, { color: tc.tint }]}>{t('common.done')}</Text>
+            <Text style={[styles.headerBtn, { color: tc.tint }]}>{doneLabel}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -55,13 +65,24 @@ export function TaskEditHeader({
         <Modal
           visible
           transparent
-          animationType="fade"
+          animationType={reducedMotion ? 'none' : 'fade'}
           onRequestClose={() => setMenuVisible(false)}
         >
-          <Pressable style={styles.menuOverlay} onPress={() => setMenuVisible(false)}>
-            <View style={[styles.menuCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
+          <View style={styles.menuOverlay}>
+            <Pressable
+              style={styles.menuBackdrop}
+              onPress={() => setMenuVisible(false)}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+            />
+            <View
+              style={[styles.menuCard, { backgroundColor: tc.cardBg, borderColor: tc.border }]}
+              accessibilityViewIsModal
+            >
               <AppPressable
                 style={styles.menuItem}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.share')}
                 onPress={() => {
                   setMenuVisible(false);
                   onShare();
@@ -71,6 +92,8 @@ export function TaskEditHeader({
               </AppPressable>
               <AppPressable
                 style={styles.menuItem}
+                accessibilityRole="button"
+                accessibilityLabel={t('taskEdit.duplicateTask')}
                 onPress={() => {
                   setMenuVisible(false);
                   onDuplicate();
@@ -81,6 +104,8 @@ export function TaskEditHeader({
               {onPromoteToProject && (
                 <AppPressable
                   style={styles.menuItem}
+                  accessibilityRole="button"
+                  accessibilityLabel={createProjectFromTaskLabel}
                   onPress={() => {
                     setMenuVisible(false);
                     onPromoteToProject();
@@ -92,6 +117,8 @@ export function TaskEditHeader({
               {showConvertToReference && onConvertToReference && (
                 <AppPressable
                   style={styles.menuItem}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('task.convertToReference')}
                   onPress={() => {
                     setMenuVisible(false);
                     onConvertToReference();
@@ -102,15 +129,17 @@ export function TaskEditHeader({
               )}
               <AppPressable
                 style={styles.menuItem}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.delete')}
                 onPress={() => {
                   setMenuVisible(false);
                   onDelete();
                 }}
               >
-                <Text style={[styles.menuItemText, { color: '#EF4444' }]}>{t('common.delete')}</Text>
+                <Text style={[styles.menuItemText, { color: tc.danger }]}>{t('common.delete')}</Text>
               </AppPressable>
             </View>
-          </Pressable>
+          </View>
         </Modal>
       ) : null}
     </>
@@ -130,9 +159,6 @@ const styles = StyleSheet.create({
   headerBtn: {
     fontSize: 18,
     fontWeight: '700',
-  },
-  headerMoreBtn: {
-    fontSize: 22,
   },
   headerSide: {
     minWidth: 72,
@@ -160,6 +186,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  menuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
   menuCard: {
     width: 220,
     borderRadius: 12,
@@ -168,7 +197,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   menuItem: {
-    paddingVertical: 10,
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 16,
   },
   menuItemText: {

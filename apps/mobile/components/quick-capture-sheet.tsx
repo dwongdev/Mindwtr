@@ -123,7 +123,7 @@ export function QuickCaptureSheet({
     : tc.tint;
   const saveButtonTextColor = tokens.isMaterial && tokens.roles
     ? tokens.roles.onPrimaryContainer
-    : undefined;
+    : tc.onTint;
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();

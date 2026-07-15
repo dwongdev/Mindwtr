@@ -41,7 +41,7 @@ export function TaskEditTokenField({
     ]);
     const getQuickTokenTextStyle = (active: boolean) => ([
         styles.quickTokenText,
-        { color: active ? '#fff' : tc.secondaryText },
+        { color: active ? tc.onTint : tc.secondaryText },
     ]);
 
     if (fieldId === 'contexts') {

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, Modal, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
+import { View, Text, FlatList, Modal, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Calendar as CalendarIcon, Target, Inbox, Clock, Sparkles, Star, CheckCircle2, Play, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { X, Calendar as CalendarIcon, Clock, Sparkles, Star, CheckCircle2, Play, ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import {
     formatFocusTaskLimitText,
@@ -262,10 +262,9 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
     const displayedStep = activeSteps.some((step) => step.id === currentStep)
         ? currentStep
         : activeSteps[0]?.id ?? 'complete';
-    const currentIndex = steps.findIndex((s) => s.id === displayedStep);
-    const safeCurrentIndex = Math.max(0, currentIndex);
     const activeStepIndex = activeSteps.findIndex((step) => step.id === displayedStep);
-    const progress = (safeCurrentIndex / Math.max(1, steps.length - 1)) * 100;
+    const safeActiveStepIndex = Math.max(0, activeStepIndex);
+    const displayedStepDefinition = activeSteps[safeActiveStepIndex];
 
     useEffect(() => {
         if (activeSteps.some((step) => step.id === currentStep)) return;
@@ -306,66 +305,6 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
         onClose();
         openContextsScreen(token);
     };
-
-    const renderStepRail = () => (
-        <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={[styles.stepRail, { borderBottomColor: tc.border }]}
-            contentContainerStyle={styles.stepRailContent}
-        >
-            {steps.map((step, index) => {
-                const skipped = !step.hasWork && step.id !== 'complete';
-                const complete = skipped || index < safeCurrentIndex;
-                const current = step.id === displayedStep;
-                return (
-                    <View
-                        key={step.id}
-                        style={[
-                            styles.stepRailItem,
-                            {
-                                backgroundColor: current
-                                    ? `${tc.tint}1A`
-                                    : complete
-                                        ? `${tc.success}1A`
-                                        : tc.filterBg,
-                                borderColor: current
-                                    ? tc.tint
-                                    : complete
-                                        ? `${tc.success}66`
-                                        : tc.border,
-                            },
-                        ]}
-                    >
-                        <View
-                            style={[
-                                styles.stepRailBadge,
-                                {
-                                    backgroundColor: current
-                                        ? tc.tint
-                                        : complete
-                                            ? tc.success
-                                            : tc.border,
-                                },
-                            ]}
-                        >
-                            {complete ? (
-                                <CheckCircle2 size={12} color="#FFFFFF" strokeWidth={2.8} />
-                            ) : (
-                                <Text style={styles.stepRailBadgeText}>{index + 1}</Text>
-                            )}
-                        </View>
-                        <Text
-                            style={[styles.stepRailText, { color: current ? tc.text : tc.secondaryText }]}
-                            numberOfLines={1}
-                        >
-                            {step.title}
-                        </Text>
-                    </View>
-                );
-            })}
-        </ScrollView>
-    );
 
     const renderTaskList = (list: Task[], options?: { showFocusToggle?: boolean; hideStatusBadge?: boolean; showFollowUpToday?: boolean }) => (
         <FlatList
@@ -459,10 +398,6 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
                 const calendarEventCount = todayEvents.length + tomorrowEvents.length;
                 return (
                     <View style={styles.stepContent}>
-                        <View style={styles.stepTitleRow}>
-                            <CalendarIcon size={22} color={tc.text} strokeWidth={2} />
-                            <Text style={[styles.stepTitleInline, { color: tc.text }]}>{t('dailyReview.todayStep')}</Text>
-                        </View>
                         <View style={[styles.infoBox, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                             <Text style={[styles.infoText, { color: tc.text }]}>
                                 <Text style={{ fontWeight: '700' }}>{totalToday}</Text> {t('common.tasks')}
@@ -526,10 +461,6 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
             case 'focus':
                 return (
                     <View style={styles.stepContent}>
-                        <View style={styles.stepTitleRow}>
-                            <Target size={22} color={tc.text} strokeWidth={2} />
-                            <Text style={[styles.stepTitleInline, { color: tc.text }]}>{t('dailyReview.focusStep')}</Text>
-                        </View>
                         <View style={[styles.infoBox, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                             <Text style={[styles.infoText, { color: tc.text }]}>
                                 <Text style={{ fontWeight: '700' }}>{focusedTasks.length}</Text> {t('dailyReview.focusSelected')}
@@ -551,10 +482,6 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
             case 'inbox':
                 return (
                     <View style={styles.stepContent}>
-                        <View style={styles.stepTitleRow}>
-                            <Inbox size={22} color={tc.text} strokeWidth={2} />
-                            <Text style={[styles.stepTitleInline, { color: tc.text }]}>{t('dailyReview.inboxStep')}</Text>
-                        </View>
                         <View style={[styles.infoBox, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                             <Text style={[styles.infoText, { color: tc.text }]}>
                                 <Text style={{ fontWeight: '700' }}>{inboxTasks.length}</Text> {t('common.tasks')}
@@ -569,8 +496,8 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
                                 accessibilityRole="button"
                                 accessibilityLabel={t('inbox.processButton')}
                             >
-                                <Play size={14} color={filledButton.textColor ?? '#FFFFFF'} strokeWidth={2.5} fill={filledButton.textColor ?? '#FFFFFF'} />
-                                <Text style={[styles.processButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>
+                                <Play size={14} color={filledButton.textColor ?? tc.onTint} strokeWidth={2.5} fill={filledButton.textColor ?? tc.onTint} />
+                                <Text style={[styles.processButtonText, { color: filledButton.textColor ?? tc.onTint }]}>
                                     {t('inbox.processButton')}
                                 </Text>
                             </TouchableOpacity>
@@ -588,10 +515,6 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
             case 'waiting':
                 return (
                     <View style={styles.stepContent}>
-                        <View style={styles.stepTitleRow}>
-                            <Clock size={22} color={tc.text} strokeWidth={2} />
-                            <Text style={[styles.stepTitleInline, { color: tc.text }]}>{t('dailyReview.waitingStep')}</Text>
-                        </View>
                         <View style={[styles.infoBox, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
                             <Text style={[styles.infoText, { color: tc.text }]}>
                                 <Text style={{ fontWeight: '700' }}>{waitingTasks.length}</Text> {t('common.tasks')}
@@ -612,10 +535,9 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
                 return (
                     <View style={styles.centerContent}>
                         <CheckCircle2 size={56} color={tc.tint} strokeWidth={1.5} style={styles.bigIcon} />
-                        <Text style={[styles.heading, { color: tc.text }]}>{t('dailyReview.completeTitle')}</Text>
                         <Text style={[styles.description, { color: tc.secondaryText }]}>{t('dailyReview.completeDesc')}</Text>
                         <TouchableOpacity style={[styles.primaryButton, { backgroundColor: filledButton.backgroundColor }]} onPress={onClose}>
-                            <Text style={[styles.primaryButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>{t('review.finish')}</Text>
+                            <Text style={[styles.primaryButtonText, { color: filledButton.textColor ?? tc.onTint }]}>{t('review.finish')}</Text>
                         </TouchableOpacity>
                     </View>
                 );
@@ -640,18 +562,18 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
                         <X size={22} color={tc.text} strokeWidth={2} />
                     </TouchableOpacity>
                     <View style={styles.headerCenter}>
-                        <Text style={[styles.headerTitle, { color: tc.text }]}>{t('dailyReview.title')}</Text>
+                        <Text style={[styles.headerEyebrow, { color: tc.secondaryText }]}>
+                            {t('dailyReview.title')}
+                        </Text>
+                        <Text style={[styles.headerTitle, { color: tc.text }]} numberOfLines={2}>
+                            {displayedStepDefinition?.title ?? t('dailyReview.completeTitle')}
+                        </Text>
                         <Text style={[styles.headerStep, { color: tc.secondaryText }]}>
-                            {t('review.step')} {Math.max(1, currentIndex + 1)} {t('review.of')} {steps.length}
+                            {t('review.step')} {safeActiveStepIndex + 1} {t('review.of')} {activeSteps.length}
                         </Text>
                     </View>
                     <View style={{ width: 28 }} />
                 </View>
-
-                <View style={[styles.progressTrack, { backgroundColor: tc.border }]}>
-                    <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: tc.tint }]} />
-                </View>
-                {renderStepRail()}
 
                 <View style={styles.content}>{renderStep()}</View>
 
@@ -674,7 +596,7 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
                             <Text style={[styles.footerButtonText, { color: tc.text }]}>{t('review.back')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={next} style={[styles.footerButton, { backgroundColor: filledButton.backgroundColor }]}>
-                            <Text style={[styles.footerPrimaryText, filledButton.textColor ? { color: filledButton.textColor } : null]}>{t('review.nextStepBtn')}</Text>
+                            <Text style={[styles.footerPrimaryText, { color: filledButton.textColor ?? tc.onTint }]}>{t('review.nextStepBtn')}</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -749,59 +671,22 @@ const styles = StyleSheet.create({
     headerCenter: {
         alignItems: 'center',
         flex: 1,
+        paddingHorizontal: 8,
+    },
+    headerEyebrow: {
+        fontSize: 11,
+        fontWeight: '600',
+        marginBottom: 1,
     },
     headerTitle: {
         fontSize: 16,
         fontWeight: '700',
+        lineHeight: 20,
+        textAlign: 'center',
     },
     headerStep: {
         fontSize: 12,
         marginTop: 2,
-    },
-    progressTrack: {
-        height: 3,
-        width: '100%',
-    },
-    progressFill: {
-        height: '100%',
-    },
-    stepRail: {
-        borderBottomWidth: 1,
-        maxHeight: 48,
-    },
-    stepRailContent: {
-        gap: 8,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-    },
-    stepRailItem: {
-        minWidth: 104,
-        maxWidth: 148,
-        height: 32,
-        borderRadius: 999,
-        borderWidth: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 8,
-    },
-    stepRailBadge: {
-        width: 18,
-        height: 18,
-        borderRadius: 9,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    stepRailBadgeText: {
-        color: '#FFFFFF',
-        fontSize: 10,
-        fontWeight: '800',
-    },
-    stepRailText: {
-        flex: 1,
-        minWidth: 0,
-        fontSize: 12,
-        fontWeight: '700',
     },
     content: {
         flex: 1,
@@ -817,11 +702,6 @@ const styles = StyleSheet.create({
     bigIcon: {
         marginBottom: 6,
     },
-    heading: {
-        fontSize: 24,
-        fontWeight: '800',
-        textAlign: 'center',
-    },
     description: {
         fontSize: 14,
         textAlign: 'center',
@@ -835,22 +715,12 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     primaryButtonText: {
-        color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '700',
     },
     stepContent: {
         flex: 1,
         gap: 14,
-    },
-    stepTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    stepTitleInline: {
-        fontSize: 18,
-        fontWeight: '800',
     },
     infoBox: {
         borderWidth: 1,
@@ -942,7 +812,6 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     processButtonText: {
-        color: '#FFFFFF',
         fontSize: 12,
         fontWeight: '700',
     },
@@ -1015,6 +884,5 @@ const styles = StyleSheet.create({
     footerPrimaryText: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#FFFFFF',
     },
 });

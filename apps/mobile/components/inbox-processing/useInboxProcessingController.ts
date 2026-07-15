@@ -52,6 +52,9 @@ import { styles } from '../inbox-processing-modal.styles';
 const MAX_TOKEN_SUGGESTIONS = 6;
 const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 const ENERGY_LEVEL_OPTIONS: Array<NonNullable<Task['energyLevel']>> = ['low', 'medium', 'high'];
+type ActionabilityChoice = 'actionable' | 'later' | 'trash' | 'someday' | 'reference' | null;
+type TwoMinuteChoice = 'yes' | 'no' | null;
+type ExecutionChoice = 'defer' | 'delegate' | null;
 
 type InboxProcessingControllerParams = {
   visible: boolean;
@@ -71,9 +74,10 @@ export function useInboxProcessingController({
   const insets = useSafeAreaInsets();
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [actionabilityChoice, setActionabilityChoice] = useState<'actionable' | 'later' | 'trash' | 'someday' | 'reference'>('actionable');
-  const [twoMinuteChoice, setTwoMinuteChoice] = useState<'yes' | 'no'>('no');
-  const [executionChoice, setExecutionChoice] = useState<'defer' | 'delegate'>('defer');
+  const [actionabilityChoice, setActionabilityChoice] = useState<ActionabilityChoice>(null);
+  const [twoMinuteChoice, setTwoMinuteChoice] = useState<TwoMinuteChoice>(null);
+  const [executionChoice, setExecutionChoice] = useState<ExecutionChoice>(null);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [newContext, setNewContext] = useState('');
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
   const [delegateWho, setDelegateWho] = useState('');
@@ -325,12 +329,28 @@ export function useInboxProcessingController({
   const projectTitle = currentProject?.title ?? null;
   const displayDescription = processingDescription || currentTask?.description || '';
   const showExecutionSection = actionabilityChoice === 'actionable' && (!twoMinuteEnabled || twoMinuteChoice === 'no');
+  const showExecutionDetails = showExecutionSection && executionChoice !== null;
   const windowHeight = Dimensions.get('window').height;
   const taskDisplayMaxHeight = Math.max(220, Math.floor(windowHeight * 0.44));
   const descriptionMaxHeight = Math.max(120, Math.floor(windowHeight * 0.28));
   const isDelegateConfirmationDisabled = executionChoice === 'delegate'
     && delegateWho.trim().length === 0
     && selectedAssignedTo.trim().length === 0;
+  const isDecisionIncomplete = actionabilityChoice === null
+    || (actionabilityChoice === 'actionable' && twoMinuteEnabled && twoMinuteChoice === null)
+    || (actionabilityChoice === 'actionable' && (!twoMinuteEnabled || twoMinuteChoice === 'no') && executionChoice === null);
+  const isNextTaskDisabled = isDecisionIncomplete || isDelegateConfirmationDisabled;
+
+  const chooseActionability = useCallback((choice: Exclude<ActionabilityChoice, null>) => {
+    setActionabilityChoice(choice);
+    setTwoMinuteChoice(null);
+    setExecutionChoice(null);
+  }, []);
+
+  const chooseTwoMinute = useCallback((choice: Exclude<TwoMinuteChoice, null>) => {
+    setTwoMinuteChoice(choice);
+    setExecutionChoice(null);
+  }, []);
 
   const formatScheduledDateValue = useCallback((date: Date, forceDateOnly: boolean = false): string => {
     const dateOnlyValue = safeFormatDate(date, 'yyyy-MM-dd');
@@ -349,9 +369,22 @@ export function useInboxProcessingController({
   }, []);
 
   const primeTaskState = useCallback((task: Task | null | undefined) => {
-    setActionabilityChoice('actionable');
-    setTwoMinuteChoice('no');
-    setExecutionChoice('defer');
+    setActionabilityChoice(null);
+    setTwoMinuteChoice(null);
+    setExecutionChoice(null);
+    setShowAdvancedOptions(Boolean(
+      task?.projectId
+      || task?.areaId
+      || task?.contexts?.length
+      || task?.tags?.length
+      || task?.priority
+      || task?.energyLevel
+      || task?.assignedTo
+      || task?.timeEstimate
+      || task?.startTime
+      || task?.dueDate
+      || task?.reviewAt
+    ));
     setPendingStartDate(task?.startTime ? safeParseDate(task.startTime) : null);
     setPendingStartDateOnly(Boolean(task?.startTime) && !hasTimeComponent(task?.startTime));
     setLaterNoDateSelected(false);
@@ -865,6 +898,7 @@ export function useInboxProcessingController({
 
   const handleNextTask = useCallback(async () => {
     if (!currentTask) return;
+    if (!actionabilityChoice) return;
     if (actionabilityChoice === 'later') {
       handleLaterMobile();
       return;
@@ -877,6 +911,7 @@ export function useInboxProcessingController({
       handleTwoMinYes();
       return;
     }
+    if (!executionChoice) return;
     if (executionChoice === 'delegate') {
       handleConfirmWaitingMobile();
       return;
@@ -1079,7 +1114,7 @@ export function useInboxProcessingController({
     insets,
     isAIWorking,
     isDark,
-    isDelegateConfirmationDisabled,
+    isNextTaskDisabled,
     newContext,
     nextActionDraft,
     laterNoDateSelected,
@@ -1108,7 +1143,7 @@ export function useInboxProcessingController({
     selectedTimeEstimate,
     setSelectedAreaId,
     setSelectedAssignedTo,
-    setActionabilityChoice,
+    setActionabilityChoice: chooseActionability,
     setDelegateFollowUpDate,
     setDelegateFollowUpDateOnly,
     setDelegateWho,
@@ -1136,6 +1171,7 @@ export function useInboxProcessingController({
     setShowDueDatePicker,
     setShowReviewDatePicker,
     setShowStartDatePicker,
+    setShowAdvancedOptions,
     showDelegateDatePicker,
     showAreaField,
     showAssignedToField,
@@ -1143,6 +1179,8 @@ export function useInboxProcessingController({
     showContextsField,
     showEnergyLevelField,
     showExecutionSection,
+    showExecutionDetails,
+    showAdvancedOptions,
     showDueDateField,
     showDueDatePicker,
     showOrganizationSection,
@@ -1167,7 +1205,7 @@ export function useInboxProcessingController({
     totalCount,
     twoMinuteChoice,
     twoMinuteEnabled,
-    setTwoMinuteChoice,
+    setTwoMinuteChoice: chooseTwoMinute,
     selectProjectEarly,
     toggleContext,
     toggleTag,

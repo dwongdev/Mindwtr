@@ -64,7 +64,7 @@ export const THEME_PRESETS: Record<Exclude<ThemePresetName, 'default'>, ThemePre
         text: '#3B2F2F',
         secondaryText: '#7A5C3E',
         border: '#E2D3B5',
-        tint: '#9C6F3C',
+        tint: '#956735',
         onTint: '#FFF6E7',
         inputBg: '#F0E3C8',
         danger: '#B44B3B',
@@ -73,7 +73,7 @@ export const THEME_PRESETS: Record<Exclude<ThemePresetName, 'default'>, ThemePre
         filterBg: '#EFE2C7',
         icon: '#7A5C3E',
         tabIconDefault: '#7A5C3E',
-        tabIconSelected: '#9C6F3C',
+        tabIconSelected: '#956735',
     },
     oled: {
         bg: '#000000',

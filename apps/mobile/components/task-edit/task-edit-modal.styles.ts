@@ -275,17 +275,12 @@ export const styles = StyleSheet.create({
         height: 28,
         borderRadius: 6,
         borderWidth: 2,
-        borderColor: '#007AFF',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 10,
         backgroundColor: 'transparent',
     },
-    checkboxChecked: {
-        backgroundColor: '#007AFF',
-    },
     checkmark: {
-        color: '#fff',
         fontSize: 12,
         fontWeight: 'bold',
     },
@@ -382,10 +377,8 @@ export const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 8,
-        backgroundColor: '#007AFF',
     },
     pickerDoneText: {
-        color: '#fff',
         fontSize: 13,
         fontWeight: '600',
     },

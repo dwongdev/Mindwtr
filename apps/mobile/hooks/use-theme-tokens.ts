@@ -69,7 +69,7 @@ function resolveGenericColors(theme: ResolvableTheme): ThemeColors {
     icon: isDark ? Colors.dark.icon : Colors.light.icon,
     border: isDark ? '#374151' : '#E2E8F0',
     tint: isDark ? Colors.dark.tint : Colors.light.tint,
-    onTint: '#FFFFFF',
+    onTint: isDark ? '#0F172A' : '#FFFFFF',
     tabIconDefault: isDark ? Colors.dark.tabIconDefault : Colors.light.tabIconDefault,
     tabIconSelected: isDark ? Colors.dark.tabIconSelected : Colors.light.tabIconSelected,
     inputBg: isDark ? '#374151' : '#EEF2F7',

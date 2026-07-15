@@ -1596,7 +1596,7 @@ export function GtdSettingsScreen({
                                     style={[styles.taskEditorSheetDoneButton, { backgroundColor: filledButton.backgroundColor }]}
                                     onPress={() => setTaskEditorSelectedField(null)}
                                 >
-                                    <Text style={[styles.taskEditorSheetDoneButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>{doneLabel}</Text>
+                                    <Text style={[styles.taskEditorSheetDoneButtonText, { color: filledButton.textColor ?? tc.onTint }]}>{doneLabel}</Text>
                                 </TouchableOpacity>
                             </>
                         )}

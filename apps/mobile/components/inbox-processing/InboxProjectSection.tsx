@@ -1,8 +1,8 @@
 import React from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Folder } from 'lucide-react-native';
 
 import { styles } from '../inbox-processing-modal.styles';
-import { EmojiLabel } from '../ui/emoji-label';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { useFilledButtonColors } from '@/hooks/use-filled-button-colors';
 
@@ -84,11 +84,16 @@ export function InboxProjectSection({
         </Text>
         {currentArea && (
           <TouchableOpacity
-            style={[styles.projectChip, { backgroundColor: currentArea.color || tc.tint }]}
+            accessibilityRole="button"
+            style={[
+              styles.projectChip,
+              { backgroundColor: tc.filterBg, borderWidth: 1, borderColor: tc.tint },
+            ]}
             onPress={() => setSelectedAreaId(currentArea.id)}
             accessibilityState={{ selected: selectedAreaId === currentArea.id }}
           >
-            <Text style={styles.projectChipText}>✓ {currentArea.name}</Text>
+            <View style={[styles.projectDot, { backgroundColor: currentArea.color || tc.secondaryText }]} />
+            <Text style={[styles.projectChipText, { color: tc.text }]}>✓ {currentArea.name}</Text>
           </TouchableOpacity>
         )}
         <View style={styles.projectListContainer}>
@@ -136,11 +141,15 @@ export function InboxProjectSection({
       <>
       {showProjectField && currentProject && (
         <TouchableOpacity
-          style={[styles.projectChip, { backgroundColor: tc.tint }]}
+          accessibilityRole="button"
+          style={[
+            styles.projectChip,
+            { backgroundColor: tc.filterBg, borderWidth: 1, borderColor: tc.tint },
+          ]}
           onPress={() => selectProjectEarly(currentProject.id)}
           accessibilityState={{ selected: selectedProjectId === currentProject.id }}
         >
-          <Text style={styles.projectChipText}>✓ {currentProject.title}</Text>
+          <Text style={[styles.projectChipText, { color: tc.text }]}>✓ {currentProject.title}</Text>
         </TouchableOpacity>
       )}
       {renderAreaPicker()}
@@ -161,7 +170,7 @@ export function InboxProjectSection({
                 style={[styles.createProjectButton, { backgroundColor: filledButton.backgroundColor }]}
                 onPress={handleCreateProjectEarly}
               >
-                <Text style={[styles.createProjectButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>{t('projects.create')}</Text>
+                <Text style={[styles.createProjectButtonText, { color: filledButton.textColor ?? tc.onTint }]}>{t('projects.create')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -288,7 +297,7 @@ export function InboxProjectSection({
           style={[styles.createProjectButton, styles.projectConversionSubmit, { backgroundColor: filledButton.backgroundColor }]}
           onPress={handleConvertToProject}
         >
-          <Text style={[styles.createProjectButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>{t('process.createProject')}</Text>
+          <Text style={[styles.createProjectButtonText, { color: filledButton.textColor ?? tc.onTint }]}>{t('process.createProject')}</Text>
         </TouchableOpacity>
       </View>
     </>
@@ -296,7 +305,12 @@ export function InboxProjectSection({
 
   return (
     <View style={[styles.singleSection, { borderBottomColor: tc.border }]}>
-      <EmojiLabel emoji="📁" label={showProjectField ? t('process.moreThanOneStep') : t('inbox.assignProjectQuestion')} textStyle={[styles.stepQuestion, { color: tc.text }]} />
+      <View style={styles.stepQuestionRow}>
+        <Folder size={20} color={tc.text} accessible={false} />
+        <Text style={[styles.stepQuestion, styles.stepQuestionInline, { color: tc.text }]}>
+          {showProjectField ? t('process.moreThanOneStep') : t('inbox.assignProjectQuestion')}
+        </Text>
+      </View>
       {showProjectField && (
         <>
           <Text style={[styles.stepHint, { color: tc.secondaryText }]}>

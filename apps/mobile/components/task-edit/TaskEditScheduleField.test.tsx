@@ -45,7 +45,7 @@ const tc = {
     secondaryText: '#aaa',
     text: '#fff',
     tint: '#3b82f6',
-    onTint: '#fff',
+    onTint: '#102030',
     warning: '#f59e0b',
 };
 
@@ -699,12 +699,18 @@ describe('TaskEditScheduleField', () => {
         const selectedButton = tree.root
             .findAllByType(TouchableOpacity)
             .find((node) => node.findAllByType(Text).some((textNode) => textNode.props.children === 'T'));
+        const selectedRecurrenceText = tree.root
+            .findAllByType(Text)
+            .find((node) => node.props.children === 'Weekly');
 
         expect(selectedButton?.props.style).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 backgroundColor: tc.tint,
                 borderColor: tc.tint,
             }),
+        ]));
+        expect(selectedRecurrenceText?.props.style).toEqual(expect.arrayContaining([
+            expect.objectContaining({ color: tc.onTint }),
         ]));
     });
 

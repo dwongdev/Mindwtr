@@ -201,8 +201,10 @@ describe('DailyReviewScreen', () => {
       tree = create(<DailyReviewScreen onClose={vi.fn()} />);
     });
 
-    expect(getAllText(tree)).toContain("Today's Focus");
-    expect(getAllText(tree)).toContain('Today');
+    const allText = getAllText(tree);
+    expect(allText).toContain("Today's Focus");
+    expect(allText).toContain('Step 1 of 2');
+    expect(allText).not.toContain('Step 4 of 5');
 
     const taskRows = tree.root.findAllByType(SwipeableTaskItem);
     expect(taskRows).toHaveLength(1);

@@ -217,7 +217,7 @@ export function SomedayView() {
                   key={project.id}
                   renderLeftActions={() => (
                     <View style={[styles.activateAction, { backgroundColor: tc.tint, borderColor: tc.border }]}>
-                      <Text style={styles.activateActionText}>{t('projects.reactivate')}</Text>
+                      <Text style={[styles.activateActionText, { color: tc.onTint }]}>{t('projects.reactivate')}</Text>
                     </View>
                   )}
                   onSwipeableLeftOpen={() => handleActivateProject(project.id)}
@@ -354,7 +354,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   activateActionText: {
-    color: '#FFFFFF',
     fontWeight: '600',
   },
 

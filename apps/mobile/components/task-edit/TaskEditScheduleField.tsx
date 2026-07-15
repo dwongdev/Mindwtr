@@ -86,7 +86,7 @@ export function TaskEditScheduleField({
     ]);
     const getStatusTextStyle = (active: boolean) => ([
         styles.statusText,
-        { color: active ? '#fff' : tc.secondaryText },
+        { color: active ? tc.onTint : tc.secondaryText },
     ]);
     const parsedRecurrenceRRule = parseRRuleString(recurrenceRRuleValue);
     const monthlyInterval = recurrenceRuleValue === 'monthly' && parsedRecurrenceRRule.interval && parsedRecurrenceRRule.interval > 0
@@ -164,8 +164,11 @@ export function TaskEditScheduleField({
             <View style={{ marginTop: 8 }}>
                 <View style={styles.pickerToolbar}>
                     <View style={styles.pickerSpacer} />
-                    <Pressable onPress={() => setShowDatePicker(null)} style={styles.pickerDone}>
-                        <Text style={styles.pickerDoneText}>{t('common.done')}</Text>
+                    <Pressable
+                        onPress={() => setShowDatePicker(null)}
+                        style={[styles.pickerDone, { backgroundColor: tc.tint }]}
+                    >
+                        <Text style={[styles.pickerDoneText, { color: tc.onTint }]}>{t('common.done')}</Text>
                     </Pressable>
                 </View>
                 <DateTimePicker
@@ -831,7 +834,7 @@ export function TaskEditScheduleField({
                                                 ]}
                                                 onPress={option.onPress}
                                             >
-                                                <Text style={[styles.statusText, { color: option.active ? '#fff' : tc.secondaryText }]}>{option.label}</Text>
+                                                <Text style={[styles.statusText, { color: option.active ? tc.onTint : tc.secondaryText }]}>{option.label}</Text>
                                             </TouchableOpacity>
                                         ))}
                                     </View>
@@ -863,7 +866,7 @@ export function TaskEditScheduleField({
                                                             ]}
                                                             onPress={() => applyRelativeStartOffset(relativeAmount, option.value)}
                                                         >
-                                                            <Text style={[styles.statusText, { color: active ? '#fff' : tc.secondaryText }]}>{option.label}</Text>
+                                                            <Text style={[styles.statusText, { color: active ? tc.onTint : tc.secondaryText }]}>{option.label}</Text>
                                                         </TouchableOpacity>
                                                     );
                                                 })}

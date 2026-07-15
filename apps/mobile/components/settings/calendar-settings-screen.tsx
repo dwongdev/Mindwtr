@@ -863,7 +863,7 @@ export function CalendarSettingsScreen() {
                                 disabled={!newCalendarUrl.trim()}
                             >
                                 <CompactText
-                                    style={[styles.backendOptionText, { color: newCalendarUrl.trim() ? (filledButton.textColor ?? '#FFFFFF') : tc.secondaryText }]}
+                                    style={[styles.backendOptionText, { color: newCalendarUrl.trim() ? (filledButton.textColor ?? tc.onTint) : tc.secondaryText }]}
                                     numberOfLines={2}
                                 >
                                     {t('settings.externalCalendarAdd')}

@@ -11,6 +11,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MobileAreaSwitcher } from '@/components/mobile-area-switcher';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useMobileSyncBadge } from '@/hooks/use-mobile-sync-badge';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useThemeTokens } from '@/hooks/use-theme-tokens';
 import { MOBILE_HOME_TAB_ROUTE } from '@/lib/home-route';
@@ -151,6 +152,7 @@ function MoreNavigationSheet({
   visible: boolean;
   quickAccessView: MobileQuickAccessView;
 }) {
+  const reducedMotion = useReducedMotion();
   const sheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const lastCloseRequestIdRef = useRef(closeRequestId);
   const hiddenTranslateY = Dimensions.get('window').height;
@@ -171,6 +173,11 @@ function MoreNavigationSheet({
   };
 
   const animateClosed = useCallback(() => {
+    if (reducedMotion) {
+      sheetTranslateY.setValue(hiddenTranslateY);
+      onClose();
+      return;
+    }
     Animated.timing(sheetTranslateY, {
       toValue: hiddenTranslateY,
       duration: 180,
@@ -178,48 +185,51 @@ function MoreNavigationSheet({
     }).start(() => {
       onClose();
     });
-  }, [hiddenTranslateY, onClose, sheetTranslateY]);
+  }, [hiddenTranslateY, onClose, reducedMotion, sheetTranslateY]);
   const animateOpen = useCallback(() => {
+    if (reducedMotion) {
+      sheetTranslateY.setValue(0);
+      return;
+    }
     sheetTranslateY.setValue(hiddenTranslateY);
     Animated.timing(sheetTranslateY, {
       toValue: 0,
       duration: 220,
       useNativeDriver: true,
     }).start();
-  }, [hiddenTranslateY, sheetTranslateY]);
+  }, [hiddenTranslateY, reducedMotion, sheetTranslateY]);
   const restoreOpenPosition = useCallback(() => {
+    if (reducedMotion) {
+      sheetTranslateY.setValue(0);
+      return;
+    }
     Animated.timing(sheetTranslateY, {
       toValue: 0,
       duration: 140,
       useNativeDriver: true,
     }).start();
-  }, [sheetTranslateY]);
+  }, [reducedMotion, sheetTranslateY]);
   const closeSheet = useCallback(() => {
     animateClosed();
   }, [animateClosed]);
+  const settleSheetGesture = useCallback((gestureState: { dy: number; vy: number }) => {
+    if (gestureState.dy > 72 || (gestureState.dy > 24 && gestureState.vy > 0.75)) {
+      closeSheet();
+      return;
+    }
+    restoreOpenPosition();
+  }, [closeSheet, restoreOpenPosition]);
   const sheetPanResponder = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_event, gestureState) => (
-      gestureState.dy > 8
+      gestureState.dy > 12
       && gestureState.dy > Math.abs(gestureState.dx)
     ),
     onPanResponderMove: (_event, gestureState) => {
       sheetTranslateY.setValue(Math.max(0, gestureState.dy));
     },
-    onPanResponderRelease: (_event, gestureState) => {
-      if (gestureState.dy > 8 || gestureState.vy > 0.25) {
-        closeSheet();
-        return;
-      }
-      restoreOpenPosition();
-    },
-    onPanResponderTerminate: (_event, gestureState) => {
-      if (gestureState.dy > 8 || gestureState.vy > 0.25) {
-        closeSheet();
-        return;
-      }
-      restoreOpenPosition();
-    },
-  }), [closeSheet, restoreOpenPosition, sheetTranslateY]);
+    onPanResponderRelease: (_event, gestureState) => settleSheetGesture(gestureState),
+    onPanResponderTerminate: (_event, gestureState) => settleSheetGesture(gestureState),
+  }), [settleSheetGesture, sheetTranslateY]);
 
   useEffect(() => {
     if (visible) animateOpen();
@@ -448,7 +458,7 @@ function NativeTabBar({
                 {defaultAutoRecord ? (
                   <Mic size={22} color={captureFg} strokeWidth={2.5} />
                 ) : (
-                  <Plus size={22} color={captureFg} strokeWidth={3} />
+                  <Plus size={26} color={captureFg} strokeWidth={3} />
                 )}
               </View>
             </TouchableOpacity>
@@ -483,8 +493,9 @@ function NativeTabBar({
         const tabIcon = options.tabBarIcon?.({
           focused: active,
           color: active ? iconTint : inactiveTint,
-          size: active ? 26 : 24,
+          size: active ? 24 : 22,
         });
+        const tabLabel = typeof options.title === 'string' ? options.title : route.name;
 
         return (
           <TouchableOpacity
@@ -517,6 +528,18 @@ function NativeTabBar({
                 />
               ) : null}
             </View>
+            <Text
+              style={[
+                styles.nativeTabLabel,
+                styles.nativeTabTextLabel,
+                { color: active ? iconTint : inactiveTint, fontWeight: active ? '700' : '600' },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              maxFontSizeMultiplier={COMPACT_NAV_TEXT_MAX_SCALE}
+            >
+              {tabLabel}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -541,9 +564,9 @@ export default function TabLayout() {
     : 0;
   const tabBarBottomInset = Platform.OS === 'ios' ? iosBottomInset : androidNavInset;
   const tabBarBottomOffset = 0;
-  const tabItemTopOffset = Platform.OS === 'ios' ? 0 : -6;
-  const tabBarHeight = 58 + tabBarBottomInset;
-  const iconLift = Platform.OS === 'android' ? 4 : 0;
+  const tabItemTopOffset = Platform.OS === 'ios' ? 0 : -2;
+  const tabBarHeight = 66 + tabBarBottomInset;
+  const iconLift = 0;
   const [captureState, setCaptureState] = useState<{
     visible: boolean;
     openRequestId: number;
@@ -759,7 +782,7 @@ export default function TabLayout() {
                 {defaultAutoRecord ? (
                   <Mic size={22} color={captureFg} strokeWidth={2.5} />
                 ) : (
-                  <Plus size={22} color={captureFg} strokeWidth={3} />
+                  <Plus size={26} color={captureFg} strokeWidth={3} />
                 )}
               </View>
             </TouchableOpacity>
@@ -861,6 +884,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 0,
+    paddingHorizontal: 2,
   },
   nativeTabIconWrap: {
     position: 'relative',
@@ -876,6 +901,16 @@ const styles = StyleSheet.create({
     borderRadius: 3.5,
     borderWidth: 1.5,
     opacity: 0.85,
+  },
+  nativeTabLabel: {
+    fontSize: 10,
+    lineHeight: 12,
+    maxWidth: '100%',
+    minWidth: 0,
+    textAlign: 'center',
+  },
+  nativeTabTextLabel: {
+    marginTop: 2,
   },
   headerIconButton: {
     minWidth: 44,
@@ -900,7 +935,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -2,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 3,

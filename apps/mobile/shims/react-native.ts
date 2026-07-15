@@ -90,6 +90,11 @@ export const Alert = {
   alert: () => {},
 };
 
+export const AccessibilityInfo = {
+  isReduceMotionEnabled: async () => false,
+  addEventListener: () => ({ remove: () => {} }),
+};
+
 export const Animated = {
   View: createHostComponent('Animated.View'),
   ScrollView: createHostComponent('Animated.ScrollView'),

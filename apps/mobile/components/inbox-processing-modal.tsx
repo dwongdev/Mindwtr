@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { X } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, X } from 'lucide-react-native';
 import { tFallback } from '@mindwtr/core';
 
 import { AIResponseModal } from './ai-response-modal';
@@ -63,7 +63,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     headerStyle,
     insets,
     isAIWorking,
-    isDelegateConfirmationDisabled,
+    isNextTaskDisabled,
     newContext,
     nextActionDraft,
     extraActionDrafts,
@@ -119,6 +119,7 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     setShowDueDatePicker,
     setShowReviewDatePicker,
     setShowStartDatePicker,
+    setShowAdvancedOptions,
     setTwoMinuteChoice,
     showDelegateDatePicker,
     showAreaField,
@@ -127,6 +128,8 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
     showContextsField,
     showEnergyLevelField,
     showExecutionSection,
+    showExecutionDetails,
+    showAdvancedOptions,
     showDueDateField,
     showDueDatePicker,
     showOrganizationSection,
@@ -199,7 +202,10 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                 <View
                   style={[
                     styles.progressFill,
-                    { width: totalCount > 0 ? `${(processedCount / totalCount) * 100}%` : '0%' },
+                    {
+                      backgroundColor: tc.tint,
+                      width: totalCount > 0 ? `${(processedCount / totalCount) * 100}%` : '0%',
+                    },
                   ]}
                 />
               </View>
@@ -221,6 +227,57 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
   const androidKeyboardLift = Platform.OS === 'android' && androidKeyboardInset > 0
     ? { paddingBottom: androidKeyboardInset }
     : null;
+  const projectDetailsSection = (
+    <InboxProjectSection
+      t={t}
+      tc={tc}
+      show={showProjectSection}
+      showProjectField={showProjectField}
+      showAreaField={showAreaField}
+      currentProject={currentProject}
+      currentArea={currentArea}
+      selectedProjectId={selectedProjectId}
+      selectedAreaId={selectedAreaId}
+      setSelectedAreaId={setSelectedAreaId}
+      projectSearch={projectSearch}
+      setProjectSearch={setProjectSearch}
+      convertToProject={convertToProject}
+      projectTitleDraft={projectTitleDraft}
+      setProjectTitleDraft={setProjectTitleDraft}
+      nextActionDraft={nextActionDraft}
+      setNextActionDraft={setNextActionDraft}
+      extraActionDrafts={extraActionDrafts}
+      setExtraActionDrafts={setExtraActionDrafts}
+      filteredProjects={filteredProjects}
+      areaById={areaById}
+      hasExactProjectMatch={hasExactProjectMatch}
+      handleCreateProjectEarly={handleCreateProjectEarly}
+      handleConvertToProject={handleConvertToProject}
+      handleProjectConversionCancel={handleProjectConversionCancel}
+      handleProjectConversionStart={handleProjectConversionStart}
+      selectProjectEarly={selectProjectEarly}
+    />
+  );
+  const contextDetailsSection = (
+    <InboxContextSection
+      t={t}
+      tc={tc}
+      show={showContextSection}
+      showContextsField={showContextsField}
+      showTagsField={showTagsField}
+      selectedContexts={selectedContexts}
+      selectedTags={selectedTags}
+      toggleContext={toggleContext}
+      toggleTag={toggleTag}
+      newContext={newContext}
+      setNewContext={setNewContext}
+      addCustomContextMobile={addCustomContextMobile}
+      tokenSuggestions={tokenSuggestions}
+      applyTokenSuggestion={applyTokenSuggestion}
+      contextCopilotSuggestions={contextCopilotSuggestions}
+      tagCopilotSuggestions={tagCopilotSuggestions}
+    />
+  );
 
   return (
     <>
@@ -250,7 +307,10 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                 <View
                   style={[
                     styles.progressFill,
-                    { width: totalCount > 0 ? `${(processedCount / totalCount) * 100}%` : '0%' },
+                    {
+                      backgroundColor: tc.tint,
+                      width: totalCount > 0 ? `${(processedCount / totalCount) * 100}%` : '0%',
+                    },
                   ]}
                 />
               </View>
@@ -258,8 +318,10 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
             <TouchableOpacity
               style={[styles.headerActionButton, styles.headerActionButtonRight]}
               onPress={handleSkipTask}
+              accessibilityRole="button"
+              accessibilityLabel={tFallback(t, 'inbox.skip', 'Skip')}
             >
-              <Text style={styles.skipBtn}>
+              <Text style={[styles.skipBtn, { color: tc.tint }]}>
                 {tFallback(t, 'inbox.skip', 'Skip')}
               </Text>
             </TouchableOpacity>
@@ -327,168 +389,102 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
               )}
 
               {showExecutionSection && (
+                <InboxExecutionSection
+                  t={t}
+                  executionChoice={executionChoice}
+                  setExecutionChoice={setExecutionChoice}
+                  delegateWho={delegateWho}
+                  setDelegateWho={setDelegateWho}
+                  delegateWhoSuggestions={delegateWhoSuggestions}
+                  showReviewDateField={showReviewDateField}
+                  delegateFollowUpDate={delegateFollowUpDate}
+                  setDelegateFollowUpDate={setDelegateFollowUpDate}
+                  delegateFollowUpDateOnly={delegateFollowUpDateOnly}
+                  setDelegateFollowUpDateOnly={setDelegateFollowUpDateOnly}
+                  setShowDelegateDatePicker={setShowDelegateDatePicker}
+                  handleSendDelegateRequest={handleSendDelegateRequest}
+                  {...sharedDateRowProps}
+                />
+              )}
+
+              {showExecutionDetails && (
                 <>
-                  <InboxSchedulingSection
-                    t={t}
-                    show={showSchedulingSection}
-                    showStartDateField={showStartDateField}
-                    showDueDateField={showDueDateField}
-                    showReviewDateField={showReviewDateField}
-                    pendingStartDate={pendingStartDate}
-                    setPendingStartDate={setPendingStartDate}
-                    pendingStartDateOnly={pendingStartDateOnly}
-                    setPendingStartDateOnly={setPendingStartDateOnly}
-                    setShowStartDatePicker={setShowStartDatePicker}
-                    pendingDueDate={pendingDueDate}
-                    setPendingDueDate={setPendingDueDate}
-                    pendingDueDateOnly={pendingDueDateOnly}
-                    setPendingDueDateOnly={setPendingDueDateOnly}
-                    setShowDueDatePicker={setShowDueDatePicker}
-                    pendingReviewDate={pendingReviewDate}
-                    setPendingReviewDate={setPendingReviewDate}
-                    pendingReviewDateOnly={pendingReviewDateOnly}
-                    setPendingReviewDateOnly={setPendingReviewDateOnly}
-                    setShowReviewDatePicker={setShowReviewDatePicker}
-                    {...sharedDateRowProps}
-                  />
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showAdvancedOptions }}
+                    onPress={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                    style={[styles.advancedOptionsButton, { borderColor: tc.border, backgroundColor: tc.cardBg }]}
+                  >
+                    <Text style={[styles.advancedOptionsText, { color: tc.text }]}>
+                      {tFallback(t, 'common.more', 'More options')}
+                    </Text>
+                    {showAdvancedOptions
+                      ? <ChevronUp size={18} color={tc.secondaryText} />
+                      : <ChevronDown size={18} color={tc.secondaryText} />}
+                  </TouchableOpacity>
 
-                  <InboxOrganizationSection
-                    t={t}
-                    tc={tc}
-                    show={showOrganizationSection}
-                    showPriorityField={showPriorityField}
-                    selectedPriority={selectedPriority}
-                    setSelectedPriority={setSelectedPriority}
-                    showEnergyLevelField={showEnergyLevelField}
-                    selectedEnergyLevel={selectedEnergyLevel}
-                    setSelectedEnergyLevel={setSelectedEnergyLevel}
-                    showTimeEstimateField={showTimeEstimateField}
-                    selectedTimeEstimate={selectedTimeEstimate}
-                    setSelectedTimeEstimate={setSelectedTimeEstimate}
-                    showAssignedToField={showAssignedToField}
-                    selectedAssignedTo={selectedAssignedTo}
-                    setSelectedAssignedTo={setSelectedAssignedTo}
-                    assignedToSuggestions={assignedToSuggestions}
-                    PRIORITY_OPTIONS={PRIORITY_OPTIONS}
-                    ENERGY_LEVEL_OPTIONS={ENERGY_LEVEL_OPTIONS}
-                    timeEstimateOptions={timeEstimateOptions}
-                  />
+                  {showAdvancedOptions && (
+                    <>
+                      <InboxSchedulingSection
+                        t={t}
+                        show={showSchedulingSection}
+                        showStartDateField={showStartDateField}
+                        showDueDateField={showDueDateField}
+                        showReviewDateField={showReviewDateField}
+                        pendingStartDate={pendingStartDate}
+                        setPendingStartDate={setPendingStartDate}
+                        pendingStartDateOnly={pendingStartDateOnly}
+                        setPendingStartDateOnly={setPendingStartDateOnly}
+                        setShowStartDatePicker={setShowStartDatePicker}
+                        pendingDueDate={pendingDueDate}
+                        setPendingDueDate={setPendingDueDate}
+                        pendingDueDateOnly={pendingDueDateOnly}
+                        setPendingDueDateOnly={setPendingDueDateOnly}
+                        setShowDueDatePicker={setShowDueDatePicker}
+                        pendingReviewDate={pendingReviewDate}
+                        setPendingReviewDate={setPendingReviewDate}
+                        pendingReviewDateOnly={pendingReviewDateOnly}
+                        setPendingReviewDateOnly={setPendingReviewDateOnly}
+                        setShowReviewDatePicker={setShowReviewDatePicker}
+                        {...sharedDateRowProps}
+                      />
 
-                  <InboxExecutionSection
-                    t={t}
-                    executionChoice={executionChoice}
-                    setExecutionChoice={setExecutionChoice}
-                    delegateWho={delegateWho}
-                    setDelegateWho={setDelegateWho}
-                    delegateWhoSuggestions={delegateWhoSuggestions}
-                    showReviewDateField={showReviewDateField}
-                    delegateFollowUpDate={delegateFollowUpDate}
-                    setDelegateFollowUpDate={setDelegateFollowUpDate}
-                    delegateFollowUpDateOnly={delegateFollowUpDateOnly}
-                    setDelegateFollowUpDateOnly={setDelegateFollowUpDateOnly}
-                    setShowDelegateDatePicker={setShowDelegateDatePicker}
-                    handleSendDelegateRequest={handleSendDelegateRequest}
-                    {...sharedDateRowProps}
-                  />
+                      <InboxOrganizationSection
+                        t={t}
+                        tc={tc}
+                        show={showOrganizationSection}
+                        showPriorityField={showPriorityField}
+                        selectedPriority={selectedPriority}
+                        setSelectedPriority={setSelectedPriority}
+                        showEnergyLevelField={showEnergyLevelField}
+                        selectedEnergyLevel={selectedEnergyLevel}
+                        setSelectedEnergyLevel={setSelectedEnergyLevel}
+                        showTimeEstimateField={showTimeEstimateField}
+                        selectedTimeEstimate={selectedTimeEstimate}
+                        setSelectedTimeEstimate={setSelectedTimeEstimate}
+                        showAssignedToField={showAssignedToField}
+                        selectedAssignedTo={selectedAssignedTo}
+                        setSelectedAssignedTo={setSelectedAssignedTo}
+                        assignedToSuggestions={assignedToSuggestions}
+                        PRIORITY_OPTIONS={PRIORITY_OPTIONS}
+                        ENERGY_LEVEL_OPTIONS={ENERGY_LEVEL_OPTIONS}
+                        timeEstimateOptions={timeEstimateOptions}
+                      />
 
-                  {executionChoice !== 'delegate' && (
-                    projectFirst ? (
-                      <>
-                        <InboxProjectSection
-                          t={t} tc={tc}
-                          show={showProjectSection}
-                          showProjectField={showProjectField}
-                          showAreaField={showAreaField}
-                          currentProject={currentProject}
-                          currentArea={currentArea}
-                          selectedProjectId={selectedProjectId}
-                          selectedAreaId={selectedAreaId}
-                          setSelectedAreaId={setSelectedAreaId}
-                          projectSearch={projectSearch}
-                          setProjectSearch={setProjectSearch}
-                          convertToProject={convertToProject}
-                          projectTitleDraft={projectTitleDraft}
-                          setProjectTitleDraft={setProjectTitleDraft}
-                          nextActionDraft={nextActionDraft}
-                          setNextActionDraft={setNextActionDraft}
-                          extraActionDrafts={extraActionDrafts}
-                          setExtraActionDrafts={setExtraActionDrafts}
-                          filteredProjects={filteredProjects}
-                          areaById={areaById}
-                          hasExactProjectMatch={hasExactProjectMatch}
-                          handleCreateProjectEarly={handleCreateProjectEarly}
-                          handleConvertToProject={handleConvertToProject}
-                          handleProjectConversionCancel={handleProjectConversionCancel}
-                          handleProjectConversionStart={handleProjectConversionStart}
-                          selectProjectEarly={selectProjectEarly}
-                        />
-                        <InboxContextSection
-                          t={t} tc={tc}
-                          show={showContextSection}
-                          showContextsField={showContextsField}
-                          showTagsField={showTagsField}
-                          selectedContexts={selectedContexts}
-                          selectedTags={selectedTags}
-                          toggleContext={toggleContext}
-                          toggleTag={toggleTag}
-                          newContext={newContext}
-                          setNewContext={setNewContext}
-                          addCustomContextMobile={addCustomContextMobile}
-                          tokenSuggestions={tokenSuggestions}
-                          applyTokenSuggestion={applyTokenSuggestion}
-                          contextCopilotSuggestions={contextCopilotSuggestions}
-                          tagCopilotSuggestions={tagCopilotSuggestions}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <InboxContextSection
-                          t={t} tc={tc}
-                          show={showContextSection}
-                          showContextsField={showContextsField}
-                          showTagsField={showTagsField}
-                          selectedContexts={selectedContexts}
-                          selectedTags={selectedTags}
-                          toggleContext={toggleContext}
-                          toggleTag={toggleTag}
-                          newContext={newContext}
-                          setNewContext={setNewContext}
-                          addCustomContextMobile={addCustomContextMobile}
-                          tokenSuggestions={tokenSuggestions}
-                          applyTokenSuggestion={applyTokenSuggestion}
-                          contextCopilotSuggestions={contextCopilotSuggestions}
-                          tagCopilotSuggestions={tagCopilotSuggestions}
-                        />
-                        <InboxProjectSection
-                          t={t} tc={tc}
-                          show={showProjectSection}
-                          showProjectField={showProjectField}
-                          showAreaField={showAreaField}
-                          currentProject={currentProject}
-                          currentArea={currentArea}
-                          selectedProjectId={selectedProjectId}
-                          selectedAreaId={selectedAreaId}
-                          setSelectedAreaId={setSelectedAreaId}
-                          projectSearch={projectSearch}
-                          setProjectSearch={setProjectSearch}
-                          convertToProject={convertToProject}
-                          projectTitleDraft={projectTitleDraft}
-                          setProjectTitleDraft={setProjectTitleDraft}
-                          nextActionDraft={nextActionDraft}
-                          setNextActionDraft={setNextActionDraft}
-                          extraActionDrafts={extraActionDrafts}
-                          setExtraActionDrafts={setExtraActionDrafts}
-                          filteredProjects={filteredProjects}
-                          areaById={areaById}
-                          hasExactProjectMatch={hasExactProjectMatch}
-                          handleCreateProjectEarly={handleCreateProjectEarly}
-                          handleConvertToProject={handleConvertToProject}
-                          handleProjectConversionCancel={handleProjectConversionCancel}
-                          handleProjectConversionStart={handleProjectConversionStart}
-                          selectProjectEarly={selectProjectEarly}
-                        />
-                      </>
-                    )
+                      {executionChoice !== 'delegate' && (
+                        projectFirst ? (
+                          <>
+                            {projectDetailsSection}
+                            {contextDetailsSection}
+                          </>
+                        ) : (
+                          <>
+                            {contextDetailsSection}
+                            {projectDetailsSection}
+                          </>
+                        )
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -534,12 +530,14 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
                   style={[
                     styles.bottomNextButton,
                     { backgroundColor: filledButton.backgroundColor },
-                    isDelegateConfirmationDisabled && { opacity: 0.5 },
+                    isNextTaskDisabled && { opacity: 0.5 },
                   ]}
-                  disabled={isDelegateConfirmationDisabled}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isNextTaskDisabled }}
+                  disabled={isNextTaskDisabled}
                   onPress={handleNextTask}
                 >
-                  <Text style={[styles.bottomNextButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]}>
+                  <Text style={[styles.bottomNextButtonText, { color: filledButton.textColor ?? tc.onTint }]}>
                     {tFallback(t, 'inbox.nextTask', 'Next task →')}
                   </Text>
                 </TouchableOpacity>

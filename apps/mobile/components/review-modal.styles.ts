@@ -77,7 +77,6 @@ export const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     stepRailBadgeText: {
-        color: '#FFFFFF',
         fontSize: 10,
         fontWeight: '800',
     },
@@ -118,7 +117,6 @@ export const styles = StyleSheet.create({
         borderRadius: 12,
     },
     primaryButtonText: {
-        color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
     },
@@ -226,7 +224,6 @@ export const styles = StyleSheet.create({
         marginTop: 2,
     },
     aiCheckboxText: {
-        color: '#FFFFFF',
         fontSize: 12,
         fontWeight: '700',
     },
@@ -307,7 +304,6 @@ export const styles = StyleSheet.create({
         gap: 6,
     },
     processButtonText: {
-        color: '#FFFFFF',
         fontSize: 12,
         fontWeight: '700',
     },
@@ -427,13 +423,11 @@ export const styles = StyleSheet.create({
         fontWeight: '600',
     },
     promptButtonPrimary: {
-        backgroundColor: '#3B82F6',
         borderRadius: 8,
         paddingHorizontal: 12,
         paddingVertical: 8,
     },
     promptButtonPrimaryText: {
-        color: '#FFFFFF',
         fontSize: 14,
         fontWeight: '600',
     },

@@ -310,7 +310,7 @@ describe('QuickCaptureSheet save handling', () => {
     const body = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetBody')[0];
     if (!body) throw new Error('QuickCaptureSheetBody not found');
     expect(body.props.saveButtonBackgroundColor).toBe('#3b82f6');
-    expect(body.props.saveButtonTextColor).toBeUndefined();
+    expect(body.props.saveButtonTextColor).toBe('#ffffff');
   });
 
   it('opens organize options collapsed for global capture', async () => {

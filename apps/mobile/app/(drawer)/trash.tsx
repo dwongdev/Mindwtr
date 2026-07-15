@@ -68,7 +68,7 @@ function TrashSelectionIndicator({ isSelected, tc }: { isSelected: boolean; tc: 
         { borderColor: tc.tint, backgroundColor: isSelected ? tc.tint : 'transparent' },
       ]}
     >
-      {isSelected && <Text style={styles.selectionMark}>✓</Text>}
+      {isSelected && <Text style={[styles.selectionMark, { color: tc.onTint }]}>✓</Text>}
     </View>
   );
 }
@@ -602,7 +602,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   selectionMark: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 16,

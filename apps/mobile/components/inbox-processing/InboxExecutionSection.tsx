@@ -1,8 +1,8 @@
 import React from 'react';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ListTodo, UserRound } from 'lucide-react-native';
 
 import { styles } from '../inbox-processing-modal.styles';
-import { EmojiLabel } from '../ui/emoji-label';
 import { InboxDateSelectorRow } from './InboxDateSelectorRow';
 import { InboxSuggestionList } from './InboxSuggestionList';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
@@ -10,7 +10,7 @@ import type { ThemeColors } from '@/hooks/use-theme-colors';
 type Props = {
   t: (key: string) => string;
   tc: ThemeColors;
-  executionChoice: 'defer' | 'delegate';
+  executionChoice: 'defer' | 'delegate' | null;
   setExecutionChoice: (v: 'defer' | 'delegate') => void;
   delegateWho: string;
   setDelegateWho: (v: string) => void;
@@ -52,23 +52,50 @@ export function InboxExecutionSection({
         </Text>
         <View style={styles.buttonColumn}>
           <TouchableOpacity
-            style={[styles.bigButton, executionChoice === 'defer' ? styles.buttonPrimary : { backgroundColor: tc.border }]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: executionChoice === 'defer' }}
+            style={[
+              styles.bigButton,
+              {
+                backgroundColor: executionChoice === 'defer' ? tc.tint : tc.cardBg,
+                borderColor: executionChoice === 'defer' ? tc.tint : tc.border,
+              },
+            ]}
             onPress={() => setExecutionChoice('defer')}
           >
-            <EmojiLabel emoji="📋" label={t('inbox.illDoIt')} textStyle={[styles.bigButtonText, executionChoice !== 'defer' && { color: tc.text }]} />
+            <ListTodo size={20} color={executionChoice === 'defer' ? tc.onTint : tc.text} />
+            <Text style={[styles.bigButtonText, { color: executionChoice === 'defer' ? tc.onTint : tc.text }]}>
+              {t('inbox.illDoIt')}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.bigButton, executionChoice === 'delegate' ? { backgroundColor: '#F59E0B' } : { backgroundColor: tc.border }]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: executionChoice === 'delegate' }}
+            style={[
+              styles.bigButton,
+              {
+                backgroundColor: executionChoice === 'delegate' ? tc.tint : tc.cardBg,
+                borderColor: executionChoice === 'delegate' ? tc.tint : tc.border,
+              },
+            ]}
             onPress={() => setExecutionChoice('delegate')}
           >
-            <EmojiLabel emoji="👤" label={t('inbox.delegate')} textStyle={[styles.bigButtonText, executionChoice !== 'delegate' && { color: tc.text }]} />
+            <UserRound size={20} color={executionChoice === 'delegate' ? tc.onTint : tc.text} />
+            <Text style={[styles.bigButtonText, { color: executionChoice === 'delegate' ? tc.onTint : tc.text }]}>
+              {t('inbox.delegate')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {executionChoice === 'delegate' && (
         <View style={[styles.singleSection, { borderBottomColor: tc.border }]}>
-          <EmojiLabel emoji="👤" label={t('process.delegateTitle')} textStyle={[styles.stepQuestion, { color: tc.text }]} />
+          <View style={styles.stepQuestionRow}>
+            <UserRound size={20} color={tc.text} />
+            <Text style={[styles.stepQuestion, styles.stepQuestionInline, { color: tc.text }]}>
+              {t('process.delegateTitle')}
+            </Text>
+          </View>
           <Text style={[styles.stepHint, { color: tc.secondaryText }]}>
             {t('process.delegateDesc')}
           </Text>

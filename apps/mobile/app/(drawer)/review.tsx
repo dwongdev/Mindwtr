@@ -19,7 +19,6 @@ import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { useFilledButtonColors } from '@/hooks/use-filled-button-colors';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
-import { CompactText } from '@/components/compact-text';
 import { ReviewModal } from '../../components/review-modal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from 'lucide-react-native';
@@ -29,9 +28,6 @@ import { TaskEditModal } from '@/components/task-edit-modal';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 import { buildReviewTaskGroups, getReviewOverviewTasks } from '@/components/review/review-task-groups';
 import { TaskListBulkOrganizeModal } from '@/components/task-list/TaskListBulkOrganizeModal';
-
-const HAS_NEXT_ACTION_COLOR = '#10B981';
-const NEEDS_ACTION_COLOR = '#F59E0B';
 
 export default function ReviewScreen() {
   const router = useRouter();
@@ -346,7 +342,7 @@ export default function ReviewScreen() {
             onPress={() => setReviewPickerVisible(true)}
             activeOpacity={0.85}
           >
-            <Text style={[styles.startReviewButtonText, filledButton.textColor ? { color: filledButton.textColor } : null]} numberOfLines={2} ellipsizeMode="tail">
+            <Text style={[styles.startReviewButtonText, { color: filledButton.textColor ?? tc.onTint }]} numberOfLines={2} ellipsizeMode="tail">
               {startReviewLabel}
             </Text>
           </TouchableOpacity>
@@ -418,15 +414,24 @@ export default function ReviewScreen() {
           const taskSummary = areaGroup.isUnassigned
             ? `${areaGroup.taskCount} ${t('common.tasks')} ${withoutAreaLabel}`
             : `${areaGroup.taskCount} ${t('common.tasks')}`;
+          const areaSummary = [
+            areaGroup.projectCount > 0 ? `${areaGroup.projectCount} ${projectsLabel}` : null,
+            taskSummary,
+            areaGroup.needsActionCount > 0
+              ? `${areaGroup.needsActionCount} ${needsActionLabel}`
+              : null,
+          ].filter(Boolean).join(' · ');
           return (
             <View style={styles.reviewAreaSection}>
               <Pressable
-                style={[
+                accessibilityRole="button"
+                accessibilityState={{ expanded: areaExpanded }}
+                accessibilityLabel={`${areaGroup.title}, ${areaSummary}`}
+                style={({ pressed }) => [
                   styles.reviewAreaHeader,
                   {
-                    backgroundColor: tc.cardBg,
-                    borderColor: tc.border,
-                    borderLeftColor: areaGroup.color,
+                    backgroundColor: pressed ? tc.filterBg : 'transparent',
+                    borderBottomColor: tc.border,
                   },
                 ]}
                 onPress={() => toggleAreaExpanded(areaGroup.id)}
@@ -437,33 +442,12 @@ export default function ReviewScreen() {
                     <Text style={[styles.reviewAreaTitle, { color: tc.text }]} numberOfLines={2}>
                       {areaGroup.title}
                     </Text>
-                    <View style={styles.reviewAreaSummaryRow}>
-                      {areaGroup.projectCount > 0 && (
-                        <View style={[styles.reviewSummaryPill, { backgroundColor: tc.filterBg }]}>
-                          <CompactText
-                            style={[styles.reviewSummaryPillText, { color: tc.secondaryText }]}
-                          >
-                            {areaGroup.projectCount} {projectsLabel}
-                          </CompactText>
-                        </View>
-                      )}
-                      {areaGroup.needsActionCount > 0 && (
-                        <View style={[styles.reviewSummaryPill, styles.reviewNeedsSummaryPill]}>
-                          <CompactText
-                            style={[styles.reviewSummaryPillText, styles.reviewNeedsSummaryText]}
-                          >
-                            {areaGroup.needsActionCount} {needsActionLabel}
-                          </CompactText>
-                        </View>
-                      )}
-                      <View style={[styles.reviewSummaryPill, { backgroundColor: tc.filterBg }]}>
-                        <CompactText
-                          style={[styles.reviewSummaryPillText, { color: tc.secondaryText }]}
-                        >
-                          {taskSummary}
-                        </CompactText>
-                      </View>
-                    </View>
+                    <Text
+                      style={[styles.reviewAreaSummaryText, { color: tc.secondaryText }]}
+                      numberOfLines={2}
+                    >
+                      {areaSummary}
+                    </Text>
                   </View>
                 </View>
                 {areaExpanded
@@ -475,56 +459,59 @@ export default function ReviewScreen() {
                 <View style={styles.reviewAreaBody}>
                   {areaGroup.projectGroups.map((projectGroup) => {
                     const projectExpanded = expandedReviewProjectIds.has(projectGroup.id);
+                    const projectStateLabel = projectGroup.hasNextAction
+                      ? t('review.hasNextAction')
+                      : t('review.needsAction');
+                    const projectSummary = projectGroup.isSingleActions
+                      ? `${projectGroup.tasks.length} ${t('common.tasks')}`
+                      : `${projectGroup.tasks.length} ${activeTasksLabel} · ${projectStateLabel}`;
                     return (
-                      <View key={projectGroup.id} style={[styles.reviewProjectGroup, { borderLeftColor: areaGroup.color }]}>
+                      <View key={projectGroup.id} style={styles.reviewProjectGroup}>
                         <Pressable
-                          style={[
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: projectExpanded }}
+                          accessibilityLabel={`${projectGroup.title}, ${projectSummary}`}
+                          style={({ pressed }) => [
                             styles.reviewProjectHeader,
                             {
-                              backgroundColor: tc.filterBg,
-                              borderColor: tc.border,
+                              backgroundColor: pressed ? tc.filterBg : 'transparent',
+                              borderBottomColor: tc.border,
                             },
                           ]}
                           onPress={() => toggleReviewProjectExpanded(projectGroup.id)}
                         >
-                          <View style={styles.reviewProjectHeaderTop}>
-                            <View style={styles.reviewProjectTitleRow}>
-                              <Text style={[styles.reviewProjectTitle, { color: tc.text }]} numberOfLines={2}>
-                                {projectGroup.title}
-                              </Text>
-                              {projectGroup.projectId ? (
-                                <View style={[
-                                  styles.reviewStatusBadge,
-                                  { backgroundColor: projectGroup.hasNextAction ? `${HAS_NEXT_ACTION_COLOR}20` : `${NEEDS_ACTION_COLOR}20` },
-                                ]}>
-                                  <Text style={[
-                                    styles.reviewStatusText,
-                                    { color: projectGroup.hasNextAction ? HAS_NEXT_ACTION_COLOR : NEEDS_ACTION_COLOR },
-                                  ]} numberOfLines={2}>
-                                    {projectGroup.hasNextAction ? t('review.hasNextAction') : t('review.needsAction')}
-                                  </Text>
-                                </View>
-                              ) : (
-                                <View style={[styles.reviewSingleActionsBadge, { backgroundColor: tc.cardBg }]}>
-                                  <Text style={[styles.reviewSingleActionsText, { color: tc.secondaryText }]}>
-                                    {singleActionsLabel}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                            <Text style={[styles.reviewProjectCount, { color: tc.secondaryText }]}>
-                              {projectGroup.tasks.length}
-                            </Text>
-                          </View>
-                          <View style={styles.reviewProjectMetaRow}>
-                            <Text style={[styles.reviewProjectMetaText, { color: tc.secondaryText }]} numberOfLines={2}>
-                              {projectGroup.isSingleActions
-                                ? `${projectGroup.tasks.length} ${t('common.tasks')}`
-                                : `${projectGroup.tasks.length} ${activeTasksLabel}`}
+                          <View style={styles.reviewProjectTitleRow}>
+                            <Text style={[styles.reviewProjectTitle, { color: tc.text }]} numberOfLines={2}>
+                              {projectGroup.title}
                             </Text>
                             {projectExpanded
-                              ? <ChevronDown size={16} color={tc.secondaryText} strokeWidth={2.3} />
-                              : <ChevronRight size={16} color={tc.secondaryText} strokeWidth={2.3} />}
+                              ? <ChevronDown size={17} color={tc.secondaryText} strokeWidth={2.3} />
+                              : <ChevronRight size={17} color={tc.secondaryText} strokeWidth={2.3} />}
+                          </View>
+                          <View style={styles.reviewProjectSummaryRow}>
+                            {projectGroup.projectId ? (
+                              <View
+                                style={[
+                                  styles.reviewStatusDot,
+                                  { backgroundColor: projectGroup.hasNextAction ? tc.success : tc.warning },
+                                ]}
+                              />
+                            ) : null}
+                            <Text
+                              style={[
+                                styles.reviewProjectSummaryText,
+                                {
+                                  color: projectGroup.projectId && !projectGroup.hasNextAction
+                                    ? tc.warning
+                                    : tc.secondaryText,
+                                },
+                              ]}
+                              numberOfLines={2}
+                            >
+                              {projectGroup.isSingleActions
+                                ? `${projectSummary} · ${singleActionsLabel}`
+                                : projectSummary}
+                            </Text>
                           </View>
                         </Pressable>
                         {projectExpanded && (
@@ -723,7 +710,6 @@ export default function ReviewScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   reviewActionBar: {
     alignItems: 'center',
@@ -751,7 +737,6 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   startReviewButtonText: {
-    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
     textAlign: 'center',
@@ -761,18 +746,16 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   reviewAreaSection: {
-    marginBottom: 12,
+    marginBottom: 6,
   },
   reviewAreaHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 4,
+    paddingVertical: 14,
   },
   reviewAreaHeaderMain: {
     flexDirection: 'row',
@@ -783,118 +766,70 @@ const styles = StyleSheet.create({
   reviewAreaTextBlock: {
     flex: 1,
     minWidth: 0,
-    gap: 8,
+    gap: 4,
   },
   reviewAreaDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     marginRight: 10,
   },
   reviewAreaTitle: {
     fontSize: 16,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    fontWeight: '700',
     flexShrink: 1,
   },
-  reviewAreaSummaryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  reviewSummaryPill: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  reviewSummaryPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  reviewNeedsSummaryPill: {
-    backgroundColor: `${NEEDS_ACTION_COLOR}20`,
-  },
-  reviewNeedsSummaryText: {
-    color: NEEDS_ACTION_COLOR,
+  reviewAreaSummaryText: {
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 17,
   },
   reviewAreaBody: {
-    marginTop: 10,
+    marginTop: 0,
   },
   reviewProjectGroup: {
-    borderLeftWidth: 3,
-    marginLeft: 14,
-    marginBottom: 10,
-    paddingLeft: 10,
+    marginLeft: 18,
+    paddingLeft: 8,
   },
   reviewProjectHeader: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    gap: 6,
-  },
-  reviewProjectHeaderTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 4,
+    paddingVertical: 12,
+    gap: 5,
   },
   reviewProjectTitleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
-    flex: 1,
     minWidth: 0,
   },
   reviewProjectTitle: {
     fontSize: 15,
     fontWeight: '700',
+    flex: 1,
+    minWidth: 0,
     flexShrink: 1,
   },
-  reviewProjectCount: {
-    fontSize: 12,
-    fontWeight: '700',
-    minWidth: 20,
-    textAlign: 'right',
-  },
-  reviewProjectMetaRow: {
+  reviewProjectSummaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
-  reviewProjectMetaText: {
+  reviewProjectSummaryText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 17,
     flex: 1,
   },
-  reviewStatusBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    maxWidth: '100%',
-    flexShrink: 1,
-  },
-  reviewStatusText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  reviewSingleActionsBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    maxWidth: '100%',
-    flexShrink: 1,
-  },
-  reviewSingleActionsText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
+  reviewStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   reviewGroupedTasks: {
     marginTop: 8,
+    marginLeft: 4,
     gap: 8,
   },
   emptyState: {

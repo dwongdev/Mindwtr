@@ -1534,8 +1534,13 @@ export default function FocusScreen() {
           ]}
         >
           <View style={styles.projectReviewMain}>
-            <View style={[styles.projectReviewIcon, { backgroundColor: project.color || tc.tint }]}>
-              <Folder size={18} color="#fff" />
+            <View
+              style={[
+                styles.projectReviewIcon,
+                { backgroundColor: tc.filterBg, borderColor: project.color || tc.border },
+              ]}
+            >
+              <Folder size={18} color={tc.text} />
             </View>
             <View style={styles.projectReviewTextBlock}>
               <Text numberOfLines={1} style={[styles.projectReviewTitle, { color: tc.text }]}>
@@ -1678,7 +1683,7 @@ export default function FocusScreen() {
         </View>
       ) : (
       <SectionList
-        sections={sections}
+        sections={hasTasks ? sections : []}
         extraData={focusListVersion}
         keyExtractor={(item) => item.type === 'task' ? item.task.id : item.type === 'project' ? `project:${item.project.id}` : item.id}
         stickySectionHeadersEnabled={false}
@@ -2626,6 +2631,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

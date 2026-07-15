@@ -59,7 +59,7 @@ export function TaskEditCustomRecurrenceModal({
     ]);
     const getStatusTextStyle = (active: boolean) => ([
         styles.statusText,
-        { color: active ? '#fff' : tc.secondaryText },
+        { color: active ? tc.onTint : tc.secondaryText },
     ]);
 
     return (

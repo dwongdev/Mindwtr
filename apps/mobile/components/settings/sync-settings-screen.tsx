@@ -557,7 +557,7 @@ function SyncSettingsView({
                     <Text
                         style={[
                             styles.backendOptionText,
-                            { color: isGettingStartedActionBusy ? tc.secondaryText : '#FFFFFF' },
+                            { color: isGettingStartedActionBusy ? tc.secondaryText : tc.onTint },
                         ]}
                     >
                         {gettingStartedBusy ? t('common.loading') : 'Start fresh'}

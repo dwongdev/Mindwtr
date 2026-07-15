@@ -106,11 +106,16 @@ export function InboxContextSection({
           onSubmitEditing={addCustomContextMobile}
         />
         <TouchableOpacity
-          style={styles.addContextButton}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.add')}
+          style={[
+            styles.addContextButton,
+            { backgroundColor: tc.tint, opacity: newContext.trim() ? 1 : 0.5 },
+          ]}
           onPress={addCustomContextMobile}
           disabled={!newContext.trim()}
         >
-          <Text style={styles.addContextButtonText}>+</Text>
+          <Text style={[styles.addContextButtonText, { color: tc.onTint }]}>+</Text>
         </TouchableOpacity>
       </View>
       <InboxSuggestionList suggestions={visibleTokenSuggestions} onSelect={applyTokenSuggestion} tc={tc} />

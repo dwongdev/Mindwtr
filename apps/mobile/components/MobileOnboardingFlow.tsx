@@ -28,6 +28,7 @@ export function MobileOnboardingFlow({
 }: MobileOnboardingFlowProps) {
   const tc = useThemeColors();
   const filledButton = useFilledButtonColors();
+  const onFilled = filledButton.textColor ?? tc.onTint;
   const { t } = useLanguage();
   const { fontScale } = useWindowDimensions();
   // At large font scales the note and the skip button cannot share a row;
@@ -75,14 +76,14 @@ export function MobileOnboardingFlow({
             >
               <View style={[styles.iconSlot, styles.primaryIconSlot]}>
                 {busy ? (
-                  <ActivityIndicator color={filledButton.textColor ?? '#FFFFFF'} size="small" />
+                  <ActivityIndicator color={onFilled} size="small" />
                 ) : (
-                  <Database color={filledButton.textColor ?? '#FFFFFF'} size={22} strokeWidth={2.2} />
+                  <Database color={onFilled} size={22} strokeWidth={2.2} />
                 )}
               </View>
               <View style={styles.optionText}>
-                <Text style={[styles.primaryOptionTitle, filledButton.textColor ? { color: filledButton.textColor } : null]}>{busy ? t('onboarding.startFreshBusy') : t('onboarding.startFreshTitle')}</Text>
-                <Text style={styles.primaryOptionDescription}>
+                <Text style={[styles.primaryOptionTitle, { color: onFilled }]}>{busy ? t('onboarding.startFreshBusy') : t('onboarding.startFreshTitle')}</Text>
+                <Text style={[styles.primaryOptionDescription, { color: onFilled }]}>
                   {t('onboarding.startFreshDesc')}
                 </Text>
               </View>
@@ -252,15 +253,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   primaryOptionTitle: {
-    color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '800',
   },
   primaryOptionDescription: {
-    color: 'rgba(255, 255, 255, 0.84)',
     fontSize: 14,
     lineHeight: 20,
     marginTop: 4,
+    opacity: 0.84,
   },
   errorBox: {
     borderRadius: 10,

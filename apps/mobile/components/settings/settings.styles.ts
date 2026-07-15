@@ -166,7 +166,7 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    taskEditorSheetDoneButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+    taskEditorSheetDoneButtonText: { fontSize: 15, fontWeight: '700' },
     settingInfo: { flex: 1, minWidth: 0, marginRight: 16 },
     settingLabel: { fontSize: 16, fontWeight: '500', flexShrink: 1, lineHeight: 21, minWidth: 0 },
     settingDescription: { flexShrink: 1, fontSize: 13, lineHeight: 18, marginTop: 2, minWidth: 0 },

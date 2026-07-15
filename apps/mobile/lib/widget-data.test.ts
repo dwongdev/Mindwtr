@@ -104,7 +104,7 @@ describe('widget-data', () => {
         expect(payload.palette.background).toBe('#FAF3E3');
         expect(payload.palette.text).toBe('#3B2F2F');
         expect(payload.palette.mutedText).toBe('#7A5C3E');
-        expect(payload.palette.accent).toBe('#9C6F3C');
+        expect(payload.palette.accent).toBe('#956735');
     });
 
     it('includes focus-page schedule/next tasks even when none are explicitly focused', () => {

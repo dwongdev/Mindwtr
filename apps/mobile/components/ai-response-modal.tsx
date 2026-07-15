@@ -52,7 +52,7 @@ export function AIResponseModal({ visible, title, message, actions, onClose }: A
                                     <Text
                                         style={[
                                             styles.actionText,
-                                            { color: isPrimary ? '#FFFFFF' : tc.text },
+                                            { color: isPrimary ? tc.onTint : tc.text },
                                         ]}
                                     >
                                         {action.label}

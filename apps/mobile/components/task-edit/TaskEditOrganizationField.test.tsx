@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from 'react-native';
 import renderer, { act } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -36,6 +37,7 @@ const tc = {
     secondaryText: '#aaa',
     text: '#fff',
     tint: '#3b82f6',
+    onTint: '#102030',
 };
 
 const t = (key: string) => ({
@@ -100,7 +102,14 @@ describe('TaskEditOrganizationField', () => {
         });
 
         const doneButton = tree.root.findByProps({ accessibilityLabel: 'Status: Done' });
+        const selectedStatusText = tree.root
+            .findByProps({ accessibilityLabel: 'Status: Next' })
+            .findAllByType(Text)
+            .find((node) => node.props.children === 'Next');
         expect(doneButton.props.accessibilityHint).toBe('Long-press to complete with a different time');
+        expect(selectedStatusText?.props.style).toEqual(expect.arrayContaining([
+            expect.objectContaining({ color: tc.onTint }),
+        ]));
 
         act(() => {
             doneButton.props.onLongPress();

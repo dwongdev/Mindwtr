@@ -99,7 +99,7 @@ export function TaskEditOrganizationField({
     const getStatusTextStyle = (active: boolean, compact = false) => ([
         styles.statusText,
         compact ? styles.statusTextCompact : null,
-        { color: active ? '#fff' : tc.secondaryText },
+        { color: active ? tc.onTint : tc.secondaryText },
     ]);
     const getStatusLabel = (status: string) => {
         const key = `status.${status}` as const;

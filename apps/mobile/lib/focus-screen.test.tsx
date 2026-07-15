@@ -637,6 +637,20 @@ describe('FocusScreen', () => {
     ).toThrow();
   });
 
+  it('renders the empty state when every Focus section is empty', () => {
+    storeState.tasks = [];
+    storeState.projects = [];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    expect(tree.root.findByType(SectionList).props.sections).toEqual([]);
+    expect(tree.root.findByProps({ children: 'All clear' })).toBeTruthy();
+  });
+
   it('collapses the Next Actions section without showing the empty state', () => {
     let tree!: ReturnType<typeof create>;
 

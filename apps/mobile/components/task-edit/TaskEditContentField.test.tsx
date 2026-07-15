@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, TextInput } from 'react-native';
+import { Platform, Text, TextInput, View } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -39,6 +39,16 @@ const withPlatform = (os: typeof Platform.OS, run: () => void) => {
       value: originalPlatformOs,
     });
   }
+};
+
+const flattenStyle = (style: unknown): Record<string, unknown> => {
+  if (Array.isArray(style)) {
+    return style.reduce<Record<string, unknown>>(
+      (result, item) => Object.assign(result, flattenStyle(item)),
+      {},
+    );
+  }
+  return style && typeof style === 'object' ? style as Record<string, unknown> : {};
 };
 
 const baseProps: any = {
@@ -203,6 +213,34 @@ const createChecklistState = (checklist = [{ id: 'check-1', title: 'Item 1', isC
 describe('TaskEditContentField', () => {
   afterEach(() => {
     useTaskStore.setState({ settings: {} });
+  });
+
+  it('exposes checklist state and uses semantic colors for a completed item', () => {
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskEditContentField
+          {...baseProps}
+          editedTask={{
+            ...baseProps.editedTask,
+            checklist: [{ id: 'check-1', title: 'Item 1', isCompleted: true }],
+          }}
+          fieldId="checklist"
+        />
+      );
+    });
+
+    const checkbox = tree.root.findByProps({
+      accessibilityLabel: 'Item 1',
+      accessibilityRole: 'checkbox',
+    });
+    const checkboxVisual = checkbox.findByType(View);
+    const checkmark = checkbox.findByType(Text);
+
+    expect(checkbox.props.accessibilityState).toEqual({ checked: true });
+    expect(flattenStyle(checkboxVisual.props.style).backgroundColor).toBe(baseProps.tc.tint);
+    expect(flattenStyle(checkmark.props.style).color).toBe(baseProps.tc.onTint);
   });
 
   it('registers the iOS description input as a keyboard auto-scroll target', () => {

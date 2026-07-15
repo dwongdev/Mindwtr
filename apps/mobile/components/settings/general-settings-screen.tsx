@@ -53,17 +53,20 @@ export function GeneralSettingsScreen() {
     const showTaskAge = settings.appearance?.showTaskAge === true;
     const quickAccessView = coerceMobileQuickAccessView(settings.appearance?.mobileQuickAccessView);
     const appLockEnabled = settings.security?.mobileAppLockEnabled === true;
-    const themeOptions: { value: typeof themeMode; label: string }[] = [
-        { value: 'system', label: t('settings.system') },
-        { value: 'light', label: t('settings.light') },
-        { value: 'dark', label: t('settings.dark') },
-        { value: 'material3-light', label: t('settings.material3Light') },
-        { value: 'material3-dark', label: t('settings.material3Dark') },
-        { value: 'eink', label: t('settings.eink') },
-        { value: 'nord', label: t('settings.nord') },
-        { value: 'sepia', label: t('settings.sepia') },
-        { value: 'oled', label: t('settings.oled') },
+    const baseThemeOptions: { value: typeof themeMode; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
+        { value: 'system', label: t('settings.system'), icon: 'phone-portrait-outline' },
+        { value: 'light', label: t('settings.light'), icon: 'sunny-outline' },
+        { value: 'dark', label: t('settings.dark'), icon: 'moon-outline' },
     ];
+    const styledThemeOptions: { value: typeof themeMode; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
+        { value: 'material3-light', label: t('settings.material3Light'), icon: 'color-palette-outline' },
+        { value: 'material3-dark', label: t('settings.material3Dark'), icon: 'color-palette-outline' },
+        { value: 'eink', label: t('settings.eink'), icon: 'document-text-outline' },
+        { value: 'nord', label: t('settings.nord'), icon: 'snow-outline' },
+        { value: 'sepia', label: t('settings.sepia'), icon: 'book-outline' },
+        { value: 'oled', label: t('settings.oled'), icon: 'contrast-outline' },
+    ];
+    const themeOptions = [...baseThemeOptions, ...styledThemeOptions];
     const currentThemeLabel = themeOptions.find((opt) => opt.value === themeMode)?.label ?? t('settings.system');
     const quickAccessOptions = MOBILE_QUICK_ACCESS_VIEWS.map((value) => ({
         value,
@@ -170,7 +173,7 @@ export function GeneralSettingsScreen() {
                                     },
                                 }).catch(console.error);
                             }}
-                            trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            trackColor={{ false: tc.secondaryText, true: tc.tint }}
                         />
                     </View>
                     <TouchableOpacity
@@ -207,7 +210,7 @@ export function GeneralSettingsScreen() {
                             disabled={appLockBusy}
                             value={appLockEnabled}
                             onValueChange={handleAppLockToggle}
-                            trackColor={{ false: '#767577', true: '#3B82F6' }}
+                            trackColor={{ false: tc.secondaryText, true: tc.tint }}
                         />
                     </View>
                 </View>
@@ -225,26 +228,53 @@ export function GeneralSettingsScreen() {
                         >
                             <Text style={[styles.pickerTitle, { color: tc.text }]}>{t('settings.theme')}</Text>
                             <ScrollView style={styles.pickerList} contentContainerStyle={styles.pickerListContent}>
-                                {themeOptions.map((option) => {
+                                {themeOptions.map((option, index) => {
                                     const selected = option.value === themeMode;
+                                    const startsStyledThemes = index === baseThemeOptions.length;
                                     return (
-                                        <TouchableOpacity
-                                            key={option.value}
-                                            style={[
-                                                styles.pickerOption,
-                                                { borderColor: tc.border, backgroundColor: selected ? tc.filterBg : 'transparent' },
-                                            ]}
-                                            onPress={() => {
-                                                setThemeMode(option.value);
-                                                updateSettings({ theme: option.value }).catch(console.error);
-                                                setThemePickerOpen(false);
-                                            }}
-                                        >
-                                            <Text style={[styles.pickerOptionText, { color: selected ? tc.tint : tc.text }]}>
-                                                {option.label}
-                                            </Text>
-                                            {selected && <Ionicons color={tc.tint} name="checkmark" size={18} />}
-                                        </TouchableOpacity>
+                                        <React.Fragment key={option.value}>
+                                            {startsStyledThemes && (
+                                                <View style={{ borderTopWidth: 1, borderTopColor: tc.border, marginVertical: 8 }} />
+                                            )}
+                                            <TouchableOpacity
+                                                accessibilityRole="radio"
+                                                accessibilityState={{ selected }}
+                                                style={[
+                                                    styles.pickerOption,
+                                                    { borderColor: tc.border, backgroundColor: selected ? tc.filterBg : 'transparent' },
+                                                ]}
+                                                onPress={() => {
+                                                    setThemeMode(option.value);
+                                                    updateSettings({ theme: option.value }).catch(console.error);
+                                                    setThemePickerOpen(false);
+                                                }}
+                                            >
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                                                    <View
+                                                        style={{
+                                                            width: 32,
+                                                            height: 32,
+                                                            borderRadius: 16,
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            backgroundColor: tc.filterBg,
+                                                            borderWidth: 1,
+                                                            borderColor: selected ? tc.tint : tc.border,
+                                                        }}
+                                                    >
+                                                        <Ionicons
+                                                            color={selected ? tc.tint : tc.secondaryText}
+                                                            name={option.icon}
+                                                            size={17}
+                                                        />
+                                                    </View>
+                                                    <Text style={[styles.pickerOptionText, { color: selected ? tc.tint : tc.text }]}>
+                                                        {option.label}
+                                                    </Text>
+                                                </View>
+                                                {selected && <Ionicons color={tc.tint} name="checkmark" size={18} />}
+                                            </TouchableOpacity>
+                                        </React.Fragment>
                                     );
                                 })}
                             </ScrollView>

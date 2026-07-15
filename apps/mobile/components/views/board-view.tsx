@@ -1,16 +1,8 @@
 import { View, Text, ScrollView, StyleSheet, Platform, Pressable, TextInput } from 'react-native';
-import { isTaskInActiveProject, shallow, sortTasksByBoardOrder, useTaskStore, createTaskFilterPredicate, taskMatchesAreaFilter, hasActiveFilterCriteria, getUsedTaskTokens, tFallback, projectMatchesAreaFilter, SAVED_FILTER_NO_PROJECT_ID } from '@mindwtr/core';
-import type { Task, TaskStatus, FilterCriteria } from '@mindwtr/core';
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { useTheme } from '../../contexts/theme-context';
-import { useLanguage } from '../../contexts/language-context';
-import { useThemeColors } from '@/hooks/use-theme-colors';
-import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
-import { openContextsScreen, openProjectScreen, openTaskScreen } from '@/lib/task-meta-navigation';
-import { useToast } from '@/contexts/toast-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture, Swipeable } from 'react-native-gesture-handler';
-import { Filter, X } from 'lucide-react-native';
+import { Clock3, Filter, Folder, X } from 'lucide-react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,18 +10,42 @@ import Animated, {
   runOnJS,
   type SharedValue,
 } from 'react-native-reanimated';
+import { isTaskInActiveProject, shallow, sortTasksByBoardOrder, useTaskStore, createTaskFilterPredicate, taskMatchesAreaFilter, hasActiveFilterCriteria, getUsedTaskTokens, tFallback, projectMatchesAreaFilter, SAVED_FILTER_NO_PROJECT_ID } from '@mindwtr/core';
+import type { Task, TaskStatus, FilterCriteria } from '@mindwtr/core';
+import { useToast } from '@/contexts/toast-context';
+import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
+import { useThemeColors, type ThemeColors } from '@/hooks/use-theme-colors';
+import { openContextsScreen, openProjectScreen, openTaskScreen } from '@/lib/task-meta-navigation';
+
+import { useLanguage } from '../../contexts/language-context';
 import { TaskEditModal } from '../task-edit-modal';
 import { BOARD_DUE_DATE_PRESETS, countActiveBoardFilters, resolveBoardColumnReorder, resolveBoardDropColumnIndex, resolveBoardDropColumnIndexFromY, toggleCriteriaDuePreset, toggleCriteriaToken, type BoardDuePreset } from './board-view.utils';
-import { EmojiLabel } from '../ui/emoji-label';
 
-const COLUMNS: { id: TaskStatus; label: string; labelKey: string; color: string }[] = [
-  { id: 'inbox', label: 'Inbox', labelKey: 'status.inbox', color: '#6B7280' },
-  { id: 'next', label: 'Next', labelKey: 'status.next', color: '#3B82F6' },
-  { id: 'waiting', label: 'Waiting', labelKey: 'status.waiting', color: '#F59E0B' },
-  { id: 'someday', label: 'Someday', labelKey: 'status.someday', color: '#8B5CF6' },
-  { id: 'done', label: 'Done', labelKey: 'status.done', color: '#10B981' },
+const COLUMNS: { id: TaskStatus; label: string; labelKey: string }[] = [
+  { id: 'inbox', label: 'Inbox', labelKey: 'status.inbox' },
+  { id: 'next', label: 'Next', labelKey: 'status.next' },
+  { id: 'waiting', label: 'Waiting', labelKey: 'status.waiting' },
+  { id: 'someday', label: 'Someday', labelKey: 'status.someday' },
+  { id: 'done', label: 'Done', labelKey: 'status.done' },
 ];
 const BOARD_FILTER_CHIP_MAX_FONT_SCALE = 1.2;
+
+function resolveColumnColor(status: TaskStatus, tc: ThemeColors): string {
+  switch (status) {
+    case 'inbox':
+      return tc.text;
+    case 'next':
+      return tc.tint;
+    case 'waiting':
+      return tc.warning;
+    case 'someday':
+      return tc.secondaryText;
+    case 'done':
+      return tc.success;
+    default:
+      return tc.secondaryText;
+  }
+}
 
 type RelativeTaskLayout = {
   columnIndex: number;
@@ -50,7 +66,7 @@ type DragStartMetrics = {
 
 interface DraggableTaskProps {
   task: Task;
-  isDark: boolean;
+  tc: ThemeColors;
   currentColumnIndex: number;
   onDrop: (taskId: string, translationYDelta: number) => void;
   onDragStart: (taskId: string, columnIndex: number) => void;
@@ -71,7 +87,7 @@ interface DraggableTaskProps {
 
 function DraggableTask({
   task,
-  isDark,
+  tc,
   currentColumnIndex,
   onDrop,
   onDragStart,
@@ -155,7 +171,7 @@ function DraggableTask({
     return estimate;
   })();
 
-  const resolvedProjectColor = projectColor || '#6B7280';
+  const resolvedProjectColor = projectColor || tc.secondaryText;
   const showMetaRow = Boolean(projectTitle) || (task.tags?.length ?? 0) > 0 || (task.contexts?.length ?? 0) > 0 || Boolean(timeEstimateLabel);
 
   return (
@@ -172,30 +188,33 @@ function DraggableTask({
       >
         <Swipeable
           renderLeftActions={() => (
-            <View style={styles.duplicateAction}>
-              <Text style={styles.duplicateActionText}>{duplicateLabel}</Text>
+            <View style={[styles.duplicateAction, { backgroundColor: tc.bg, borderColor: tc.tint }]}>
+              <Text style={[styles.duplicateActionText, { color: tc.text }]}>{duplicateLabel}</Text>
             </View>
           )}
           onSwipeableLeftOpen={() => onDuplicate(task)}
           renderRightActions={() => (
-            <View style={styles.deleteAction}>
-              <Text style={styles.deleteActionText}>{deleteLabel}</Text>
+            <View style={[styles.deleteAction, { backgroundColor: tc.bg, borderColor: tc.danger }]}>
+              <Text style={[styles.deleteActionText, { color: tc.text }]}>{deleteLabel}</Text>
             </View>
           )}
           onSwipeableOpen={() => onDelete(task.id)}
         >
 	          <View style={[
 	            styles.taskCard,
-	            { backgroundColor: isDark ? '#374151' : '#FFFFFF' }
+	            { backgroundColor: tc.taskItemBg, borderColor: tc.border },
 	          ]}>
-	            <Text style={[styles.taskTitle, { color: isDark ? '#FFFFFF' : '#111827' }]} numberOfLines={2}>
+	            <Text style={[styles.taskTitle, { color: tc.text }]} numberOfLines={2}>
 	              {task.title}
 	            </Text>
               {showMetaRow && (
                 <View style={styles.contextsRow}>
                   {projectTitle && (
-                    <View style={[styles.projectBadge, { backgroundColor: resolvedProjectColor + '20', borderColor: resolvedProjectColor }]}>
-                      <EmojiLabel emoji="📁" label={projectTitle} numberOfLines={1} textStyle={[styles.projectBadgeText, { color: resolvedProjectColor }]} />
+                    <View style={[styles.projectBadge, { backgroundColor: tc.filterBg, borderColor: resolvedProjectColor }]}>
+                      <Folder size={12} color={tc.text} accessible={false} />
+                      <Text style={[styles.projectBadgeText, { color: tc.text }]} numberOfLines={1}>
+                        {projectTitle}
+                      </Text>
                     </View>
                   )}
                   {(task.tags || []).slice(0, 6).map((tag, idx) => (
@@ -203,7 +222,7 @@ function DraggableTask({
                       key={`${tag}-${idx}`}
                       style={[
                         styles.tagChip,
-                        isDark ? styles.tagChipDark : styles.tagChipLight,
+                        { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.secondaryText },
                       ]}
                     >
                       {tag}
@@ -214,15 +233,16 @@ function DraggableTask({
                       key={`${ctx}-${idx}`}
                       style={[
                         styles.contextTag,
-                        isDark ? styles.contextTagDark : styles.contextTagLight,
+                        { backgroundColor: tc.filterBg, borderColor: tc.border, color: tc.secondaryText },
                       ]}
                     >
                       {ctx}
                     </Text>
                   ))}
                   {timeEstimateLabel && (
-                    <View style={styles.timeEstimateBadge}>
-                      <Text style={styles.timeEstimateText}>⏱ {timeEstimateLabel}</Text>
+                    <View style={[styles.timeEstimateBadge, { backgroundColor: tc.filterBg, borderColor: tc.border }]}>
+                      <Clock3 size={12} color={tc.secondaryText} accessible={false} />
+                      <Text style={[styles.timeEstimateText, { color: tc.secondaryText }]}>{timeEstimateLabel}</Text>
                     </View>
                   )}
                 </View>
@@ -239,7 +259,7 @@ interface ColumnProps {
   label: string;
   color: string;
   tasks: Task[];
-  isDark: boolean;
+  tc: ThemeColors;
   isDragSourceColumn: boolean;
   onDrop: (taskId: string, translationYDelta: number) => void;
   onDragStart: (taskId: string, columnIndex: number) => void;
@@ -265,7 +285,7 @@ function Column({
   label,
   color,
   tasks,
-  isDark,
+  tc,
   isDragSourceColumn,
   onDrop,
   onDragStart,
@@ -289,16 +309,16 @@ function Column({
     <View style={[
       styles.column,
       isDragSourceColumn ? styles.columnDragSource : null,
-      { borderTopColor: color, backgroundColor: isDark ? '#1F2937' : '#F3F4F6' },
+      { borderTopColor: color, backgroundColor: tc.cardBg },
     ]}
     onLayout={(event) => {
       const { y, height } = event.nativeEvent.layout;
       onColumnLayout(columnIndex, y, height);
     }}>
-      <View style={[styles.columnHeader, { borderBottomColor: isDark ? '#374151' : '#E5E7EB' }]}>
-        <Text style={[styles.columnTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>{label}</Text>
-        <View style={[styles.badge, { backgroundColor: color }]}>
-          <Text style={styles.badgeText}>{tasks.length}</Text>
+      <View style={[styles.columnHeader, { borderBottomColor: tc.border }]}>
+        <Text style={[styles.columnTitle, { color: tc.text }]}>{label}</Text>
+        <View style={[styles.badge, { backgroundColor: tc.filterBg, borderColor: color }]}>
+          <Text style={[styles.badgeText, { color: tc.text }]}>{tasks.length}</Text>
         </View>
       </View>
       <View
@@ -311,7 +331,7 @@ function Column({
           <DraggableTask
             key={task.id}
             task={task}
-            isDark={isDark}
+            tc={tc}
             currentColumnIndex={columnIndex}
             onDrop={onDrop}
             onDragStart={onDragStart}
@@ -332,7 +352,7 @@ function Column({
         ))}
         {tasks.length === 0 && (
           <View style={styles.emptyColumn}>
-            <Text style={[styles.emptyText, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+            <Text style={[styles.emptyText, { color: tc.secondaryText }]}>
               {noTasksLabel}
             </Text>
           </View>
@@ -353,7 +373,6 @@ export function BoardView() {
     reorderBoardTasks: state.reorderBoardTasks,
     timeEstimatesEnabled: state.settings?.features?.timeEstimates !== false,
   }), shallow);
-  const { isDark } = useTheme();
   const tc = useThemeColors();
   const { t } = useLanguage();
   const { showToast } = useToast();
@@ -875,7 +894,7 @@ export function BoardView() {
                         },
                       ]}
                     >
-                      <View style={[styles.projectFilterDot, { backgroundColor: projectColor || '#6B7280' }]} />
+                      <View style={[styles.projectFilterDot, { backgroundColor: projectColor || tc.secondaryText }]} />
                       <Text
                         maxFontSizeMultiplier={BOARD_FILTER_CHIP_MAX_FONT_SCALE}
                         style={[styles.filterChipText, styles.projectFilterText, { color: selected ? tc.onTint : tc.text }]}
@@ -918,9 +937,9 @@ export function BoardView() {
             key={col.id}
             columnIndex={index}
             label={t(col.labelKey) || col.label}
-            color={col.color}
+            color={resolveColumnColor(col.id, tc)}
             tasks={tasksByStatus[col.id] || []}
-            isDark={isDark}
+            tc={tc}
             isDragSourceColumn={dragSourceColumnIndex === index}
             onDrop={handleDrop}
             onDragStart={handleDragStart}
@@ -961,7 +980,6 @@ export function BoardView() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   filterBar: {
     paddingHorizontal: 16,
@@ -1067,7 +1085,6 @@ const styles = StyleSheet.create({
   },
   column: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderTopWidth: 4,
     shadowColor: '#000',
@@ -1088,21 +1105,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   columnTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
   },
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
+    borderWidth: 1,
   },
   badgeText: {
     fontSize: 12,
-    color: '#FFFFFF',
     fontWeight: '600',
   },
   columnContent: {
@@ -1116,10 +1131,8 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
-    color: '#9CA3AF',
   },
   taskCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 12,
     // marginBottom removed - handled by container for swipe support
@@ -1129,7 +1142,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   taskCardContainer: {
     marginBottom: 8,
@@ -1137,35 +1149,32 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   deleteAction: {
-    backgroundColor: '#EF4444',
     justifyContent: 'center',
     alignItems: 'flex-end',
     flex: 1,
     paddingRight: 20,
     borderRadius: 8,
+    borderWidth: 1,
   },
   deleteActionText: {
-    color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 14,
   },
   duplicateAction: {
-    backgroundColor: '#3B82F6',
     justifyContent: 'center',
     alignItems: 'flex-start',
     flex: 1,
     paddingLeft: 20,
     borderRadius: 8,
+    borderWidth: 1,
   },
   duplicateActionText: {
-    color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 14,
   },
   taskTitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#111827',
   },
   contextsRow: {
     flexDirection: 'row',
@@ -1174,6 +1183,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   projectBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 8,
@@ -1191,16 +1203,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: 4,
     lineHeight: 14,
-  },
-  contextTagLight: {
-    color: '#1D4ED8',
-    backgroundColor: '#EFF6FF',
-  },
-  contextTagDark: {
-    color: '#93C5FD',
-    backgroundColor: 'rgba(59,130,246,0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(59,130,246,0.35)',
   },
   tagChip: {
     fontSize: 11,
@@ -1208,27 +1211,20 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: 4,
     lineHeight: 14,
-  },
-  tagChipLight: {
-    color: '#6D28D9',
-    backgroundColor: '#F5F3FF',
-  },
-  tagChipDark: {
-    color: '#C4B5FD',
-    backgroundColor: 'rgba(139,92,246,0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.35)',
   },
   timeEstimateBadge: {
-    backgroundColor: '#DBEAFE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
+    borderWidth: 1,
   },
   timeEstimateText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#1D4ED8',
     lineHeight: 14,
   },
 });

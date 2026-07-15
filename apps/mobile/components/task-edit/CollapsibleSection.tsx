@@ -50,7 +50,7 @@ export function CollapsibleSection({
                 <Text style={[styles.title, { color: tc.text }]}>{title}</Text>
                 {badge > 0 && (
                     <View style={[styles.badge, { backgroundColor: tc.tint }]}>
-                        <Text style={styles.badgeText}>{badge}</Text>
+                        <Text style={[styles.badgeText, { color: tc.onTint }]}>{badge}</Text>
                     </View>
                 )}
             </Pressable>
@@ -88,7 +88,6 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
     badgeText: {
-        color: '#FFFFFF',
         fontSize: 12,
         fontWeight: '600',
     },

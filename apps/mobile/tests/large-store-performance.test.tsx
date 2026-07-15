@@ -314,6 +314,7 @@ vi.mock('lucide-react-native', () => {
     AlertTriangle: Icon,
     BookmarkPlus: Icon,
     Copy: Icon,
+    MoreHorizontal: Icon,
     SlidersHorizontal: Icon,
     Star: Icon,
     Trash2: Icon,

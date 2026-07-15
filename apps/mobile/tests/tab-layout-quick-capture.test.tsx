@@ -140,6 +140,7 @@ vi.mock('@/hooks/use-theme-colors', () => ({
     tabIconSelected: '#f8fafc',
     text: '#f8fafc',
     tint: '#3b82f6',
+    danger: '#ef4444',
   }),
 }));
 
@@ -160,6 +161,9 @@ vi.mock('../contexts/language-context', () => ({
       'nav.reference': 'Reference',
       'nav.review': 'Review',
       'nav.settings': 'Settings',
+      'nav.sectionArchive': 'Archive',
+      'nav.sectionLists': 'Lists',
+      'nav.sectionOrganize': 'Organize',
       'nav.someday': 'Someday',
       'nav.trash': 'Trash',
       'nav.waiting': 'Waiting For',
@@ -238,11 +242,13 @@ const getCaptureInnerStyleBySize = (tree: ReturnType<typeof create>) => {
   return flattenStyle(view.props.style);
 };
 
-const getCaptureIconColor = (tree: ReturnType<typeof create>) => {
+const getCaptureIcon = (tree: ReturnType<typeof create>) => {
   const icon = tree.root.findAllByType(Plus)[0];
   if (!icon) throw new Error('Capture plus icon not found');
-  return icon.props.color;
+  return icon;
 };
+
+const getCaptureIconColor = (tree: ReturnType<typeof create>) => getCaptureIcon(tree).props.color;
 
 const getMenuButton = (tree: ReturnType<typeof create>) => {
   const button = tree.root.findAllByType(TouchableOpacity).find(
@@ -266,6 +272,14 @@ const getBottomTabLabels = (tree: ReturnType<typeof create>) => {
     .findAllByType(TouchableOpacity)
     .map((node) => node.props.accessibilityLabel)
     .filter((label): label is string => typeof label === 'string' && tabLabels.has(label));
+};
+
+const getBottomTabTextLabels = (tree: ReturnType<typeof create>) => {
+  const labels = new Set(['Focus', 'Inbox', 'Add task', 'Projects', 'Calendar', 'Contexts', 'Review', 'Menu']);
+  return tree.root
+    .findAll((node) => String(node.type) === 'Text')
+    .map((node) => node.children.join(''))
+    .filter((label) => labels.has(label));
 };
 
 const getQuickCaptureSheets = (tree: ReturnType<typeof create>) => (
@@ -411,6 +425,7 @@ describe('mobile tab quick capture', () => {
     const tabs = tree.root.find((node) => String(node.type) === 'Tabs');
     expect(tabs.props.initialRouteName).toBe('focus');
     expect(getBottomTabLabels(tree).slice(0, 2)).toEqual(['Focus', 'Inbox']);
+    expect(getBottomTabTextLabels(tree)).toEqual(['Focus', 'Inbox', 'Review', 'Menu']);
   });
 
   it('anchors restored stack screens above tabs so Android Back stays in the app', () => {
@@ -482,8 +497,8 @@ describe('mobile tab quick capture', () => {
       width: 40,
       height: 34,
       borderRadius: 10,
-      marginTop: -2,
     }));
+    expect(getCaptureIcon(tree).props.size).toBe(26);
   });
 
   it('boosts the capture FAB to the high-emphasis M3 primary role under Material', () => {
@@ -513,7 +528,7 @@ describe('mobile tab quick capture', () => {
     expect(getCaptureIconColor(tree)).toBe('#003063');
   });
 
-  it('opens the More sheet from the menu tab and navigates from its original calendar icon', () => {
+  it('opens the restored compact More grid and navigates to Calendar', () => {
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -530,8 +545,6 @@ describe('mobile tab quick capture', () => {
     expect(getMoreSheetButtonIconName(tree, 'Board View')).toBe('square.grid.2x2.fill');
     expect(getMoreSheetButtonIconName(tree, 'Someday')).toBe('arrow.up.circle.fill');
     const trashLabel = getMoreSheetButtonLabelNode(tree, 'Trash');
-    // #632: utility labels can wrap and gently fit, so the longest label
-    // ("Reference") stays readable at large font scales.
     expect(trashLabel.props.numberOfLines).toBe(2);
     expect(trashLabel.props.adjustsFontSizeToFit).toBe(true);
     expect(trashLabel.props.maxFontSizeMultiplier).toBe(1);
@@ -595,7 +608,7 @@ describe('mobile tab quick capture', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/review');
   });
 
-  it('closes the More sheet from the menu tab toggle and a downward swipe', () => {
+  it('closes the More sheet from the menu tab toggle and ignores a short downward drag', () => {
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -616,10 +629,15 @@ describe('mobile tab quick capture', () => {
       getMenuButton(tree).props.onPress();
     });
     const menu = getMoreSheetMenu(tree);
-    expect(menu.props.onMoveShouldSetResponder?.({}, { dx: 2, dy: 12 })).toBe(true);
+    expect(menu.props.onMoveShouldSetResponder?.({}, { dx: 2, dy: 13 })).toBe(true);
 
     act(() => {
       menu.props.onResponderRelease?.({}, { dx: 4, dy: 24, vy: 0.2 });
+    });
+    expect(getVisibleMoreDestinationLabels(tree)).toEqual(moreDestinationLabels);
+
+    act(() => {
+      menu.props.onResponderRelease?.({}, { dx: 4, dy: 32, vy: 1 });
     });
     expect(getVisibleMoreDestinationLabels(tree)).toHaveLength(0);
   });

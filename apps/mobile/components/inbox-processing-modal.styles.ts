@@ -40,13 +40,11 @@ export const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
     borderRadius: 2,
   },
   skipBtn: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3B82F6',
   },
   taskDisplay: {
     padding: 20,
@@ -119,22 +117,6 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
-  metaPillContextDark: {
-    backgroundColor: '#0F172A',
-    color: '#93C5FD',
-  },
-  metaPillContextLight: {
-    backgroundColor: '#DBEAFE',
-    color: '#1D4ED8',
-  },
-  metaPillTagDark: {
-    backgroundColor: '#111827',
-    color: '#FDE68A',
-  },
-  metaPillTagLight: {
-    backgroundColor: '#FEF3C7',
-    color: '#92400E',
-  },
   aiActionRow: {
     marginTop: 10,
     flexDirection: 'row',
@@ -166,52 +148,51 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 6,
   },
+  stepQuestionRow: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  stepQuestionInline: {
+    flex: 1,
+    marginBottom: 0,
+  },
   stepHint: {
     fontSize: 13,
     marginBottom: 12,
   },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
   buttonColumn: {
     gap: 12,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  buttonPrimary: {
-    backgroundColor: '#3B82F6',
-  },
-  buttonSuccess: {
-    backgroundColor: '#22C55E',
-  },
-  buttonPrimaryText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   buttonSecondary: {
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 10,
+    minHeight: 44,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 12,
   },
   buttonText: {
     fontWeight: '600',
   },
   bigButton: {
+    minHeight: 48,
+    borderWidth: 1,
+    paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 10,
   },
   bigButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    flexShrink: 1,
   },
   refineContainer: {
     gap: 8,
@@ -299,7 +280,6 @@ export const styles = StyleSheet.create({
   selectedTagChip: {
   },
   selectedTokenText: {
-    color: '#FFFFFF',
     fontSize: 12,
   },
   prioritySection: {
@@ -330,15 +310,13 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   addContextButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: 10,
-    backgroundColor: '#3B82F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   addContextButtonText: {
-    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
   },
@@ -467,7 +445,6 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
   },
   createProjectButtonText: {
-    color: '#FFFFFF',
     fontWeight: '700',
   },
   projectListContainer: {
@@ -483,7 +460,6 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   projectChipText: {
-    color: '#FFFFFF',
     fontWeight: '600',
   },
   projectDot: {
@@ -506,14 +482,29 @@ export const styles = StyleSheet.create({
   },
   bottomNextButton: {
     borderRadius: 12,
+    minHeight: 48,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   bottomNextButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  advancedOptionsButton: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    marginBottom: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  advancedOptionsText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
   },
   singleSection: {
     borderBottomWidth: 1,

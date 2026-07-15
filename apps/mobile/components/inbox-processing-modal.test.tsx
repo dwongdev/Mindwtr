@@ -351,6 +351,90 @@ describe('InboxProcessingModal', () => {
     return node;
   };
 
+  const chooseActionableLonger = (root: ReturnType<typeof create>['root']) => {
+    act(() => {
+      findPressableWithText(root, 'inbox.yesActionable').props.onPress();
+    });
+    act(() => {
+      findPressableWithText(root, 'inbox.takesLonger').props.onPress();
+    });
+  };
+
+  const revealDeferredOptions = (root: ReturnType<typeof create>['root']) => {
+    chooseActionableLonger(root);
+    act(() => {
+      findPressableWithText(root, 'inbox.illDoIt').props.onPress();
+    });
+    const moreOptions = findPressableWithText(root, 'More options');
+    if (!moreOptions.props.accessibilityState?.expanded) {
+      act(() => {
+        moreOptions.props.onPress();
+      });
+    }
+  };
+
+  it('reveals one Inbox decision at a time and requires an explicit path', () => {
+    storeState.tasks = [{ ...baseInboxTask, contexts: [], tags: [] }];
+    const onClose = vi.fn();
+    let tree: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<InboxProcessingModal visible onClose={onClose} />);
+    });
+
+    const root = tree!.root;
+    const nextTaskButton = findPressableWithText(root, 'Next task →');
+
+    expect(nextTaskButton.props.disabled).toBe(true);
+    expect(findNodesWithText(root, 'inbox.twoMinRule')).toHaveLength(0);
+    expect(findNodesWithText(root, 'inbox.whoShouldDoIt')).toHaveLength(0);
+
+    act(() => {
+      findPressableWithText(root, 'inbox.yesActionable').props.onPress();
+    });
+
+    expect(findNodesWithText(root, 'inbox.twoMinRule').length).toBeGreaterThan(0);
+    expect(findNodesWithText(root, 'inbox.whoShouldDoIt')).toHaveLength(0);
+
+    act(() => {
+      findPressableWithText(root, 'inbox.takesLonger').props.onPress();
+    });
+
+    expect(findNodesWithText(root, 'inbox.whoShouldDoIt').length).toBeGreaterThan(0);
+    expect(root.findByProps({ children: 'Next task →' }).parent?.props.disabled).toBe(true);
+
+    act(() => {
+      findPressableWithText(root, 'inbox.illDoIt').props.onPress();
+    });
+
+    expect(findPressableWithText(root, 'More options').props.accessibilityState).toEqual({ expanded: false });
+    expect(root.findByProps({ children: 'Next task →' }).parent?.props.disabled).toBe(false);
+  });
+
+  it('keeps optional scheduling available for delegated tasks without showing project metadata', () => {
+    mockSettings.gtd.inboxProcessing = { scheduleEnabled: true };
+    storeState.tasks = [{ ...baseInboxTask, contexts: [], tags: [] }];
+    let tree: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<InboxProcessingModal visible onClose={vi.fn()} />);
+    });
+
+    const root = tree!.root;
+    chooseActionableLonger(root);
+
+    act(() => {
+      findPressableWithText(root, 'inbox.delegate').props.onPress();
+    });
+    act(() => {
+      findPressableWithText(root, 'More options').props.onPress();
+    });
+
+    expect(findNodesWithText(root, 'taskEdit.scheduling').length).toBeGreaterThan(0);
+    expect(root.findAllByProps({ placeholder: 'projects.addPlaceholder' })).toHaveLength(0);
+    expect(root.findAllByProps({ placeholder: 'inbox.addContextPlaceholder' })).toHaveLength(0);
+  });
+
   it('keeps the processing form keyboard-aware on iOS', () => {
     setPlatform('ios');
     const onClose = vi.fn();
@@ -483,6 +567,8 @@ describe('InboxProcessingModal', () => {
 
     const root = tree!.root;
 
+    revealDeferredOptions(root);
+
     expect(root.findAllByProps({ placeholder: 'inbox.addContextPlaceholder' })).toHaveLength(0);
   });
 
@@ -498,6 +584,8 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+
+    revealDeferredOptions(root);
 
     // The area assigned while the task sat in the inbox starts selected, so the
     // project picker opens filtered to it (and apply keeps the area).
@@ -588,6 +676,7 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+    revealDeferredOptions(root);
     const projectInput = root.findByProps({ placeholder: 'projects.addPlaceholder' });
 
     act(() => {
@@ -628,6 +717,8 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+
+    revealDeferredOptions(root);
 
     act(() => {
       findPressableWithText(root, 'process.moreThanOneStepYes').props.onPress();
@@ -673,6 +764,8 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+
+    revealDeferredOptions(root);
 
     act(() => {
       findPressableWithText(root, 'process.moreThanOneStepYes').props.onPress();
@@ -730,6 +823,8 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+
+    revealDeferredOptions(root);
 
     act(() => {
       findPressableWithText(root, 'process.moreThanOneStepYes').props.onPress();
@@ -801,6 +896,7 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+    revealDeferredOptions(root);
     const tokenInput = root.findByProps({ placeholder: 'inbox.addContextPlaceholder' });
 
     act(() => {
@@ -842,6 +938,7 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+    revealDeferredOptions(root);
     const assignedToInput = root.findByProps({ placeholder: 'taskEdit.assignedToPlaceholder' });
 
     act(() => {
@@ -1215,6 +1312,7 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+    revealDeferredOptions(root);
     const priorityLabel = root.findByProps({ children: 'priority.high' });
     const priorityButton = priorityLabel.parent;
 
@@ -1258,6 +1356,7 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+    revealDeferredOptions(root);
     const energyLabel = root.findByProps({ children: 'energyLevel.high' });
     const energyButton = energyLabel.parent;
     const estimateLabel = root.findByProps({ children: '30m' });
@@ -1304,6 +1403,8 @@ describe('InboxProcessingModal', () => {
 
     const root = tree!.root;
 
+    revealDeferredOptions(root);
+
     expect(root.findAllByProps({ children: 'taskEdit.energyLevel' })).toHaveLength(0);
     expect(root.findAllByProps({ children: 'taskEdit.timeEstimateLabel' })).toHaveLength(0);
     expect(root.findAllByProps({ children: 'energyLevel.high' })).toHaveLength(0);
@@ -1324,6 +1425,7 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+    chooseActionableLonger(root);
     const delegateButton = findPressableWithText(root, 'inbox.delegate');
 
     if (!delegateButton) {
@@ -1377,6 +1479,7 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+    revealDeferredOptions(root);
     const priorityLabel = root.findByProps({ children: 'priority.high' });
     const priorityButton = priorityLabel.parent;
 
@@ -1441,6 +1544,7 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+    revealDeferredOptions(root);
     const priorityLabel = root.findByProps({ children: 'priority.urgent' });
     const priorityButton = priorityLabel.parent;
 
@@ -1504,6 +1608,7 @@ describe('InboxProcessingModal', () => {
     });
 
     const root = tree!.root;
+    chooseActionableLonger(root);
     const delegateButton = findPressableWithText(root, 'inbox.delegate');
 
     if (!delegateButton) {

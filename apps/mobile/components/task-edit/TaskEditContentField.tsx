@@ -608,6 +608,9 @@ export function TaskEditContentField({
                                             ]}
                                         >
                                             <TouchableOpacity
+                                                accessibilityRole="checkbox"
+                                                accessibilityLabel={item.title.trim() || t('taskEdit.itemNamePlaceholder')}
+                                                accessibilityState={{ checked: item.isCompleted }}
                                                 onPress={() => {
                                                     const nextChecklist = (editedTask.checklist || []).map((entry, entryIndex) =>
                                                         entryIndex === index ? { ...entry, isCompleted: !entry.isCompleted } : entry
@@ -616,8 +619,12 @@ export function TaskEditContentField({
                                                 }}
                                                 style={styles.checkboxTouch}
                                             >
-                                                <View style={[styles.checkbox, item.isCompleted && styles.checkboxChecked]}>
-                                                    {item.isCompleted && <Text style={styles.checkmark}>✓</Text>}
+                                                <View style={[
+                                                    styles.checkbox,
+                                                    { borderColor: tc.tint },
+                                                    item.isCompleted && { backgroundColor: tc.tint },
+                                                ]}>
+                                                    {item.isCompleted && <Text style={[styles.checkmark, { color: tc.onTint }]}>✓</Text>}
                                                 </View>
                                             </TouchableOpacity>
                                             <TextInput
