@@ -6,6 +6,41 @@ import { AgendaView } from './AgendaView';
 import { useUiStore } from '../../store/ui-store';
 import { MINDWTR_NAVIGATE_EVENT } from '../../lib/navigation-events';
 
+// Capture the focus-drag handler so tests can drive a drop without a real
+// pointer gesture; dnd-kit contexts render as passthroughs (see BoardView.test).
+let capturedFocusDndProps: { onDragEnd?: (event: unknown) => void } = {};
+vi.mock('@dnd-kit/core', () => ({
+    DndContext: ({ children, onDragEnd }: { children: React.ReactNode; onDragEnd?: (event: unknown) => void }) => {
+        capturedFocusDndProps = { onDragEnd };
+        return <div>{children}</div>;
+    },
+    DragOverlay: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    PointerSensor: class {},
+    KeyboardSensor: class {},
+    closestCenter: () => null,
+    useSensor: () => ({}),
+    useSensors: () => [],
+}));
+vi.mock('@dnd-kit/sortable', () => ({
+    SortableContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    verticalListSortingStrategy: {},
+    sortableKeyboardCoordinates: () => ({}),
+    arrayMove: <T,>(items: T[], from: number, to: number) => {
+        const next = items.slice();
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        return next;
+    },
+    useSortable: () => ({
+        attributes: {},
+        listeners: {},
+        setNodeRef: () => {},
+        transform: null,
+        transition: undefined,
+        isDragging: false,
+    }),
+}));
+
 const nowIso = '2026-02-28T12:00:00.000Z';
 const focusViewStateStorageKey = 'mindwtr:view:focus:v1';
 
@@ -1744,5 +1779,101 @@ describe('AgendaView', () => {
         expect(secondRender.getByRole('button', { name: /@work\s*1/i })).toHaveAttribute('aria-expanded', 'false');
         expect(secondRender.queryByText('Work task')).not.toBeInTheDocument();
         expect(secondRender.getByText('Home task')).toBeInTheDocument();
+    });
+
+    describe('Today\'s Focus drag reorder', () => {
+        const focusTask = (id: string, title: string, focusOrder?: number): Task => ({
+            id,
+            title,
+            status: 'next',
+            isFocusedToday: true,
+            focusOrder,
+            tags: [],
+            contexts: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        });
+
+        beforeEach(() => {
+            capturedFocusDndProps = {};
+        });
+
+        it('orders focused rows by focusOrder in the default sort', () => {
+            // Provided out of order; sortTasksByFocusOrder must surface B (0) before A (1).
+            const taskA = focusTask('task-a', 'Focus A', 1);
+            const taskB = focusTask('task-b', 'Focus B', 0);
+            const tasks = [taskA, taskB];
+            useTaskStore.setState({
+                tasks,
+                _allTasks: tasks,
+                projects: [],
+                _allProjects: [],
+                areas: [],
+                _allAreas: [],
+                settings: {},
+                highlightTaskId: null,
+            });
+
+            const { getByTestId, getAllByRole } = renderAgenda();
+
+            const section = getByTestId('todays-focus-section');
+            const titleA = section.querySelector('[data-task-id="task-a"]')!;
+            const titleB = section.querySelector('[data-task-id="task-b"]')!;
+            expect(titleB.compareDocumentPosition(titleA) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+            // Default sort exposes a drag handle per focused row.
+            const handles = getAllByRole('button', { name: 'Order' });
+            expect(handles).toHaveLength(2);
+        });
+
+        it('commits a drop through reorderFocusedTasks with the new id order', () => {
+            const taskA = focusTask('task-a', 'Focus A', 0);
+            const taskB = focusTask('task-b', 'Focus B', 1);
+            const tasks = [taskA, taskB];
+            useTaskStore.setState({
+                tasks,
+                _allTasks: tasks,
+                projects: [],
+                _allProjects: [],
+                areas: [],
+                _allAreas: [],
+                settings: {},
+                highlightTaskId: null,
+            });
+            const reorderSpy = vi
+                .spyOn(useTaskStore.getState(), 'reorderFocusedTasks')
+                .mockResolvedValue({ success: true });
+
+            renderAgenda();
+
+            expect(capturedFocusDndProps.onDragEnd).toBeTypeOf('function');
+            act(() => {
+                capturedFocusDndProps.onDragEnd?.({ active: { id: 'task-a' }, over: { id: 'task-b' } });
+            });
+
+            expect(reorderSpy).toHaveBeenCalledWith(['task-b', 'task-a']);
+        });
+
+        it('renders no drag affordance under a non-default sort', () => {
+            const tasks = [focusTask('task-a', 'Focus A', 0), focusTask('task-b', 'Focus B', 1)];
+            useTaskStore.setState({
+                tasks,
+                _allTasks: tasks,
+                projects: [],
+                _allProjects: [],
+                areas: [],
+                _allAreas: [],
+                settings: {},
+                highlightTaskId: null,
+            });
+
+            const { getByRole, queryByRole, queryAllByRole } = renderAgenda();
+            expect(queryAllByRole('button', { name: 'Order' }).length).toBeGreaterThan(0);
+
+            fireEvent.click(getByRole('button', { name: /^Filters$/i }));
+            fireEvent.click(getByRole('button', { name: 'Start date' }));
+
+            expect(queryByRole('button', { name: 'Order' })).toBeNull();
+        });
     });
 });

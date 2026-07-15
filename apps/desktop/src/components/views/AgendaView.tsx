@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import {
+    DndContext,
+    DragOverlay,
+    KeyboardSensor,
+    PointerSensor,
+    closestCenter,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+    type DragStartEvent,
+} from '@dnd-kit/core';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { FutureStartNotice } from './FutureStartNotice';
 import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, criteriaFromSelections, removeAdvancedFilterCriteriaChip, selectionsFromCriteria, formatFocusTaskLimitText,
-    getFocusStarBlockedText, formatTimeEstimateLabel, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, getProjectDeadlineBoosts, getTaskMetadataFilterVisibility, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isFocusSequentialCandidate, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, sortTasksBySavedPreference, translateWithFallback } from '@mindwtr/core';
+    getFocusStarBlockedText, formatTimeEstimateLabel, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, getProjectDeadlineBoosts, getTaskMetadataFilterVisibility, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isFocusSequentialCandidate, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, sortTasksByFocusOrder, sortTasksBySavedPreference, translateWithFallback } from '@mindwtr/core';
 import type { FilterCriteria, FocusGroupBy, MultiValueFilterMatchMode, ProjectDeadlineBoost, SavedFilter, SortField, Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
@@ -17,6 +29,7 @@ import { PomodoroPanel } from './PomodoroPanel';
 import { AgendaFiltersPanel, type AgendaActiveFilterChip, type AgendaProjectFilterOption } from './agenda/AgendaFiltersPanel';
 import { AgendaHeader } from './agenda/AgendaHeader';
 import { AgendaCollapsibleSection, AgendaProjectSection } from './agenda/AgendaSections';
+import { SortableFocusRow } from './agenda/SortableFocusRow';
 import { StoreTaskItem } from './list/StoreTaskItem';
 import { groupTasks, type NextGroupBy } from './list/next-grouping';
 import { PromptModal } from '../PromptModal';
@@ -249,12 +262,13 @@ function AgendaTaskList({
 
 export function AgendaView() {
     const perf = usePerformanceMonitor('AgendaView');
-    const { projects, areas, updateTask, updateSettings, settings, error, highlightTaskId, setHighlightTask, taskChangeToken, hasAnyTasks } = useTaskStore(
+    const { projects, areas, updateTask, updateSettings, reorderFocusedTasks, settings, error, highlightTaskId, setHighlightTask, taskChangeToken, hasAnyTasks } = useTaskStore(
         (state) => ({
             projects: state.projects,
             areas: state.areas,
             updateTask: state.updateTask,
             updateSettings: state.updateSettings,
+            reorderFocusedTasks: state.reorderFocusedTasks,
             settings: state.settings,
             error: state.error,
             highlightTaskId: state.highlightTaskId,
@@ -710,9 +724,13 @@ export function AgendaView() {
         });
     }, [activeSavedFilter?.sortOrder, effectiveFocusSortBy, prioritiesEnabled, projects]);
 
-    const focusedTasks = useMemo(() => (
-        sortBySavedPerspective(filteredActiveTasks.filter(t => t.isFocusedToday))
-    ), [filteredActiveTasks, sortBySavedPerspective]);
+    // Default sort applies the manual drag order (focusOrder); any explicit or
+    // saved sort takes over and disables dragging.
+    const focusDragEnabled = effectiveFocusSortBy === DEFAULT_FOCUS_SORT_BY;
+    const focusedTasks = useMemo(() => {
+        const focused = filteredActiveTasks.filter(t => t.isFocusedToday);
+        return focusDragEnabled ? sortTasksByFocusOrder(focused) : sortBySavedPerspective(focused);
+    }, [filteredActiveTasks, focusDragEnabled, sortBySavedPerspective]);
 
     // Categorize tasks
     const sections = useMemo(() => {
@@ -933,6 +951,77 @@ export function AgendaView() {
         }
         setListOptions({ showDetails: true });
     }, [collapseAllTaskDetails, setListOptions, showListDetails]);
+    const focusDndSensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    );
+    const [activeFocusDragId, setActiveFocusDragId] = useState<string | null>(null);
+    const handleFocusDragStart = useCallback((event: DragStartEvent) => {
+        setActiveFocusDragId(String(event.active.id));
+    }, []);
+    const handleFocusDragCancel = useCallback(() => setActiveFocusDragId(null), []);
+    const handleFocusDragEnd = useCallback((event: DragEndEvent) => {
+        setActiveFocusDragId(null);
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const ids = focusedTasks.map((task) => task.id);
+        const oldIndex = ids.indexOf(String(active.id));
+        const newIndex = ids.indexOf(String(over.id));
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+        // Core diffs against stored focusOrder and writes only the rows that moved.
+        void Promise.resolve(reorderFocusedTasks(arrayMove(ids, oldIndex, newIndex))).catch(() => undefined);
+    }, [focusedTasks, reorderFocusedTasks]);
+    const focusDragAriaLabel = resolveText('projects.reorderTasks', 'Order');
+    const activeFocusDragTask = activeFocusDragId
+        ? focusedTasks.find((task) => task.id === activeFocusDragId) ?? null
+        : null;
+
+    const focusListBody = focusDragEnabled ? (
+        <DndContext
+            sensors={focusDndSensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleFocusDragStart}
+            onDragCancel={handleFocusDragCancel}
+            onDragEnd={handleFocusDragEnd}
+        >
+            <SortableContext items={focusedTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+                <div className="divide-y divide-border/30">
+                    {focusedTasks.map(task => (
+                        <SortableFocusRow
+                            key={task.id}
+                            taskId={task.id}
+                            dragAriaLabel={focusDragAriaLabel}
+                            buildFocusToggle={buildFocusToggle}
+                            showProjectBadgeInActions={false}
+                            compactMetaEnabled={showListDetails}
+                            enableDoubleClickEdit
+                        />
+                    ))}
+                </div>
+            </SortableContext>
+            <DragOverlay dropAnimation={null}>
+                {activeFocusDragTask ? (
+                    <div className="pointer-events-none max-w-[280px] truncate rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-lg">
+                        {activeFocusDragTask.title}
+                    </div>
+                ) : null}
+            </DragOverlay>
+        </DndContext>
+    ) : (
+        <div className="divide-y divide-border/30">
+            {focusedTasks.map(task => (
+                <StoreTaskItem
+                    key={task.id}
+                    taskId={task.id}
+                    buildFocusToggle={buildFocusToggle}
+                    showProjectBadgeInActions={false}
+                    compactMetaEnabled={showListDetails}
+                    enableDoubleClickEdit
+                />
+            ))}
+        </div>
+    );
+
     const todaysFocusSection = focusedTasks.length > 0 ? (
         <div
             data-testid="todays-focus-section"
@@ -946,18 +1035,7 @@ export function AgendaView() {
                 </span>
             </h3>
 
-            <div className="divide-y divide-border/30">
-                {focusedTasks.map(task => (
-                    <StoreTaskItem
-                        key={task.id}
-                        taskId={task.id}
-                        buildFocusToggle={buildFocusToggle}
-                        showProjectBadgeInActions={false}
-                        compactMetaEnabled={showListDetails}
-                        enableDoubleClickEdit
-                    />
-                ))}
-            </div>
+            {focusListBody}
         </div>
     ) : null;
 
