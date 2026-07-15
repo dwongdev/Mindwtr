@@ -129,6 +129,24 @@ export function KeybindingHelpModal({
         { keys: 'Insert', labelKey: 'keybindings.list.newTask', fallbackLabel: 'Focus add-task input' },
     ];
 
+    // Keep this table in sync with the parser inventory mirrored by
+    // SLASH_COMMANDS in TaskInput.tsx (#869) and the quickAdd.help string.
+    const quickAddSyntax: HelpItem[] = [
+        { keys: '/start:<when>', labelKey: 'taskEdit.startDateLabel' },
+        { keys: '/due:<when>', labelKey: 'taskEdit.dueDateLabel' },
+        { keys: '/review:<when>', labelKey: 'taskEdit.reviewDateLabel' },
+        { keys: '/note:<text>', labelKey: 'taskEdit.descriptionLabel' },
+        { keys: '/link:<url>', labelKey: 'attachments.addLink' },
+        { keys: '/energy:<level>', labelKey: 'taskEdit.energyLevel' },
+        { keys: '/inbox /next /waiting /someday /done /archived', labelKey: 'taskEdit.statusLabel' },
+        { keys: '/*', labelKey: 'agenda.addToFocus', fallbackLabel: "Add to today's focus" },
+        { keys: '/area:<name> or !Area', labelKey: 'taskEdit.areaLabel' },
+        { keys: '@context', labelKey: 'taskEdit.contextsLabel' },
+        { keys: '#tag', labelKey: 'taskEdit.tagsLabel' },
+        { keys: '+Project', labelKey: 'taskEdit.projectLabel' },
+        { keys: '%Person or %"Full Name"', labelKey: 'taskEdit.assignedTo' },
+    ];
+
     const globalItems = style === 'emacs' ? emacsGlobal : vimGlobal;
     const listItems = style === 'emacs' ? emacsList : style === 'standard' ? standardList : vimList;
     const resolveItemLabel = (item: HelpItem) => {
@@ -188,6 +206,18 @@ export function KeybindingHelpModal({
                                 <div key={item.keys} className="flex items-center justify-between bg-muted/30 rounded-md px-3 py-2">
                                     <code className="text-xs bg-muted px-2 py-0.5 rounded">{item.keys}</code>
                                     <span className="text-sm">{resolveItemLabel(item)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 className="font-medium mb-3">{t('keybindings.section.quickAddSyntax')}</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {quickAddSyntax.map((item) => (
+                                <div key={item.keys} className="flex items-center justify-between gap-3 bg-muted/30 rounded-md px-3 py-2">
+                                    <code className="text-xs bg-muted px-2 py-0.5 rounded whitespace-nowrap overflow-x-auto">{item.keys}</code>
+                                    <span className="text-sm text-right shrink-0">{resolveItemLabel(item)}</span>
                                 </div>
                             ))}
                         </div>

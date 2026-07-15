@@ -71,6 +71,7 @@ export const frOverrides: Record<string, string> = {
         'keybindings.list.select': 'Sélectionner/désélectionner la tâche',
         'keybindings.section.global': 'Section globale',
         'keybindings.section.taskList': 'Liste de tâches',
+        'keybindings.section.quickAddSyntax': 'Syntaxe d\'ajout rapide',
         'keybindings.openHelp': 'Afficher les raccourcis',
         'keybindings.openSettings': 'Ouvrir les paramètres',
         'keybindings.openSearch': 'Ouvrir la recherche',

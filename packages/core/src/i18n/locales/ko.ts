@@ -90,6 +90,7 @@ export const koOverrides: Record<string, string> = {
         'keybindings.list.select': '작업 선택/선택 해제',
         'keybindings.section.global': '글로벌',
         'keybindings.section.taskList': '작업 목록',
+        'keybindings.section.quickAddSyntax': '빠른 추가 문법',
         'keybindings.openHelp': '바로가기 표시',
         'keybindings.openSearch': '검색 열기',
         'keybindings.quickAdd': '빠른 추가',

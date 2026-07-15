@@ -81,6 +81,7 @@ export const esOverrides: Record<string, string> = {
         'keybindings.list.open': 'Abrir la tarea seleccionada',
         'keybindings.list.select': 'Seleccionar/deseleccionar tarea',
         'keybindings.section.taskList': 'Lista de tareas',
+        'keybindings.section.quickAddSyntax': 'Sintaxis de adición rápida',
         'keybindings.section.global': 'Globales',
         'keybindings.openHelp': 'Mostrar atajos',
         'keybindings.openSettings': 'Abrir ajustes',

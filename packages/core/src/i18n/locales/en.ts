@@ -76,6 +76,7 @@ export const en: Record<string, string> = {
         'keybindings.style.standard': 'Standard',
         'keybindings.section.global': 'Global',
         'keybindings.section.taskList': 'Task List',
+        'keybindings.section.quickAddSyntax': 'Quick Add Syntax',
         'keybindings.openHelp': 'Show shortcuts',
         'keybindings.openSettings': 'Open Settings',
         'keybindings.openSearch': 'Open search',

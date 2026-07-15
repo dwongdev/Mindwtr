@@ -67,6 +67,7 @@ export const zhHant: Record<string, string> = {
         'keybindings.list.select': '選取/取消選取任務',
         'keybindings.section.global': '全局',
         'keybindings.section.taskList': '任務列表',
+        'keybindings.section.quickAddSyntax': '快速添加語法',
         'keybindings.openHelp': '查看快捷鍵',
         'keybindings.openSearch': '打開搜索',
         'keybindings.quickAdd': '快速添加',

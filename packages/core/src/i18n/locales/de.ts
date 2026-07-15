@@ -100,6 +100,7 @@ export const deOverrides: Record<string, string> = {
         'keybindings.list.open': 'Ausgewählte Aufgabe öffnen',
         'keybindings.list.select': 'Aufgabe aus-/abwählen',
         'keybindings.section.taskList': 'Aufgabenliste',
+        'keybindings.section.quickAddSyntax': 'Schnelleingabe-Syntax',
         'keybindings.section.global': 'Allgemein',
         'keybindings.openHelp': 'Taststaturkürzel anzeigen',
         'keybindings.openSettings': 'Einstellungen öffnen',

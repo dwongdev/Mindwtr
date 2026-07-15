@@ -90,6 +90,7 @@ export const jaOverrides: Record<string, string> = {
         'keybindings.list.select': 'タスクを選択/選択解除',
         'keybindings.section.global': 'グローバル',
         'keybindings.section.taskList': 'タスクリスト',
+        'keybindings.section.quickAddSyntax': 'クイック追加の構文',
         'keybindings.openHelp': 'ショートカットを表示する',
         'keybindings.openSearch': '検索を開く',
         'keybindings.quickAdd': 'クイック追加',

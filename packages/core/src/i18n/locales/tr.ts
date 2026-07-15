@@ -92,6 +92,7 @@ export const trOverrides: Record<string, string> = {
         'keybindings.list.select': 'Görevi seç/seçimi kaldır',
         'keybindings.section.global': 'Küresel',
         'keybindings.section.taskList': 'Görev Listesi',
+        'keybindings.section.quickAddSyntax': 'Hızlı ekleme sözdizimi',
         'keybindings.openHelp': 'Kısayolları göster',
         'keybindings.openSearch': 'Aramayı aç',
         'keybindings.quickAdd': 'Hızlı ekle',

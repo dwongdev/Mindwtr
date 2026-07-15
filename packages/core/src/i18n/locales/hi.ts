@@ -90,6 +90,7 @@ export const hiOverrides: Record<string, string> = {
         'keybindings.list.select': 'कार्य चुनें/चयन हटाएँ',
         'keybindings.section.global': 'वैश्विक',
         'keybindings.section.taskList': 'कार्य सूची',
+        'keybindings.section.quickAddSyntax': 'त्वरित जोड़ सिंटैक्स',
         'keybindings.openHelp': 'शॉर्टकट दिखाएँ',
         'keybindings.openSearch': 'खोज खोलें',
         'keybindings.quickAdd': 'शीघ्र जोड़ें',

@@ -76,6 +76,7 @@ export const ptOverrides: Record<string, string> = {
         'keybindings.list.open': 'Abrir a tarefa selecionada',
         'keybindings.list.select': 'Selecionar/desmarcar tarefa',
         'keybindings.section.taskList': 'Lista de tarefas',
+        'keybindings.section.quickAddSyntax': 'Sintaxe de adição rápida',
         'keybindings.openHelp': 'Mostrar atalhos',
         'keybindings.openSearch': 'Abrir pesquisa',
         'keybindings.quickAdd': 'Adição rápida',

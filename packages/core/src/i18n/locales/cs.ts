@@ -70,6 +70,7 @@ export const csOverrides: Record<string, string> = {
         'keybindings.list.select': 'Vybrat/zrušit výběr úkolu',
         'keybindings.section.global': 'Globální',
         'keybindings.section.taskList': 'Seznam úkolů',
+        'keybindings.section.quickAddSyntax': 'Syntaxe rychlého přidání',
         'keybindings.openHelp': 'Zobrazit zkratky',
         'keybindings.openSettings': 'Otevřít nastavení',
         'keybindings.openSearch': 'Otevřít hledání',

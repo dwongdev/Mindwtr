@@ -76,6 +76,7 @@ export const viOverrides: Record<string, string> = {
         'keybindings.list.select': 'Chọn/bỏ chọn nhiệm vụ',
         'keybindings.section.global': 'Toàn cục',
         'keybindings.section.taskList': 'Danh sách nhiệm vụ',
+        'keybindings.section.quickAddSyntax': 'Cú pháp thêm nhanh',
         'keybindings.openHelp': 'Hiện phím tắt',
         'keybindings.openSettings': 'Mở cài đặt',
         'keybindings.openSearch': 'Mở tìm kiếm',

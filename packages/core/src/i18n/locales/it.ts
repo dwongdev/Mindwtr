@@ -108,6 +108,7 @@ export const itOverrides: Record<string, string> = {
         'keybindings.list.select': 'Seleziona/deseleziona attività',
         'keybindings.section.global': 'Globali',
         'keybindings.section.taskList': 'Elenco attività',
+        'keybindings.section.quickAddSyntax': 'Sintassi aggiunta rapida',
         'keybindings.openHelp': 'Mostra scorciatoie',
         'keybindings.openSettings': 'Apri impostazioni',
         'keybindings.openSearch': 'Apri ricerca',

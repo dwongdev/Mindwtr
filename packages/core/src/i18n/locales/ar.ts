@@ -67,6 +67,7 @@ export const arOverrides: Record<string, string> = {
         'keybindings.list.select': 'تحديد/إلغاء تحديد المهمة',
         'keybindings.section.global': 'عالمي',
         'keybindings.section.taskList': 'قائمة المهام',
+        'keybindings.section.quickAddSyntax': 'صيغة الإضافة السريعة',
         'keybindings.openHelp': 'إظهار الاختصارات',
         'keybindings.openSearch': 'فتح البحث',
         'keybindings.openSettings': 'فتح الإعدادات',

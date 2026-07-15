@@ -92,6 +92,7 @@ export const plOverrides: Record<string, string> = {
         'keybindings.list.select': 'Zaznacz/odznacz zadanie',
         'keybindings.section.global': 'Globalne',
         'keybindings.section.taskList': 'Lista zadań',
+        'keybindings.section.quickAddSyntax': 'Składnia szybkiego dodawania',
         'keybindings.openHelp': 'Pokaż skróty',
         'keybindings.openSearch': 'Otwórz wyszukiwanie',
         'keybindings.quickAdd': 'Szybkie dodawanie',

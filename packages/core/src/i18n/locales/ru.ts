@@ -90,6 +90,7 @@ export const ruOverrides: Record<string, string> = {
         'keybindings.list.select': 'Выбрать/снять выбор задачи',
         'keybindings.section.global': 'Глобальный',
         'keybindings.section.taskList': 'Список задач',
+        'keybindings.section.quickAddSyntax': 'Синтаксис быстрого добавления',
         'keybindings.openHelp': 'Показать ярлыки',
         'keybindings.openSearch': 'Открыть поиск',
         'keybindings.quickAdd': 'Быстрое добавление',
