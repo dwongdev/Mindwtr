@@ -43,6 +43,7 @@ const storeState: {
   settings: AppSettings;
   updateTask: ReturnType<typeof vi.fn>;
   deleteTask: ReturnType<typeof vi.fn>;
+  reorderFocusedTasks: ReturnType<typeof vi.fn>;
   updateSettings: ReturnType<typeof vi.fn>;
   highlightTaskId: string | null;
   setHighlightTask: ReturnType<typeof vi.fn>;
@@ -55,6 +56,7 @@ const storeState: {
   settings: { appearance: {}, features: {} },
   updateTask: vi.fn(),
   deleteTask: vi.fn(),
+  reorderFocusedTasks: vi.fn(),
   updateSettings: vi.fn(),
   highlightTaskId: null,
   setHighlightTask: vi.fn(),
@@ -87,6 +89,8 @@ beforeEach(() => {
   storeState.updateTask.mockReset();
   storeState.updateTask.mockResolvedValue({ success: true });
   storeState.deleteTask.mockClear();
+  storeState.reorderFocusedTasks.mockReset();
+  storeState.reorderFocusedTasks.mockResolvedValue({ success: true });
   storeState.updateSettings.mockClear();
   storeState.highlightTaskId = null;
   showToastMock.mockClear();
@@ -121,6 +125,23 @@ vi.mock('@mindwtr/core', async (importOriginal) => {
     useTaskStore,
     safeParseDate: (value?: string) => (value ? new Date(value) : null),
     safeParseDueDate: (value?: string) => (value ? new Date(value) : null),
+  };
+});
+
+vi.mock('react-native-draggable-flatlist', async () => {
+  const ReactModule = await import('react');
+  return {
+    __esModule: true,
+    default: (props: any) => ReactModule.createElement(
+      'DraggableFlatList',
+      props,
+      (props.data ?? []).map((item: any) =>
+        ReactModule.createElement(
+          ReactModule.Fragment,
+          { key: props.keyExtractor(item) },
+          props.renderItem({ item, drag: () => {}, isActive: false, getIndex: () => 0 }),
+        )),
+    ),
   };
 });
 
@@ -1524,6 +1545,80 @@ describe('FocusScreen', () => {
       tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
     ).toEqual(['office-task']);
     expect(textContent(findButtonByText(tree, 'Location: office'))).toContain('Location: office');
+  });
+
+  it('orders the Today\'s Focus section by focusOrder in the default sort', () => {
+    storeState.tasks = [
+      makeTask('focus-c', { title: 'C', isFocusedToday: true, focusOrder: 2 }),
+      makeTask('focus-a', { title: 'A', isFocusedToday: true, focusOrder: 0 }),
+      makeTask('focus-b', { title: 'B', isFocusedToday: true, focusOrder: 1 }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    expect(
+      tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
+    ).toEqual(['focus-a', 'focus-b', 'focus-c']);
+  });
+
+  it('commits a new Today\'s Focus order via reorderFocusedTasks after a drag', () => {
+    storeState.tasks = [
+      makeTask('focus-a', { title: 'A', isFocusedToday: true, focusOrder: 0 }),
+      makeTask('focus-b', { title: 'B', isFocusedToday: true, focusOrder: 1 }),
+      makeTask('focus-c', { title: 'C', isFocusedToday: true, focusOrder: 2 }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    act(() => {
+      tree.root.findByProps({ testID: 'focus-reorder-toggle' }).props.onPress();
+    });
+
+    const list = tree.root.findByProps({ testID: 'focus-reorder-list' });
+    expect(list.props.data.map((task: Task) => task.id)).toEqual(['focus-a', 'focus-b', 'focus-c']);
+
+    act(() => {
+      list.props.onDragEnd({
+        data: [{ id: 'focus-c' }, { id: 'focus-a' }, { id: 'focus-b' }],
+        from: 2,
+        to: 0,
+      });
+    });
+
+    expect(storeState.reorderFocusedTasks).toHaveBeenCalledTimes(1);
+    expect(storeState.reorderFocusedTasks).toHaveBeenCalledWith(['focus-c', 'focus-a', 'focus-b']);
+  });
+
+  it('hides the reorder toggle when a non-default Focus sort is active', () => {
+    storeState.tasks = [
+      makeTask('focus-a', { title: 'A', isFocusedToday: true, focusOrder: 0 }),
+      makeTask('focus-b', { title: 'B', isFocusedToday: true, focusOrder: 1 }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    expect(tree.root.findAllByProps({ testID: 'focus-reorder-toggle' }).length).toBeGreaterThan(0);
+
+    act(() => {
+      findButtonByLabel(tree, 'Filters').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, 'due').props.onPress();
+    });
+
+    expect(tree.root.findAllByProps({ testID: 'focus-reorder-toggle' })).toHaveLength(0);
   });
 
 });

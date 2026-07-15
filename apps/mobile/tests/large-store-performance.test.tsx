@@ -147,6 +147,14 @@ vi.mock('@mindwtr/core', async () => {
   };
 });
 
+vi.mock('react-native-draggable-flatlist', async () => {
+  const react = await import('react');
+  return {
+    __esModule: true,
+    default: (props: any) => react.createElement('DraggableFlatList', props),
+  };
+});
+
 // The shared React Native test shim renders every SectionList row. For this
 // perf guard, keep the render path closer to native virtualization.
 vi.mock('react-native', async (importOriginal) => {

@@ -16,8 +16,9 @@ import {
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useLocalSearchParams } from 'expo-router';
-import { BookmarkPlus, Folder, SlidersHorizontal, X } from 'lucide-react-native';
+import { BookmarkPlus, Folder, GripVertical, SlidersHorizontal, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DraggableFlatList, { type DragEndParams, type RenderItemParams } from 'react-native-draggable-flatlist';
 
 import {
   applyFilter,
@@ -37,6 +38,7 @@ import {
   normalizeFocusTaskLimit,
   SAVED_FILTER_NO_PROJECT_ID,
   sortTasksBySavedPreference,
+  sortTasksByFocusOrder,
   translateWithFallback,
   useTaskStore,
   getAdvancedReviewDate,
@@ -114,6 +116,7 @@ function getProjectDeadlineBoostLabel(
     : resolveText('focus.projectDueToday', 'Project due today');
 }
 const FOCUS_VIEW_STATE_STORAGE_KEY = 'mindwtr:view:focus:v1';
+const FOCUS_REORDER_ITEM_HEIGHT = 72;
 const FOCUS_LIST_INITIAL_RENDER_COUNT = 12;
 const FOCUS_LIST_BATCH_RENDER_COUNT = 12;
 const FOCUS_LIST_WINDOW_SIZE = 5;
@@ -259,12 +262,13 @@ const serializeFocusViewState = (expandedSections: FocusExpandedSections): strin
 export default function FocusScreen() {
   const { taskId, openToken, taskTab } = useLocalSearchParams<{ taskId?: string; openToken?: string; taskTab?: string }>();
   const insets = useSafeAreaInsets();
-  const { tasks, projects, settings, updateTask, deleteTask, updateSettings, highlightTaskId, setHighlightTask } = useTaskStore((state) => ({
+  const { tasks, projects, settings, updateTask, deleteTask, reorderFocusedTasks, updateSettings, highlightTaskId, setHighlightTask } = useTaskStore((state) => ({
     tasks: state.tasks,
     projects: state.projects,
     settings: state.settings,
     updateTask: state.updateTask,
     deleteTask: state.deleteTask,
+    reorderFocusedTasks: state.reorderFocusedTasks,
     updateSettings: state.updateSettings,
     highlightTaskId: state.highlightTaskId,
     setHighlightTask: state.setHighlightTask,
@@ -291,6 +295,8 @@ export default function FocusScreen() {
   const [contextMatchMode, setContextMatchMode] = useState<MultiValueFilterMatchMode>('all');
   const [activeSavedFilterId, setActiveSavedFilterId] = useState<string | null>(null);
   const [focusSortBy, setFocusSortBy] = useState<SortField>(DEFAULT_FOCUS_SORT_BY);
+  const [focusReorderMode, setFocusReorderMode] = useState(false);
+  const [focusReorderDraft, setFocusReorderDraft] = useState<Task[]>([]);
   const [saveFilterDialogVisible, setSaveFilterDialogVisible] = useState(false);
   const [saveFilterName, setSaveFilterName] = useState('');
   const showFutureStarts = settings?.appearance?.showFutureStarts === true;
@@ -955,7 +961,11 @@ export default function FocusScreen() {
       : new Map<string, ProjectDeadlineBoost>();
 
     return {
-      focusedTasks: sortBySavedPerspective(allFocusedTasks),
+      // Default sort honours the manual Today's Focus order (focusOrder); an
+      // explicit non-default sort wins and hides the reorder affordance.
+      focusedTasks: effectiveFocusSortBy === DEFAULT_FOCUS_SORT_BY
+        ? sortTasksByFocusOrder(allFocusedTasks)
+        : sortBySavedPerspective(allFocusedTasks),
       schedule: effectiveFocusSortBy === DEFAULT_FOCUS_SORT_BY ? scheduleItems : sortBySavedPerspective(scheduleItems),
       nextActions: effectiveFocusSortBy === DEFAULT_FOCUS_SORT_BY
         ? sortFocusNextActions(nextItems, {
@@ -988,6 +998,44 @@ export default function FocusScreen() {
         return a.title.localeCompare(b.title);
       });
   }, [visibleProjects]);
+
+  const canReorderFocus = effectiveFocusSortBy === DEFAULT_FOCUS_SORT_BY && focusedTasks.length > 0;
+
+  const enterFocusReorder = useCallback(() => {
+    setFocusReorderDraft(focusedTasks);
+    setFocusReorderMode(true);
+  }, [focusedTasks]);
+
+  const exitFocusReorder = useCallback(() => {
+    setFocusReorderMode(false);
+  }, []);
+
+  const handleFocusReorderDragEnd = useCallback(({ data }: DragEndParams<Task>) => {
+    setFocusReorderDraft(data);
+    void Promise.resolve(reorderFocusedTasks(data.map((task) => task.id))).catch(() => {});
+  }, [reorderFocusedTasks]);
+
+  // Reorder mode owns the whole screen; if the section empties or a non-default
+  // sort takes over while it is open, drop back to the normal list.
+  useEffect(() => {
+    if (focusReorderMode && !canReorderFocus) {
+      setFocusReorderMode(false);
+    }
+  }, [canReorderFocus, focusReorderMode]);
+
+  // Reconcile the dragged order with the live Focus list at render time (a task
+  // finishing or arriving mid-reorder) without discarding the user's ordering.
+  // Deriving this rather than syncing draft state in an effect avoids a render
+  // loop: focusedTasks is a fresh array every render.
+  const focusReorderData = useMemo(() => {
+    const byId = new Map(focusedTasks.map((task) => [task.id, task] as const));
+    const kept = focusReorderDraft
+      .filter((task) => byId.has(task.id))
+      .map((task) => byId.get(task.id) as Task);
+    const keptIds = new Set(kept.map((task) => task.id));
+    const added = focusedTasks.filter((task) => !keptIds.has(task.id));
+    return [...kept, ...added];
+  }, [focusReorderDraft, focusedTasks]);
 
   const sections = useMemo<FocusSection[]>(() => {
     if (!focusViewStateHydrated) return [];
@@ -1551,10 +1599,84 @@ export default function FocusScreen() {
       </View>
     );
   };
+  const getFocusReorderItemLayout = useCallback((_data: ArrayLike<Task> | null | undefined, index: number) => ({
+    length: FOCUS_REORDER_ITEM_HEIGHT,
+    offset: FOCUS_REORDER_ITEM_HEIGHT * index,
+    index,
+  }), []);
+  const renderFocusReorderRow = useCallback(({ item, drag, isActive }: RenderItemParams<Task>) => (
+    <View style={[styles.reorderRow, { height: FOCUS_REORDER_ITEM_HEIGHT }]}>
+      <View
+        style={[
+          styles.reorderCard,
+          { backgroundColor: tc.cardBg, borderColor: tc.border },
+          isActive && styles.reorderCardActive,
+        ]}
+      >
+        <Text numberOfLines={2} style={[styles.reorderTaskTitle, { color: tc.text }]}>
+          {item.title}
+        </Text>
+      </View>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={`${resolveText('board.dragTask', 'Drag task')}: ${item.title}`}
+        activeOpacity={0.85}
+        disabled={isActive}
+        onPressIn={drag}
+        style={[styles.reorderHandle, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+        testID={`focus-reorder-handle-${item.id}`}
+      >
+        <GripVertical size={20} color={tc.secondaryText} />
+      </TouchableOpacity>
+    </View>
+  ), [resolveText, tc]);
   const listBottomPadding = FOCUS_LIST_BOTTOM_CLEARANCE + Math.max(0, insets.bottom);
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
+      {focusReorderMode ? (
+        <View style={styles.reorderContainer}>
+          <View style={[styles.reorderHeader, { borderBottomColor: tc.border }]}>
+            <CompactText
+              style={[styles.reorderTitle, { color: tc.text }]}
+              numberOfLines={1}
+            >
+              {t('agenda.todaysFocus') ?? "Today's Focus"}
+            </CompactText>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={resolveText('common.done', 'Done')}
+              onPress={exitFocusReorder}
+              style={[styles.reorderDoneButton, { backgroundColor: filledButton.backgroundColor, borderColor: filledButton.backgroundColor }]}
+              testID="focus-reorder-done"
+            >
+              <Text style={[styles.reorderDoneText, { color: filledButton.textColor ?? tc.onTint }]}>
+                {resolveText('common.done', 'Done')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <DraggableFlatList
+            testID="focus-reorder-list"
+            data={focusReorderData}
+            keyExtractor={(item) => item.id}
+            renderItem={renderFocusReorderRow}
+            onDragEnd={handleFocusReorderDragEnd}
+            getItemLayout={getFocusReorderItemLayout}
+            activationDistance={2}
+            autoscrollThreshold={80}
+            autoscrollSpeed={120}
+            dragItemOverflow
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={12}
+            maxToRenderPerBatch={12}
+            windowSize={7}
+            removeClippedSubviews={false}
+            containerStyle={styles.reorderListFill}
+            style={styles.reorderListFill}
+            contentContainerStyle={[styles.reorderListContent, { paddingBottom: listBottomPadding }]}
+          />
+        </View>
+      ) : (
       <SectionList
         sections={sections}
         extraData={focusListVersion}
@@ -1737,6 +1859,7 @@ export default function FocusScreen() {
                 event.nativeEvent.layout.height,
               )}
             >
+            <View style={styles.sectionHeaderRow}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={section.title}
@@ -1744,6 +1867,7 @@ export default function FocusScreen() {
               onPress={() => toggleSection(section.type)}
               style={[
                 styles.sectionHeader,
+                styles.sectionHeaderPressable,
                 section.type === firstVisibleSectionType ? styles.firstSectionHeader : null,
               ]}
             >
@@ -1763,6 +1887,19 @@ export default function FocusScreen() {
               </CompactText>
               <View style={[styles.sectionLine, { backgroundColor: tc.border }]} />
             </Pressable>
+            {section.type === 'focus' && canReorderFocus ? (
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={resolveText('projects.reorderTasks', 'Order tasks')}
+                onPress={enterFocusReorder}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={[styles.focusReorderToggle, { backgroundColor: tc.filterBg, borderColor: tc.border }]}
+                testID="focus-reorder-toggle"
+              >
+                <GripVertical size={18} color={tc.secondaryText} />
+              </TouchableOpacity>
+            ) : null}
+            </View>
             </View>
           ) : null
         )}
@@ -1785,6 +1922,7 @@ export default function FocusScreen() {
         ) : null}
         removeClippedSubviews={false}
       />
+      )}
       <PullSyncIndicator state={pullSync.indicatorState} />
       <Modal
         animationType="fade"
@@ -2317,6 +2455,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionHeaderPressable: {
+    flex: 1,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2326,6 +2472,83 @@ const styles = StyleSheet.create({
   },
   firstSectionHeader: {
     marginTop: 8,
+  },
+  focusReorderToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reorderContainer: {
+    flex: 1,
+  },
+  reorderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  reorderTitle: {
+    flexShrink: 1,
+    minWidth: 0,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  reorderDoneButton: {
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    justifyContent: 'center',
+  },
+  reorderDoneText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reorderListFill: {
+    flex: 1,
+  },
+  reorderListContent: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+  },
+  reorderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  reorderCard: {
+    flex: 1,
+    minWidth: 0,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    minHeight: 60,
+  },
+  reorderCardActive: {
+    opacity: 0.9,
+  },
+  reorderTaskTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  reorderHandle: {
+    width: 48,
+    minHeight: 60,
+    borderWidth: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: 12,
