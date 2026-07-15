@@ -56,6 +56,7 @@ import {
 import { QUICK_ADD_MAIN_WINDOW_LABEL, QUICK_ADD_SAVED_EVENT } from '../lib/quick-add-saved-event';
 import { TaskInput } from './Task/TaskInput';
 import { AreaSelector } from './ui/AreaSelector';
+import { QuickAddSyntaxHint } from './ui/QuickAddSyntaxHint';
 import { FocusStarIcon } from './FocusStarIcon';
 
 // Relative to the managed data dir (portable-aware, #855).
@@ -119,6 +120,10 @@ function getImageExtension(file: File): string {
     if (nameMatch?.[1]) return nameMatch[1].toLowerCase() === 'jpeg' ? 'jpg' : nameMatch[1].toLowerCase();
     return 'png';
 }
+
+const IS_MAC_PLATFORM = typeof navigator !== 'undefined' && /mac/i.test(navigator.userAgent);
+const SAVE_AND_EDIT_SHORTCUT_HINT = IS_MAC_PLATFORM ? '⌘Enter' : 'Ctrl+Enter';
+const SAVE_SHORTCUT_HINT = IS_MAC_PLATFORM ? 'Enter · ⇧Enter' : 'Enter · Shift+Enter';
 
 function mergeQuickAddAttachments(...groups: Array<Attachment[] | undefined>): Attachment[] | undefined {
     const attachments = groups.flatMap((group) => group ?? []);
@@ -969,7 +974,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         return () => window.removeEventListener('keydown', handler);
     }, [handleClose, isOpen]);
 
-    const saveTask = async ({ openAfterSave = false }: { openAfterSave?: boolean } = {}) => {
+    const saveTask = async ({ openAfterSave = false, addAnother = false }: { openAfterSave?: boolean; addAnother?: boolean } = {}) => {
         if (isPastingImage) return;
         const hasPastedAttachments = pastedAttachments.length > 0;
         if (!value.trim() && !hasPastedAttachments) return;
@@ -996,6 +1001,15 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         if (standaloneWindow) {
             await flushPendingSave().catch((error) => reportError('Failed to save quick add task', error));
             await notifyStandaloneTaskSaved();
+        }
+        if (addAnother) {
+            // Shift+Enter batch capture: clear per-task state but keep the
+            // dialog (and the picked area) for the next entry.
+            setValue('');
+            setFocusNewTask(false);
+            setPastedImageError(null);
+            resetPastedImageAttachments(false);
+            return;
         }
         close({ keepPastedImages: true });
         if (openAfterSave && result.createdTaskId && result.props && !standaloneWindow) {
@@ -1082,21 +1096,15 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
 
     return (
         <ModalPortal>
+        {/* Backdrop stays out of the tab order: Escape closes via the window
+            keydown listener, so no focusable wrapper is needed (#869). */}
         <div
             className={cn(
                 'fixed inset-0 flex items-start justify-center z-50',
                 standaloneWindow ? 'bg-transparent px-3 pt-4' : 'bg-black/50 pt-[20vh]',
             )}
-            role="button"
-            tabIndex={0}
-            aria-label={t('common.close')}
+            role="presentation"
             onClick={handleClose}
-            onKeyDown={(event) => {
-                if (event.key !== 'Escape') return;
-                if (event.currentTarget !== event.target) return;
-                event.preventDefault();
-                handleClose();
-            }}
         >
             <div
                 ref={modalRef}
@@ -1127,7 +1135,14 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             >
                 <div className="px-4 py-3 border-b flex items-center justify-between">
                     <h3 className="font-semibold">{t('nav.addTask')}</h3>
-                    <button onClick={handleClose} className="text-sm text-muted-foreground hover:text-foreground">Esc</button>
+                    <button
+                        onClick={handleClose}
+                        tabIndex={-1}
+                        aria-label={t('common.close')}
+                        className="text-sm text-muted-foreground hover:text-foreground"
+                    >
+                        Esc
+                    </button>
                 </div>
                 <div className="px-4 pt-4">
                     <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
@@ -1177,6 +1192,17 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                     if (e.key === 'Escape') {
                                         e.preventDefault();
                                         handleClose();
+                                        return;
+                                    }
+                                    if (e.key !== 'Enter' || e.altKey) return;
+                                    if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+                                        e.preventDefault();
+                                        if (!standaloneWindow) void saveTask({ openAfterSave: true });
+                                        return;
+                                    }
+                                    if (e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                                        e.preventDefault();
+                                        void saveTask({ addAnother: true });
                                     }
                                 }}
                                 placeholder={t('nav.addTask')}
@@ -1241,7 +1267,9 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 />
                             </div>
                         )}
-                        <p className="text-xs text-muted-foreground">{t('quickAdd.help')}</p>
+                        <p className="text-xs text-muted-foreground">
+                            <QuickAddSyntaxHint text={t('quickAdd.help')} />
+                        </p>
                         {parsedInput.invalidDateCommands && parsedInput.invalidDateCommands.length > 0 ? (
                             <p className="text-xs text-destructive">
                                 {t('quickAdd.invalidDateCommand')}: {parsedInput.invalidDateCommands.join(', ')}
@@ -1283,6 +1311,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                     onClick={() => {
                                         void saveTask({ openAfterSave: true });
                                     }}
+                                    title={SAVE_AND_EDIT_SHORTCUT_HINT}
                                     disabled={saveDisabled}
                                     className={cn(
                                         'px-3 py-1.5 rounded-md text-sm border border-border bg-background hover:bg-muted/60',
@@ -1294,6 +1323,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                             )}
                             <button
                                 type="submit"
+                                title={SAVE_SHORTCUT_HINT}
                                 disabled={saveDisabled}
                                 className={cn(
                                     'px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90',

@@ -56,6 +56,7 @@ import { GroupedTaskSections } from './list/GroupedTaskSections';
 import { useListSelection } from './list/useListSelection';
 import { StoreTaskItem } from './list/StoreTaskItem';
 import { LIST_VIRTUALIZATION_THRESHOLD, LIST_VIRTUAL_ROW_ESTIMATE, LIST_VIRTUAL_OVERSCAN } from './list/useVirtualList';
+import { QuickAddSyntaxHint } from '../ui/QuickAddSyntaxHint';
 
 
 interface ListViewProps {
@@ -1065,7 +1066,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                                     </div>
                                     {quickAddSyntaxOpen && (
                                         <p className="rounded border border-border bg-muted/30 px-2 py-1 leading-relaxed text-muted-foreground">
-                                            {t('quickAdd.help')}
+                                            <QuickAddSyntaxHint text={t('quickAdd.help')} />
                                         </p>
                                     )}
                                 </div>

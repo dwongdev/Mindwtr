@@ -144,8 +144,9 @@ describe('QuickAddModal', () => {
         });
 
         expect(fetchData).toHaveBeenCalledTimes(1);
-        expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('bg-transparent');
-        expect(screen.getByRole('button', { name: 'Close' })).not.toHaveClass('bg-background');
+        const backdrop = document.querySelector('[role="presentation"]');
+        expect(backdrop).toHaveClass('bg-transparent');
+        expect(backdrop).not.toHaveClass('bg-background');
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(screen.getByPlaceholderText('Add Task')).toHaveValue('Fast capture');
 
@@ -382,6 +383,74 @@ describe('QuickAddModal', () => {
             detail: { view: 'projects' },
         }));
         window.removeEventListener('mindwtr:navigate', navigateListener);
+    });
+
+    it('saves and opens the task for editing on Ctrl+Enter', async () => {
+        const addTask = vi.fn(async () => ({ success: true, id: 'task-shortcut' }));
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                addTask,
+            }));
+        });
+
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+                detail: { initialValue: 'Draft launch brief' },
+            }));
+            await Promise.resolve();
+        });
+
+        fireEvent.keyDown(screen.getByPlaceholderText('Add Task'), { key: 'Enter', ctrlKey: true });
+
+        await waitFor(() => {
+            expect(addTask).toHaveBeenCalledWith('Draft launch brief', expect.anything());
+        });
+        expect(useUiStore.getState().editingTaskId).toBe('task-shortcut');
+    });
+
+    it('saves and keeps the dialog open for the next entry on Shift+Enter', async () => {
+        const addTask = vi.fn(async () => ({ success: true, id: 'task-batch' }));
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                addTask,
+            }));
+        });
+
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+                detail: { initialValue: 'First batch entry' },
+            }));
+            await Promise.resolve();
+        });
+
+        fireEvent.keyDown(screen.getByPlaceholderText('Add Task'), { key: 'Enter', shiftKey: true });
+
+        await waitFor(() => {
+            expect(addTask).toHaveBeenCalledWith('First batch entry', expect.anything());
+        });
+        // The dialog stays open with a cleared input, ready for the next task.
+        expect(screen.getByPlaceholderText('Add Task')).toHaveValue('');
+        expect(useUiStore.getState().editingTaskId).toBeNull();
+    });
+
+    it('keeps the backdrop and Esc chip out of the tab order', async () => {
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+                detail: { initialValue: 'Check tab stops' },
+            }));
+            await Promise.resolve();
+        });
+
+        expect(screen.getByRole('button', { name: 'Close' })).toHaveAttribute('tabindex', '-1');
+        expect(document.querySelector('[role="button"][tabindex="0"][aria-label="Close"]')).toBeNull();
     });
 
     it('attaches a pasted image to a text quick-add task', async () => {

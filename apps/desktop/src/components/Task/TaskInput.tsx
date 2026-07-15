@@ -526,7 +526,9 @@ export function TaskInput({
                 setSelectedIndex((prev) => (prev - 1 + options.length) % options.length);
                 return;
             }
-            if (event.key === 'Enter') {
+            // Only plain Enter picks a suggestion; modified Enter falls through
+            // so consumer shortcuts (Ctrl+Enter save & edit) win over the popup.
+            if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
                 event.preventDefault();
                 event.stopPropagation();
                 await applyOption(options[selectedIndex]);
@@ -617,6 +619,7 @@ export function TaskInput({
                             key={`${option.kind}-${option.value}-${index}`}
                             type="button"
                             role="option"
+                            tabIndex={-1}
                             aria-selected={index === selectedIndex}
                             onClick={() => void applyOption(option)}
                             className={cn(

@@ -5,6 +5,7 @@ import { CALENDAR_TIME_ESTIMATE_OPTIONS } from '@mindwtr/core';
 import { TaskInput } from '../../Task/TaskInput';
 import { TaskItem } from '../../TaskItem';
 import { ModalPortal } from '../../ModalPortal';
+import { QuickAddSyntaxHint } from '../../ui/QuickAddSyntaxHint';
 import { cn } from '../../../lib/utils';
 import {
     DESKTOP_GRID_SNAP_MINUTES,
@@ -194,7 +195,7 @@ export function CalendarTaskComposerModal({ controller }: CalendarTaskComposerMo
                                 placeholder={t('calendar.addTask')}
                             />
                             <p className="text-xs font-normal text-muted-foreground">
-                                {t('quickAdd.help')}
+                                <QuickAddSyntaxHint text={t('quickAdd.help')} />
                             </p>
                         </div>
                     ) : (
