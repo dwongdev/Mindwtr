@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useTaskStore, type Task } from '@mindwtr/core';
 
 import {
+    DESKTOP_POMODORO_COLLAPSED_STORAGE_KEY,
     DESKTOP_POMODORO_SESSION_STORAGE_KEY,
     usePomodoroStore,
 } from './pomodoro-store';
@@ -44,7 +45,7 @@ describe('pomodoro store', () => {
     beforeEach(() => {
         window.localStorage.clear();
         useTaskStore.setState({ tasks: [task()], _allTasks: [task()] } as never);
-        usePomodoroStore.setState({ hasHydrated: false });
+        usePomodoroStore.setState({ hasHydrated: false, collapsed: false });
     });
 
     it('credits a focus session completed while the app was closed to the linked task', () => {
@@ -117,5 +118,27 @@ describe('pomodoro store', () => {
         expect(snapshot.selectedTaskId).toBe('task-1');
         expect(snapshot.timerState.isRunning).toBe(true);
         expect(snapshot.durations.focusMinutes).toBe(25);
+    });
+
+    it('persists the collapsed preference to its own local-storage key', () => {
+        usePomodoroStore.getState().setPomodoroCollapsed(true);
+
+        expect(usePomodoroStore.getState().collapsed).toBe(true);
+        expect(window.localStorage.getItem(DESKTOP_POMODORO_COLLAPSED_STORAGE_KEY)).toBe('true');
+
+        usePomodoroStore.getState().setPomodoroCollapsed(false);
+
+        expect(usePomodoroStore.getState().collapsed).toBe(false);
+        expect(window.localStorage.getItem(DESKTOP_POMODORO_COLLAPSED_STORAGE_KEY)).toBe('false');
+    });
+
+    it('un-collapses the panel when a task quick-starts its timer', () => {
+        usePomodoroStore.getState().setPomodoroCollapsed(true);
+        expect(usePomodoroStore.getState().collapsed).toBe(true);
+
+        usePomodoroStore.getState().startPomodoroFocusForTask('task-1', {});
+
+        expect(usePomodoroStore.getState().collapsed).toBe(false);
+        expect(window.localStorage.getItem(DESKTOP_POMODORO_COLLAPSED_STORAGE_KEY)).toBe('false');
     });
 });

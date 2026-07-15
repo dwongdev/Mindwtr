@@ -1088,6 +1088,8 @@ export const zhHans: Record<string, string> = {
         'pomodoro.phaseBreakShort': '休息',
         'pomodoro.switchToBreak': '切换到休息',
         'pomodoro.switchToFocus': '切换到专注',
+        'pomodoro.collapse': '收起计时器',
+        'pomodoro.expand': '展开计时器',
         'settings.resetToDefault': '恢复默认',
         'settings.taskEditorLayout': '任务编辑布局',
         'settings.taskEditorLayoutDesc': '选择编辑任务时显示哪些字段。',

@@ -8,11 +8,12 @@ import {
     translateWithFallback,
     useTaskStore,
 } from '@mindwtr/core';
-import { Play, Pause, RotateCcw, TimerReset, CheckCircle2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, TimerReset, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/language-context';
 import { sendDesktopPomodoroCompletionAlert } from '../../lib/pomodoro-alert';
 import { reconcilePomodoroSnapshot, usePomodoroStore } from '../../store/pomodoro-store';
+import { PomodoroTaskPicker } from './PomodoroTaskPicker';
 
 export { DESKTOP_POMODORO_SESSION_STORAGE_KEY } from '../../store/pomodoro-store';
 
@@ -36,6 +37,8 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
         return translateWithFallback(t, key, fallback);
     }, [t]);
     const snapshot = usePomodoroStore((state) => state.snapshot);
+    const collapsed = usePomodoroStore((state) => state.collapsed);
+    const setCollapsed = usePomodoroStore((state) => state.setPomodoroCollapsed);
     const hydratePomodoro = usePomodoroStore((state) => state.hydratePomodoro);
     const commitSnapshot = usePomodoroStore((state) => state.commitPomodoro);
     const previousEventRef = useRef(snapshot.lastEvent);
@@ -77,17 +80,18 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
         ? resolveText('pomodoro.phaseFocus', 'Focus session')
         : resolveText('pomodoro.phaseBreak', 'Break');
     const cardTitle = resolveText('pomodoro.title', 'Pomodoro Focus');
-    const subtitle = resolveText('pomodoro.subtitle', 'Work one task at a time.');
     const sessionCountLabel = resolveText('pomodoro.sessionsDone', 'Focus sessions completed');
     const switchPhaseLabel = resolveText('pomodoro.switchPhase', 'Switch phase');
     const markDoneLabel = resolveText('pomodoro.markTaskDone', 'Mark task done');
     const noTaskLabel = resolveText('pomodoro.noTask', 'No available focus task');
     const selectedTaskLabel = resolveText('pomodoro.selectedTask', 'Timer task');
-    const timerControlsLabel = resolveText('pomodoro.timerControls', 'Timer');
-    const taskUpdateLabel = resolveText('pomodoro.taskUpdate', 'Task update');
     const timerOnlyLabel = resolveText('pomodoro.timerOnly', 'Timer only');
     const focusDoneLabel = resolveText('pomodoro.focusComplete', 'Focus session complete. Take a short break.');
     const breakDoneLabel = resolveText('pomodoro.breakComplete', 'Break complete. Ready for the next focus session.');
+    const collapseLabel = resolveText('pomodoro.collapse', 'Collapse timer');
+    const expandLabel = resolveText('pomodoro.expand', 'Expand timer');
+    const searchTaskLabel = resolveText('common.search', 'Search');
+    const noMatchesLabel = resolveText('common.noMatches', 'No matches');
 
     useEffect(() => {
         const previous = previousEventRef.current;
@@ -157,23 +161,62 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
         commitSnapshot((prev) => ({ ...prev, lastEvent: null }));
     };
 
-    return (
-        <section className="bg-card border border-border rounded-xl p-4 space-y-4">
-            <header className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                    <h3 className="font-semibold text-lg">{cardTitle}</h3>
-                    <p className="text-xs text-muted-foreground">{subtitle}</p>
+    const phaseBadgeClass = cn(
+        'text-xs px-2 py-0.5 rounded-full border font-medium',
+        timerState.phase === 'focus'
+            ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700/40'
+            : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-700/40'
+    );
+
+    if (collapsed) {
+        return (
+            <section className="bg-card border border-border rounded-xl px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <p className="font-mono text-xl leading-none tracking-wide tabular-nums">
+                            {formatPomodoroClock(timerState.remainingSeconds)}
+                        </p>
+                        <span className={phaseBadgeClass}>{phaseLabel}</span>
+                        {timerState.isRunning && (
+                            <span
+                                aria-hidden
+                                className={cn(
+                                    'w-2 h-2 rounded-full animate-pulse shrink-0',
+                                    timerState.phase === 'focus' ? 'bg-blue-500' : 'bg-emerald-500'
+                                )}
+                            />
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setCollapsed(false)}
+                        aria-label={expandLabel}
+                        title={expandLabel}
+                        className="inline-flex items-center justify-center w-7 h-7 rounded border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors shrink-0"
+                    >
+                        <ChevronDown className="w-4 h-4" />
+                    </button>
                 </div>
-                <span
-                    className={cn(
-                        'text-xs px-2 py-1 rounded-full border font-medium',
-                        timerState.phase === 'focus'
-                            ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700/40'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-700/40'
-                    )}
+            </section>
+        );
+    }
+
+    return (
+        <section className="bg-card border border-border rounded-xl p-3 space-y-3">
+            <header className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="font-semibold text-base truncate">{cardTitle}</h3>
+                    <span className={phaseBadgeClass}>{phaseLabel}</span>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setCollapsed(true)}
+                    aria-label={collapseLabel}
+                    title={collapseLabel}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors shrink-0"
                 >
-                    {phaseLabel}
-                </span>
+                    <ChevronUp className="w-4 h-4" />
+                </button>
             </header>
 
             <div className="flex flex-wrap gap-2">
@@ -185,7 +228,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
                             type="button"
                             onClick={() => handleApplyPreset(preset.focusMinutes, preset.breakMinutes)}
                             className={cn(
-                                'text-xs px-2.5 py-1.5 rounded-full border transition-colors',
+                                'text-xs px-2.5 py-1 rounded-full border transition-colors',
                                 active
                                     ? 'bg-primary text-primary-foreground border-primary'
                                     : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
@@ -198,94 +241,71 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
             </div>
 
             <div className="text-center">
-                <p className="font-mono text-5xl leading-none tracking-wider">{formatPomodoroClock(timerState.remainingSeconds)}</p>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="font-mono text-4xl leading-none tracking-wider tabular-nums">{formatPomodoroClock(timerState.remainingSeconds)}</p>
+                <p className="text-xs text-muted-foreground mt-1.5">
                     {sessionCountLabel}: {timerState.completedFocusSessions}
                 </p>
             </div>
 
+            <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                    type="button"
+                    onClick={handleToggleRun}
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors bg-primary text-primary-foreground border-primary hover:opacity-90"
+                >
+                    {timerState.isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                    {timerState.isRunning
+                        ? resolveText('common.pause', 'Pause')
+                        : resolveText('common.start', 'Start')}
+                </button>
+                <button
+                    type="button"
+                    onClick={handleReset}
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    {resolveText('common.reset', 'Reset')}
+                </button>
+                <button
+                    type="button"
+                    onClick={handleSwitchPhase}
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                >
+                    <TimerReset className="w-3.5 h-3.5" />
+                    {switchPhaseLabel}
+                </button>
+            </div>
+
             {linkTaskEnabled && (
-                <div className="space-y-2">
-                    <label className="text-xs text-muted-foreground">
-                        {selectedTaskLabel}
-                    </label>
-                    <select
-                        className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        aria-label={selectedTaskLabel}
-                        value={selectedTaskId ?? ''}
-                        onChange={(event) => {
-                            const nextId = event.target.value || undefined;
+                <div className="flex items-stretch gap-2">
+                    <PomodoroTaskPicker
+                        tasks={tasks}
+                        selectedTaskId={selectedTaskId}
+                        onSelect={(nextId) => {
                             commitSnapshot((prev) => ({ ...prev, selectedTaskId: nextId }));
                         }}
-                    >
-                        <option value="">{tasks.length === 0 ? noTaskLabel : timerOnlyLabel}</option>
-                        {tasks.map((task) => (
-                            <option key={task.id} value={task.id}>
-                                {task.title}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            )}
-
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-1.5">
-                    <div className="text-[11px] font-semibold uppercase text-muted-foreground">{timerControlsLabel}</div>
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            type="button"
-                            onClick={handleToggleRun}
-                            className={cn(
-                                'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors',
-                                'bg-primary text-primary-foreground border-primary hover:opacity-90'
-                            )}
-                        >
-                            {timerState.isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                            {timerState.isRunning
-                                ? resolveText('common.pause', 'Pause')
-                                : resolveText('common.start', 'Start')}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleReset}
-                            className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
-                        >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            {resolveText('common.reset', 'Reset')}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleSwitchPhase}
-                            className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
-                        >
-                            <TimerReset className="w-3.5 h-3.5" />
-                            {switchPhaseLabel}
-                        </button>
-                    </div>
-                </div>
-                {linkTaskEnabled && selectedTask && (
-                    <div className="space-y-1.5 sm:ml-auto">
-                        <div className="text-[11px] font-semibold uppercase text-muted-foreground sm:text-right">{taskUpdateLabel}</div>
+                        label={selectedTaskLabel}
+                        timerOnlyLabel={timerOnlyLabel}
+                        noTaskLabel={noTaskLabel}
+                        searchPlaceholder={searchTaskLabel}
+                        noMatchesLabel={noMatchesLabel}
+                    />
+                    {selectedTask && (
                         <button
                             type="button"
                             onClick={() => {
                                 void handleMarkTaskDone();
                             }}
-                            disabled={!selectedTask}
                             title={markDoneLabel}
-                            className={cn(
-                                'inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors',
-                                selectedTask
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-500 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-300 dark:border-emerald-700 dark:hover:bg-emerald-900/30'
-                                    : 'bg-muted text-muted-foreground border-border cursor-not-allowed opacity-60'
-                            )}
+                            aria-label={markDoneLabel}
+                            className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors shrink-0 bg-emerald-50 text-emerald-700 border-emerald-500 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-300 dark:border-emerald-700 dark:hover:bg-emerald-900/30"
                         >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             {markDoneLabel}
                         </button>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
 
             {lastEvent && (
                 <p className="text-xs text-muted-foreground">

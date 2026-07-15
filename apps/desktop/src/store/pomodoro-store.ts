@@ -17,6 +17,7 @@ import {
 } from '@mindwtr/core';
 
 export const DESKTOP_POMODORO_SESSION_STORAGE_KEY = 'mindwtr:pomodoro:session:v1';
+export const DESKTOP_POMODORO_COLLAPSED_STORAGE_KEY = 'mindwtr:pomodoro:collapsed:v1';
 
 export type PomodoroSnapshot = {
     durations: PomodoroDurations;
@@ -152,6 +153,24 @@ const saveStoredPomodoroSnapshot = (snapshot: PomodoroSnapshot) => {
     }
 };
 
+const readStoredCollapsed = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+        return window.localStorage.getItem(DESKTOP_POMODORO_COLLAPSED_STORAGE_KEY) === 'true';
+    } catch {
+        return false;
+    }
+};
+
+const saveStoredCollapsed = (collapsed: boolean) => {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.setItem(DESKTOP_POMODORO_COLLAPSED_STORAGE_KEY, collapsed ? 'true' : 'false');
+    } catch {
+        // Collapse preference is device-local convenience; storage failures should not block the panel.
+    }
+};
+
 // Completed focus sessions add their focus minutes to the linked task's
 // synced time-spent total. Runs on every snapshot commit, so panel ticks,
 // startup reconciles, and quick-starts all credit through one path.
@@ -175,10 +194,14 @@ const creditCompletedFocusSessions = (prev: PomodoroSnapshot, next: PomodoroSnap
 type PomodoroStoreState = {
     snapshot: PomodoroSnapshot;
     hasHydrated: boolean;
+    /** Device-local UI preference: is the desktop panel folded to its slim row? */
+    collapsed: boolean;
     /** Re-read persisted state and reconcile elapsed time (crediting offline sessions). */
     hydratePomodoro: (autoStartOptions: PomodoroAutoStartOptions) => void;
     /** Apply an updater to the snapshot; persists and credits completed sessions. */
     commitPomodoro: (updater: (prev: PomodoroSnapshot) => PomodoroSnapshot) => void;
+    /** Fold/unfold the panel; persisted to its own local-storage key. */
+    setPomodoroCollapsed: (collapsed: boolean) => void;
     /** Link a task and start a focus session for it (never a free-running clock). */
     startPomodoroFocusForTask: (taskId: string, autoStartOptions: PomodoroAutoStartOptions) => void;
 };
@@ -186,6 +209,7 @@ type PomodoroStoreState = {
 export const usePomodoroStore = createWithEqualityFn<PomodoroStoreState>((set, get) => ({
     snapshot: createInitialSnapshot(),
     hasHydrated: false,
+    collapsed: readStoredCollapsed(),
     hydratePomodoro: (autoStartOptions) => {
         const nowMs = Date.now();
         const stored = readStoredPomodoroSnapshot(nowMs);
@@ -201,10 +225,16 @@ export const usePomodoroStore = createWithEqualityFn<PomodoroStoreState>((set, g
         saveStoredPomodoroSnapshot(next);
         set({ snapshot: next });
     },
+    setPomodoroCollapsed: (collapsed) => {
+        saveStoredCollapsed(collapsed);
+        set({ collapsed });
+    },
     startPomodoroFocusForTask: (taskId, autoStartOptions) => {
         if (!get().hasHydrated) {
             get().hydratePomodoro(autoStartOptions);
         }
+        // A click on a task's play button reopens the timer if it was folded away.
+        get().setPomodoroCollapsed(false);
         get().commitPomodoro((prev) => {
             const reconciled = reconcilePomodoroSnapshot(prev, Date.now(), autoStartOptions);
             return {

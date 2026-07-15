@@ -1088,6 +1088,8 @@ export const zhHant: Record<string, string> = {
         'pomodoro.phaseBreakShort': '休息',
         'pomodoro.switchToBreak': '切換到休息',
         'pomodoro.switchToFocus': '切換到專注',
+        'pomodoro.collapse': '收起計時器',
+        'pomodoro.expand': '展開計時器',
         'settings.resetToDefault': '恢復默認',
         'settings.taskEditorLayout': '任務編輯佈局',
         'settings.taskEditorLayoutDesc': '選擇編輯任務時顯示哪些字段。',

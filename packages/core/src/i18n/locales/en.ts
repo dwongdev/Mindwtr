@@ -1175,6 +1175,8 @@ export const en: Record<string, string> = {
         'pomodoro.phaseBreakShort': 'Break',
         'pomodoro.switchToBreak': 'Switch to Break',
         'pomodoro.switchToFocus': 'Switch to Focus',
+        'pomodoro.collapse': 'Collapse timer',
+        'pomodoro.expand': 'Expand timer',
         'settings.resetToDefault': 'Reset to default',
         'settings.taskEditorLayout': 'Task editor layout',
         'settings.taskEditorLayoutDesc': 'Choose which fields appear when editing a task, including Priority and Time estimate.',
