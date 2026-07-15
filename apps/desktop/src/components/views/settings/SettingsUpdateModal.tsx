@@ -46,7 +46,7 @@ export function SettingsUpdateModal({
         >
             <div className="bg-card border border-border rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col">
                 <div className="p-6 border-b border-border">
-                    <h3 className="text-xl font-semibold text-green-500 flex items-center gap-2">{t.updateAvailable}</h3>
+                    <h3 className="text-xl font-semibold text-success flex items-center gap-2">{t.updateAvailable}</h3>
                     <p className="text-muted-foreground mt-1">
                         v{updateInfo.currentVersion} → v{updateInfo.latestVersion}
                     </p>
@@ -71,7 +71,7 @@ export function SettingsUpdateModal({
                             )}
                             {isDownloading && (
                                 <div className="h-2 w-full rounded bg-muted">
-                                    <div className="h-2 w-1/2 rounded bg-green-500 animate-pulse"></div>
+                                    <div className="h-2 w-1/2 rounded bg-success animate-pulse"></div>
                                 </div>
                             )}
                         </div>
@@ -92,7 +92,7 @@ export function SettingsUpdateModal({
                             "px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2",
                             isDownloading || !canDownload
                                 ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                : "bg-green-600 text-white hover:bg-green-700"
+                                : "bg-success text-success-foreground hover:bg-success/90"
                         )}
                     >
                         <ExternalLink className="w-4 h-4" />

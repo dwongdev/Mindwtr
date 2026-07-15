@@ -289,7 +289,7 @@ export function ProjectNotesSection({
                 <div className="pt-2 border-t border-border/50 space-y-1.5">
                     <div className="text-xs text-muted-foreground font-medium">{t('attachments.title')}</div>
                     {attachmentError && (
-                        <div className="text-xs text-red-400">{attachmentError}</div>
+                        <div className="text-xs text-destructive">{attachmentError}</div>
                     )}
                     {visibleAttachments.length === 0 ? (
                         <div className="text-xs text-muted-foreground">{t('common.none')}</div>

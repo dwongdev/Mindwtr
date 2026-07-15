@@ -276,7 +276,7 @@ export function InboxProcessingQuickPanel({
                                     className={cn(
                                         'px-2.5 py-1 rounded-full text-xs font-medium transition-colors border',
                                         selectedTags.includes(tag)
-                                            ? 'bg-emerald-500 text-white border-emerald-600'
+                                            ? 'bg-success text-success-foreground border-success'
                                             : 'bg-muted/40 border-border hover:bg-muted/70'
                                     )}
                                 >
@@ -445,7 +445,7 @@ export function InboxProcessingQuickPanel({
                             className={cn(
                                 'rounded-lg px-3 py-2 text-xs font-medium transition-colors border',
                                 actionabilityChoice === 'later'
-                                    ? 'bg-blue-500/15 text-blue-500 border-blue-500/40'
+                                    ? 'bg-info/15 text-info border-info/40'
                                     : 'bg-muted/40 border-border hover:bg-muted/70'
                             )}
                         >
@@ -471,7 +471,7 @@ export function InboxProcessingQuickPanel({
                             className={cn(
                                 'rounded-lg px-3 py-2 text-xs font-medium transition-colors border',
                                 actionabilityChoice === 'someday'
-                                    ? 'bg-purple-500/15 text-purple-500 border-purple-500/40'
+                                    ? 'bg-status-someday/15 text-status-someday border-status-someday/40'
                                     : 'bg-muted/40 border-border hover:bg-muted/70'
                             )}
                         >
@@ -485,7 +485,7 @@ export function InboxProcessingQuickPanel({
                                 className={cn(
                                     'rounded-lg px-3 py-2 text-xs font-medium transition-colors border',
                                     actionabilityChoice === 'reference'
-                                        ? 'bg-cyan-500/15 text-cyan-500 border-cyan-500/40'
+                                        ? 'bg-status-reference/15 text-status-reference border-status-reference/40'
                                         : 'bg-muted/40 border-border hover:bg-muted/70'
                                 )}
                             >
@@ -497,7 +497,7 @@ export function InboxProcessingQuickPanel({
                 </div>
 
                 {showLaterFields ? (
-                    <div className="space-y-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                    <div className="space-y-3 rounded-lg border border-info/20 bg-info/5 p-3">
                         <div className="text-xs text-muted-foreground">{laterHint}</div>
                         <InboxProcessingScheduleFields
                             t={t}
@@ -509,7 +509,7 @@ export function InboxProcessingQuickPanel({
                 ) : null}
 
                 {showReferenceOrganizationFields && organizationTokenFields ? (
-                    <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3">
+                    <div className="rounded-lg border border-status-reference/20 bg-status-reference/5 p-3">
                         {organizationTokenFields}
                     </div>
                 ) : null}
@@ -527,7 +527,7 @@ export function InboxProcessingQuickPanel({
                                 className={cn(
                                     'rounded-lg px-3 py-2 text-xs font-medium transition-colors border',
                                     twoMinuteChoice === 'yes'
-                                        ? 'bg-green-500 text-white border-green-600'
+                                        ? 'bg-success text-success-foreground border-success'
                                         : 'bg-muted/40 border-border hover:bg-muted/70'
                                 )}
                             >
@@ -584,7 +584,7 @@ export function InboxProcessingQuickPanel({
                                     className={cn(
                                         'rounded-lg px-3 py-2 text-xs font-medium transition-colors border',
                                         executionChoice === 'delegate'
-                                            ? 'bg-orange-500 text-white border-orange-600'
+                                            ? 'bg-warning text-warning-foreground border-warning'
                                             : 'bg-muted/40 border-border hover:bg-muted/70'
                                     )}
                                 >

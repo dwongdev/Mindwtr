@@ -213,6 +213,7 @@ export function ProjectsView() {
     const [sidebarWidth, setSidebarWidth] = useState(loadProjectsSidebarWidth);
     const [isSidebarResizing, setIsSidebarResizing] = useState(false);
     const [availableProjectsWidth, setAvailableProjectsWidth] = useState<number | null>(null);
+    const [compactSidebarOpen, setCompactSidebarOpen] = useState(false);
     const [showAreaManager, setShowAreaManager] = useState(false);
     const [newAreaName, setNewAreaName] = useState('');
     const [newAreaColor, setNewAreaColor] = useState(DEFAULT_AREA_COLOR);
@@ -246,12 +247,27 @@ export function ProjectsView() {
             selectedTag: value,
         }));
     }, [setPersistedViewState]);
+    const fallbackProjectsWidth = typeof window === 'undefined' ? PROJECTS_VIEW_DEFAULT_MAX_WIDTH : window.innerWidth;
+    const isCompactProjectsLayout = (availableProjectsWidth ?? fallbackProjectsWidth) < 760;
+    const projectsSidebarVisible = isCompactProjectsLayout
+        ? compactSidebarOpen
+        : !projectsSidebarCollapsed;
+    const projectsSidebarEffectivelyCollapsed = !projectsSidebarVisible;
+
     const toggleProjectsSidebarCollapsed = useCallback(() => {
+        if (isCompactProjectsLayout) {
+            setCompactSidebarOpen((current) => !current);
+            return;
+        }
         setPersistedViewState((current) => ({
             ...current,
             projectsSidebarCollapsed: !current.projectsSidebarCollapsed,
         }));
-    }, [setPersistedViewState]);
+    }, [isCompactProjectsLayout, setPersistedViewState]);
+
+    useEffect(() => {
+        if (!isCompactProjectsLayout) setCompactSidebarOpen(false);
+    }, [isCompactProjectsLayout]);
 
     const getProjectsBaseMaxWidth = useCallback(() => {
         if (typeof window === 'undefined') return PROJECTS_VIEW_DEFAULT_MAX_WIDTH;
@@ -767,12 +783,16 @@ export function ProjectsView() {
                 >
                 <div
                     ref={projectsLayoutRef}
-                    className="mx-auto flex h-full w-full min-w-0 gap-5 xl:gap-6"
+                    className="relative mx-auto flex h-full w-full min-w-0 gap-5 xl:gap-6"
                     style={{ maxWidth: `${projectsLayoutMaxWidth}px` }}
                 >
-                    {!projectsSidebarCollapsed && (
+                    {projectsSidebarVisible && (
                         <div
-                            className="relative min-h-0 flex-none transition-[width] duration-150"
+                            className={`relative min-h-0 flex-none ${
+                                isCompactProjectsLayout
+                                    ? 'absolute inset-y-0 left-0 z-20 border-r border-border bg-background pr-4 shadow-lg'
+                                    : ''
+                            }`}
                             style={{ width: `${sidebarWidth}px` }}
                         >
                             <div id="projects-sidebar-panel" className="h-full min-w-0">
@@ -809,7 +829,10 @@ export function ProjectsView() {
                                     showArchivedProjects={showArchivedProjects}
                                     onToggleArchivedProjects={() => setShowArchivedProjects((prev) => !prev)}
                                     selectedProjectId={selectedProjectId}
-                                    onSelectProject={setSelectedProjectId}
+                                    onSelectProject={(projectId) => {
+                                        setSelectedProjectId(projectId);
+                                        if (isCompactProjectsLayout) setCompactSidebarOpen(false);
+                                    }}
                                     getProjectColor={getProjectColorForTask}
                                     tasksByProject={tasksByProject}
                                     projects={projects}
@@ -821,7 +844,7 @@ export function ProjectsView() {
                                     onToggleCollapsed={toggleProjectsSidebarCollapsed}
                                 />
                             </div>
-                            <div
+                            {!isCompactProjectsLayout && <div
                                 role="separator"
                                 aria-controls="projects-sidebar-panel"
                                 aria-label={resizeSidebarLabel}
@@ -850,7 +873,7 @@ export function ProjectsView() {
                                             : 'bg-border/80 group-hover:bg-primary/45'
                                     }`}
                                 />
-                            </div>
+                            </div>}
                         </div>
                     )}
 
@@ -888,7 +911,7 @@ export function ProjectsView() {
                         showToast={showToast}
                         sortedAreas={sortedAreas}
                         t={t}
-                        projectsSidebarCollapsed={projectsSidebarCollapsed}
+                        projectsSidebarCollapsed={projectsSidebarEffectivelyCollapsed}
                         onToggleProjectsSidebar={toggleProjectsSidebarCollapsed}
                         onToggleShowCompletedTasks={() => setShowCompletedProjectTasks((prev) => !prev)}
                         undoNotificationsEnabled={settings?.undoNotificationsEnabled !== false}

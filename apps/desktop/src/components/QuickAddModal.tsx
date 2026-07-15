@@ -1210,7 +1210,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 }}
                                 placeholder={t('nav.addTask')}
                                 className={cn(
-                                    "w-full bg-card border border-border rounded-lg py-3 pl-4 pr-12 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all",
+                                    "w-full rounded-lg border border-border bg-card py-3 pl-4 pr-12 shadow-sm transition-colors focus:border-transparent focus:ring-2 focus:ring-primary",
                                 )}
                             />
                             {/* "Add to today's focus" star sits inside the field's right edge —
@@ -1230,8 +1230,8 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 className={cn(
                                     'absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                                     focusNewTask
-                                        ? 'text-amber-500 hover:bg-amber-500/15'
-                                        : 'text-muted-foreground/70 hover:text-amber-500 hover:bg-muted/60',
+                                        ? 'text-warning hover:bg-warning/15'
+                                        : 'text-muted-foreground/70 hover:text-warning hover:bg-muted/60',
                                 )}
                                 aria-label={focusLabel}
                                 aria-pressed={focusNewTask}
@@ -1270,9 +1270,15 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 />
                             </div>
                         )}
-                        <p className="text-xs text-muted-foreground">
-                            <QuickAddSyntaxHint text={t('quickAdd.help')} />
-                        </p>
+                        <p className="text-xs text-muted-foreground">{t('quickAdd.example')}</p>
+                        <details className="text-xs text-muted-foreground">
+                            <summary className="w-fit cursor-pointer whitespace-nowrap rounded-sm font-medium text-foreground/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                                {t('quickAdd.syntaxHelp')}
+                            </summary>
+                            <p className="mt-2 leading-5">
+                                <QuickAddSyntaxHint text={t('quickAdd.help')} />
+                            </p>
+                        </details>
                         {parsedInput.invalidDateCommands && parsedInput.invalidDateCommands.length > 0 ? (
                             <p className="text-xs text-destructive">
                                 {t('quickAdd.invalidDateCommand')}: {parsedInput.invalidDateCommands.join(', ')}
@@ -1352,7 +1358,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 }}
                                 className={cn(
                                     'h-16 w-16 rounded-full flex items-center justify-center text-sm font-medium transition-colors',
-                                    isRecording ? 'bg-red-500 text-white' : 'bg-primary text-primary-foreground',
+                                    isRecording ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground',
                                     recordingBusy ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90'
                                 )}
                                 aria-label={audioButtonLabel}
@@ -1369,7 +1375,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 </div>
                             ) : null}
                             {recordingError ? (
-                                <div className="text-xs text-red-500 text-center">{recordingError}</div>
+                                <div className="text-xs text-destructive text-center">{recordingError}</div>
                             ) : null}
                         </div>
                         <div className="flex justify-end gap-2 pt-1">

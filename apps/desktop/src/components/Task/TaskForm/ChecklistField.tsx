@@ -128,7 +128,7 @@ function SortableChecklistRow({
             onClick={(event) => event.stopPropagation()}
             className={cn(
                 'flex h-5 w-5 shrink-0 items-center justify-center rounded-md',
-                'border border-transparent text-muted-foreground opacity-100 transition-all',
+                'border border-transparent text-muted-foreground opacity-100 transition-colors',
                 'hover:border-border/70 hover:bg-muted/70 hover:text-foreground',
                 'focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary/30',
                 'focus-visible:opacity-100 cursor-grab active:cursor-grabbing touch-none',
@@ -483,7 +483,6 @@ export function ChecklistField({
                                         />
                                         <button
                                             type="button"
-                                            tabIndex={-1}
                                             onClick={() => {
                                                 const newList = checklistItems.filter((_, i) => i !== index);
                                                 setChecklistDraft(newList);
@@ -492,7 +491,7 @@ export function ChecklistField({
                                                 commitChecklistUpdate(newList);
                                             }}
                                             aria-label={t('common.delete')}
-                                            className="opacity-0 group-hover/item:opacity-100 text-muted-foreground hover:text-destructive p-1"
+                                            className="p-1 text-muted-foreground opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100 focus-visible:opacity-100 hover:text-destructive [@media(hover:none)]:opacity-100"
                                         >
                                             <Trash2 className="w-3 h-3" />
                                         </button>
@@ -504,7 +503,6 @@ export function ChecklistField({
                 </DndContext>
                 <button
                     type="button"
-                    tabIndex={-1}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
                         const source = document.activeElement instanceof HTMLElement
@@ -539,7 +537,7 @@ export function ChecklistField({
                             focusChecklistIndex(nextList.length - 1, event.currentTarget);
                         }
                     }}
-                    className="text-xs text-blue-500 hover:text-blue-600 font-medium flex items-center gap-1"
+                    className="flex items-center gap-1 text-xs font-medium text-info hover:text-info/80"
                 >
                     <Plus className="w-3 h-3" />
                     {t('taskEdit.addItem')}
@@ -548,7 +546,6 @@ export function ChecklistField({
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            tabIndex={-1}
                             onClick={() => resetTaskChecklist(taskId)}
                             className="text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
                         >

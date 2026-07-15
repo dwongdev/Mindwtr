@@ -29,7 +29,6 @@ import {
 import type { FilterCriteria, Task, TaskStatus } from '@mindwtr/core';
 import type { BulkOrganizeTaskUpdateInput } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
-import { ConfirmModal } from '../ConfirmModal';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { FutureStartNotice } from './FutureStartNotice';
 import { ListEmptyState } from './list/ListEmptyState';
@@ -643,8 +642,6 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const virtualRows = shouldVirtualize ? rowVirtualizer.getVirtualItems() : [];
     const totalHeight = shouldVirtualize ? rowVirtualizer.getTotalSize() : 0;
     const {
-        confirmBatchDelete,
-        confirmSingleDelete,
         contextPromptMode,
         contextPromptOpen,
         exitSelectionMode,
@@ -661,15 +658,11 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         allVisibleTasksSelected,
         clearTaskSelection,
         multiSelectedIds,
-        pendingBatchDeleteIds,
-        pendingDeleteTask,
         selectedIdsArray,
         selectedIndex,
         selectAllVisibleTasks,
         selectionMode,
         setContextPromptOpen,
-        setPendingBatchDeleteIds,
-        setPendingDeleteTask,
         setTagPromptOpen,
         tagPromptOpen,
         toggleMultiSelect,
@@ -1220,24 +1213,6 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
             cancelLabel={t('common.cancel')}
             onCancel={() => setContextPromptOpen(false)}
             onConfirm={handleConfirmContextPrompt}
-        />
-        <ConfirmModal
-            isOpen={pendingDeleteTask !== null}
-            title={t('common.delete') || 'Delete'}
-            description={t('task.deleteConfirmBody') || 'Move this task to Trash?'}
-            confirmLabel={t('common.delete') || 'Delete'}
-            cancelLabel={t('common.cancel')}
-            onCancel={() => setPendingDeleteTask(null)}
-            onConfirm={confirmSingleDelete}
-        />
-        <ConfirmModal
-            isOpen={pendingBatchDeleteIds.length > 0}
-            title={t('common.delete') || 'Delete'}
-            description={t('list.confirmBatchDelete') || 'Delete selected tasks?'}
-            confirmLabel={t('common.delete') || 'Delete'}
-            cancelLabel={t('common.cancel')}
-            onCancel={() => setPendingBatchDeleteIds([])}
-            onConfirm={confirmBatchDelete}
         />
         <TaskBulkOrganizeModal
             isOpen={bulkOrganizeOpen}

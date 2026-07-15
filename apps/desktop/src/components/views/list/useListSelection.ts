@@ -80,8 +80,6 @@ type UseListSelectionOptions = {
 };
 
 type UseListSelectionResult = {
-    confirmBatchDelete: () => void;
-    confirmSingleDelete: () => void;
     contextPromptMode: 'add' | 'remove';
     contextPromptOpen: boolean;
     exitSelectionMode: () => void;
@@ -98,15 +96,11 @@ type UseListSelectionResult = {
     allVisibleTasksSelected: boolean;
     clearTaskSelection: () => void;
     multiSelectedIds: Set<string>;
-    pendingBatchDeleteIds: string[];
-    pendingDeleteTask: Task | null;
     selectedIdsArray: string[];
     selectedIndex: number;
     selectAllVisibleTasks: () => void;
     selectionMode: boolean;
     setContextPromptOpen: (open: boolean) => void;
-    setPendingBatchDeleteIds: (taskIds: string[]) => void;
-    setPendingDeleteTask: (task: Task | null) => void;
     setTagPromptOpen: (open: boolean) => void;
     tagPromptOpen: boolean;
     toggleMultiSelect: (taskId: string, options?: RangeSelectionOptions) => void;
@@ -178,8 +172,6 @@ export function useListSelection({
     const [contextPromptIds, setContextPromptIds] = useState<string[]>([]);
     const [selectionScrollVersion, setSelectionScrollVersion] = useState(0);
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
-    const [pendingDeleteTask, setPendingDeleteTask] = useState<Task | null>(null);
-    const [pendingBatchDeleteIds, setPendingBatchDeleteIds] = useState<string[]>([]);
     const lastFilterKeyRef = useRef('');
     const multiSelectAnchorIdRef = useRef<string | null>(null);
     const pendingSelectionScrollRef = useRef(false);
@@ -442,8 +434,11 @@ export function useListSelection({
     const deleteSelected = useCallback(() => {
         const task = filteredTasks[selectedIndex];
         if (!task) return;
-        setPendingDeleteTask(task);
-    }, [filteredTasks, selectedIndex]);
+        void runSingleDelete(task).catch((error) => {
+            reportError('Failed to delete task', error);
+            showToast(translateWithFallback('bulk.deleteFailed', 'Failed to delete task'), 'error');
+        });
+    }, [filteredTasks, runSingleDelete, selectedIndex, showToast, translateWithFallback]);
 
     // Keyboard multi-select: entering selection mode on first select and
     // leaving it when the selection empties keeps the mode invisible unless
@@ -563,12 +558,7 @@ export function useListSelection({
     }, [batchMoveTasks, exitSelectionMode, selectedIdsArray, showToast, translateWithFallback]);
 
     const handleBatchDelete = useCallback(async () => {
-        if (selectedIdsArray.length === 0) return;
-        setPendingBatchDeleteIds(selectedIdsArray);
-    }, [selectedIdsArray]);
-
-    const confirmBatchDelete = useCallback(async () => {
-        const taskIds = [...pendingBatchDeleteIds];
+        const taskIds = [...selectedIdsArray];
         if (taskIds.length === 0) return;
 
         setIsBatchDeleting(true);
@@ -597,13 +587,12 @@ export function useListSelection({
             showToast(translateWithFallback('bulk.deleteFailed', 'Failed to delete selected tasks'), 'error');
         } finally {
             setIsBatchDeleting(false);
-            setPendingBatchDeleteIds([]);
         }
     }, [
         batchDeleteTasks,
         exitSelectionMode,
-        pendingBatchDeleteIds,
         restoreTask,
+        selectedIdsArray,
         showToast,
         t,
         translateWithFallback,
@@ -676,13 +665,6 @@ export function useListSelection({
         exitSelectionMode();
     }, [batchUpdateTasks, contextPromptIds, contextPromptMode, exitSelectionMode, tasksById]);
 
-    const confirmSingleDelete = useCallback(() => {
-        const task = pendingDeleteTask;
-        setPendingDeleteTask(null);
-        if (!task) return;
-        void runSingleDelete(task).catch((error) => reportError('Failed to delete task', error));
-    }, [pendingDeleteTask, runSingleDelete]);
-
     const toggleSelectionMode = useCallback(() => {
         if (selectionMode) {
             exitSelectionMode();
@@ -692,8 +674,6 @@ export function useListSelection({
     }, [exitSelectionMode, selectionMode]);
 
     return {
-        confirmBatchDelete,
-        confirmSingleDelete,
         contextPromptMode,
         contextPromptOpen,
         exitSelectionMode,
@@ -710,15 +690,11 @@ export function useListSelection({
         allVisibleTasksSelected,
         clearTaskSelection,
         multiSelectedIds,
-        pendingBatchDeleteIds,
-        pendingDeleteTask,
         selectedIdsArray,
         selectedIndex,
         selectAllVisibleTasks,
         selectionMode,
         setContextPromptOpen,
-        setPendingBatchDeleteIds,
-        setPendingDeleteTask,
         setTagPromptOpen,
         tagPromptOpen,
         toggleMultiSelect,

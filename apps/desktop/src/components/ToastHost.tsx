@@ -19,7 +19,7 @@ export function ToastHost() {
                     key={toast.id}
                     className={cn(
                         "min-w-[220px] max-w-[360px] rounded-md border px-3 py-2 shadow-lg text-sm flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2",
-                        toast.tone === 'success' && "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                        toast.tone === 'success' && "border-success/40 bg-success/10 text-success",
                         toast.tone === 'error' && "border-destructive/40 bg-destructive/10 text-destructive",
                         toast.tone === 'info' && "border-border bg-card text-foreground"
                     )}

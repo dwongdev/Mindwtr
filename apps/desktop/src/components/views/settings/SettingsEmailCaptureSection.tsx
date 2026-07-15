@@ -179,6 +179,7 @@ export function SettingsEmailCaptureSection({ t, isTauri, showSaved }: SettingsE
                 <button
                     type="button"
                     role="switch"
+                    aria-label={t.emailCapture}
                     aria-checked={enabled}
                     onClick={() => setEnabled((prev) => !prev)}
                     className={cn(
@@ -188,7 +189,7 @@ export function SettingsEmailCaptureSection({ t, isTauri, showSaved }: SettingsE
                 >
                     <span
                         className={cn(
-                            "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                            "inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform",
                             enabled ? "translate-x-4" : "translate-x-1",
                         )}
                     />
@@ -202,6 +203,7 @@ export function SettingsEmailCaptureSection({ t, isTauri, showSaved }: SettingsE
                             <input
                                 type="text"
                                 value={host}
+                                aria-label={t.emailCaptureHost}
                                 onChange={(event) => setHost(event.target.value)}
                                 placeholder="imap.gmail.com"
                                 className="bg-muted p-2 rounded text-sm font-mono border border-border focus:outline-none focus:ring-2 focus:ring-primary"
@@ -212,6 +214,7 @@ export function SettingsEmailCaptureSection({ t, isTauri, showSaved }: SettingsE
                             <input
                                 type="number"
                                 value={portText}
+                                aria-label={t.emailCapturePort}
                                 onChange={(event) => setPortText(event.target.value)}
                                 min={1}
                                 max={65535}
@@ -225,6 +228,7 @@ export function SettingsEmailCaptureSection({ t, isTauri, showSaved }: SettingsE
                         <input
                             type="text"
                             value={username}
+                            aria-label={t.emailCaptureUsername}
                             onChange={(event) => setUsername(event.target.value)}
                             placeholder="you@example.com"
                             autoComplete="off"
@@ -237,6 +241,7 @@ export function SettingsEmailCaptureSection({ t, isTauri, showSaved }: SettingsE
                         <input
                             type="password"
                             value={password}
+                            aria-label={t.emailCapturePassword}
                             onChange={(event) => setPassword(event.target.value)}
                             placeholder={hasPassword ? '••••••••' : ''}
                             autoComplete="new-password"
@@ -252,6 +257,7 @@ export function SettingsEmailCaptureSection({ t, isTauri, showSaved }: SettingsE
                         <input
                             type="text"
                             value={folder}
+                            aria-label={t.emailCaptureFolder}
                             onChange={(event) => setFolder(event.target.value)}
                             placeholder={DEFAULT_EMAIL_CAPTURE_FOLDER}
                             className="bg-muted p-2 rounded text-sm font-mono border border-border focus:outline-none focus:ring-2 focus:ring-primary"
@@ -272,7 +278,7 @@ export function SettingsEmailCaptureSection({ t, isTauri, showSaved }: SettingsE
                                 )}
                             </p>
                             {status.lastError && (
-                                <p className="text-xs text-amber-600">{status.lastError.message}</p>
+                                <p className="text-xs text-warning">{status.lastError.message}</p>
                             )}
                         </div>
                         <div className="flex flex-wrap gap-2">

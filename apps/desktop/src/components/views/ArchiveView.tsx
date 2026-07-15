@@ -80,7 +80,7 @@ const ArchiveTaskRowInner = memo(function ArchiveTaskRowInner({
                     </p>
                 </div>
             </div>
-            {!selectionMode && <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!selectionMode && <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
                 <button
                     onClick={handleRestore}
                     className="p-2 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors"
@@ -389,7 +389,7 @@ export function ArchiveView() {
                 className={shouldVirtualize ? "flex-1 min-h-0 overflow-y-auto" : undefined}
             >
                 {archivedTasks.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
+                    <div className="px-1 py-8 text-left text-sm text-muted-foreground">
                         <p>{t('archived.noTasksFound')}</p>
                         <p className="text-xs mt-2">{t('archived.emptyHint')}</p>
                     </div>

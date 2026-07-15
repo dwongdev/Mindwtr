@@ -4,6 +4,7 @@ import {
     GLOBAL_QUICK_ADD_SHORTCUT_DISABLED,
     getGlobalQuickAddShortcutOptions,
 } from '../../../lib/global-quick-add-shortcut';
+import { Switch } from '../../ui/Switch';
 
 const FLATPAK_QUICK_ADD_COMMAND = 'flatpak run tech.dongdongbh.mindwtr --quick-add';
 
@@ -173,22 +174,12 @@ function Toggle({
     onChange: () => void;
 }) {
     return (
-        <button
-            type="button"
+        <Switch
             disabled={disabled}
             aria-label={label}
-            onClick={onChange}
-            className={`inline-flex h-[22px] w-10 items-center rounded-full transition-colors ${
-                enabled ? 'bg-primary' : 'bg-muted'
-            } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
-            aria-pressed={enabled}
-        >
-            <span
-                className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white transition-transform ${
-                    enabled ? 'translate-x-[20px]' : 'translate-x-[2px]'
-                }`}
-            />
-        </button>
+            checked={enabled}
+            onCheckedChange={onChange}
+        />
     );
 }
 
@@ -263,6 +254,7 @@ export function SettingsMainPage({
                     description={`${t.system} / ${t.light} / ${t.dark} / ${t.eink} / ${t.nord} / ${t.sepia}`}
                 >
                     <select
+                        aria-label={t.appearance}
                         value={themeMode}
                         onChange={(e) => onThemeChange(e.target.value as ThemeMode)}
                         className={selectCls}
@@ -277,6 +269,7 @@ export function SettingsMainPage({
                 </SettingsRow>
                 <SettingsRow title={t.density} description={t.densityDesc}>
                     <select
+                        aria-label={t.density}
                         value={densityMode}
                         onChange={(e) => onDensityChange(e.target.value as DensityMode)}
                         className={selectCls}
@@ -315,6 +308,7 @@ export function SettingsMainPage({
                     description={languages.find((l) => l.id === language)?.native ?? language}
                 >
                     <select
+                        aria-label={t.language}
                         value={language}
                         onChange={(e) => onLanguageChange(e.target.value as Language)}
                         className={selectCls}
@@ -355,6 +349,7 @@ export function SettingsMainPage({
                     }
                 >
                     <select
+                        aria-label={t.dateFormat}
                         value={dateFormat}
                         onChange={(e) => onDateFormatChange(e.target.value as DateFormatSetting)}
                         className={selectCls}
@@ -396,6 +391,7 @@ export function SettingsMainPage({
                     }
                 >
                     <select
+                        aria-label={t.timeFormat}
                         value={timeFormat}
                         onChange={(e) => onTimeFormatChange(e.target.value as TimeFormatSetting)}
                         className={selectCls}
@@ -412,6 +408,7 @@ export function SettingsMainPage({
             <SettingsCard>
                 <SettingsRow title={t.keybindings} description={t.keybindingsDesc}>
                     <select
+                        aria-label={t.keybindings}
                         value={keybindingStyle}
                         onChange={(e) => onKeybindingStyleChange(e.target.value as 'vim' | 'emacs' | 'standard')}
                         className={selectCls}
@@ -480,6 +477,7 @@ export function SettingsMainPage({
                         {showCloseBehavior && (
                             <SettingsRow title={t.closeBehavior} description={t.closeBehaviorDesc}>
                                 <select
+                                    aria-label={t.closeBehavior}
                                     value={closeBehavior}
                                     onChange={(e) => onCloseBehaviorChange?.(e.target.value as 'ask' | 'tray' | 'quit')}
                                     className={selectCls}

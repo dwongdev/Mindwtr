@@ -250,8 +250,8 @@ export function ProjectDetailsHeader({
                     {projectProgress.total > 0 && (
                         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                             <div
-                                className="h-full rounded-full bg-primary transition-[width] duration-300"
-                                style={{ width: `${completedRatio}%` }}
+                                className="h-full w-full origin-left rounded-full bg-primary transition-transform duration-300 ease-out motion-reduce:transition-none"
+                                style={{ transform: `scaleX(${completedRatio / 100})` }}
                             />
                         </div>
                     )}

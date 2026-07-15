@@ -68,8 +68,8 @@ function SummaryRow({ good, text }: { good: boolean; text: string }) {
     return (
         <div className="flex items-center gap-2.5 text-sm">
             {good
-                ? <Check className="w-4 h-4 shrink-0 text-green-600" />
-                : <span className="w-2 h-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />}
+                ? <Check className="w-4 h-4 shrink-0 text-success" />
+                : <span className="w-2 h-2 shrink-0 rounded-full bg-warning" aria-hidden="true" />}
             <span className={good ? "text-muted-foreground" : "text-foreground"}>{text}</span>
         </div>
     );
@@ -369,7 +369,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                             current
                                 ? "border-primary bg-primary/10 text-foreground"
                                 : complete
-                                    ? "border-green-500/30 bg-green-500/10 text-muted-foreground"
+                                    ? "border-success/30 bg-success/10 text-muted-foreground"
                                     : "border-border bg-muted/30 text-muted-foreground",
                         )}
                     >
@@ -379,7 +379,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                                 current
                                     ? "bg-primary text-primary-foreground"
                                     : complete
-                                        ? "bg-green-500 text-white"
+                                        ? "bg-success text-success-foreground"
                                         : "bg-muted text-muted-foreground",
                             )}
                         >
@@ -683,7 +683,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                         <div className="space-y-2">
                             {inboxTasks.length === 0 ? (
                                 <div className="text-center py-12 text-muted-foreground">
-                                    <Check className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                                    <Check className="w-12 h-12 mx-auto mb-4 text-success" />
                                     <p>{t('review.inboxEmpty')}</p>
                                 </div>
                             ) : (
@@ -862,7 +862,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                         </div>
 
                         {aiError && (
-                            <div className="text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-md p-3">
+                            <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3">
                                 {aiError}
                             </div>
                         )}
@@ -959,7 +959,7 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                                                     {t('projects.addTask')}
                                                 </button>
                                                 <div
-                                                    className={cn("text-xs px-2 py-1 rounded-full", hasNextAction ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600")}
+                                                    className={cn("text-xs px-2 py-1 rounded-full", hasNextAction ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}
                                                 >
                                                     {hasNextAction ? t('review.hasNextAction') : t('review.needsAction')}
                                                 </div>
@@ -1028,8 +1028,8 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
             case 'completed':
                 return (
                     <div className="text-center space-y-6 py-12">
-                        <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Check className="w-10 h-10 text-green-600" />
+                        <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Check className="w-10 h-10 text-success" />
                         </div>
                         <h2 className="text-3xl font-bold">{t('review.complete')}</h2>
                         <p className="text-muted-foreground text-lg max-w-md mx-auto">
@@ -1114,8 +1114,8 @@ export function WeeklyReviewGuideModal({ onClose }: WeeklyReviewGuideModalProps)
                         </div>
                         <div className="h-1 bg-muted rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-primary transition-all duration-500 ease-in-out rounded-full"
-                                style={{ width: `${progress}%` }}
+                                className="h-full w-full origin-left rounded-full bg-primary transition-transform duration-300 ease-out motion-reduce:transition-none"
+                                style={{ transform: `scaleX(${progress / 100})` }}
                             />
                         </div>
                         {renderStepRail()}

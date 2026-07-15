@@ -600,7 +600,7 @@ export function TaskQuickActionMenu({
                         <FocusStarIcon
                             className={cn(
                                 'h-4 w-4',
-                                focusAction.isFocused && 'text-yellow-500',
+                                focusAction.isFocused && 'text-warning',
                             )}
                             filled={focusAction.isFocused}
                         />

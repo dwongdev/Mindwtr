@@ -340,7 +340,7 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
                             current
                                 ? "border-primary bg-primary/10 text-foreground"
                                 : complete
-                                    ? "border-green-500/30 bg-green-500/10 text-muted-foreground"
+                                    ? "border-success/30 bg-success/10 text-muted-foreground"
                                     : "border-border bg-muted/30 text-muted-foreground",
                         )}
                     >
@@ -350,7 +350,7 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
                                 current
                                     ? "bg-primary text-primary-foreground"
                                     : complete
-                                        ? "bg-green-500 text-white"
+                                        ? "bg-success text-success-foreground"
                                         : "bg-muted text-muted-foreground",
                             )}
                         >
@@ -419,12 +419,12 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
                             key={task.id}
                             className={cn(
                                 "bg-card border rounded-lg px-4 py-3 flex items-center gap-3",
-                                task.isFocusedToday && "border-yellow-500/70 bg-amber-500/10"
+                                task.isFocusedToday && "border-warning/70 bg-warning/10"
                             )}
                         >
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                    {task.isFocusedToday && <FocusStarIcon className="w-4 h-4 text-yellow-500" filled />}
+                                    {task.isFocusedToday && <FocusStarIcon className="w-4 h-4 text-warning" filled />}
                                     <span className={cn("font-medium truncate", task.status === 'done' && "line-through text-muted-foreground")}>
                                         {task.title}
                                     </span>
@@ -459,7 +459,7 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
                                 className={cn(
                                     "p-2 rounded-full border transition-colors",
                                     task.isFocusedToday
-                                        ? "border-yellow-500 text-yellow-500 bg-yellow-500/10"
+                                        ? "border-warning text-warning bg-warning/10"
                                         : canFocus
                                             ? "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                             : "border-border text-muted-foreground/50 cursor-not-allowed"
@@ -602,8 +602,8 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
             case 'completed':
                 return (
                     <div className="text-center space-y-6 py-12">
-                        <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Check className="w-10 h-10 text-green-600" />
+                        <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Check className="w-10 h-10 text-success" />
                         </div>
                         <h2 className="text-3xl font-bold">{t('dailyReview.completeTitle')}</h2>
                         <p className="text-muted-foreground text-lg max-w-md mx-auto">{t('dailyReview.completeDesc')}</p>
@@ -661,8 +661,8 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
                         </div>
                         <div className="h-1 bg-muted rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-primary transition-all duration-500 ease-in-out rounded-full"
-                                style={{ width: `${progress}%` }}
+                                className="h-full w-full origin-left rounded-full bg-primary transition-transform duration-300 ease-out motion-reduce:transition-none"
+                                style={{ transform: `scaleX(${progress / 100})` }}
                             />
                         </div>
                         {renderStepRail()}

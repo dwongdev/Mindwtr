@@ -40,7 +40,7 @@ describe('SettingsAdvancedPage', () => {
             />,
         );
 
-        fireEvent.click(getByRole('button', { name: 'Enable local API server' }));
+        fireEvent.click(getByRole('switch', { name: 'Enable local API server' }));
 
         expect(onLocalApiToggle).toHaveBeenCalledWith(true);
     });
@@ -73,7 +73,7 @@ describe('SettingsAdvancedPage', () => {
             />,
         );
 
-        fireEvent.click(getByRole('button', { name: 'Use software rendering' }));
+        fireEvent.click(getByRole('switch', { name: 'Use software rendering' }));
 
         expect(onDesktopRenderingToggle).toHaveBeenCalledWith(true);
     });

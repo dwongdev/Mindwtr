@@ -57,7 +57,7 @@ export function DiagnosticsSection({
                         >
                             <span
                                 className={cn(
-                                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                    'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                     analyticsHeartbeatOptedOut ? 'translate-x-4' : 'translate-x-1'
                                 )}
                             />
@@ -82,7 +82,7 @@ export function DiagnosticsSection({
                     >
                         <span
                             className={cn(
-                                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                 loggingEnabled ? 'translate-x-4' : 'translate-x-1'
                             )}
                         />

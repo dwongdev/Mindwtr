@@ -491,6 +491,29 @@ describe('ListView', () => {
     ))).toEqual([false, false]);
   });
 
+  it('moves selected tasks to Trash immediately without a confirmation dialog', async () => {
+    const batchDeleteTasks = vi.fn(async () => ({ success: true }));
+    useTaskStore.setState({
+      _allTasks: [
+        makeTask('1', { title: 'First deletable task' }),
+        makeTask('2', { title: 'Second deletable task' }),
+      ],
+      batchDeleteTasks,
+      lastDataChangeAt: 1,
+    });
+
+    const { getByRole, queryByRole } = renderListView();
+
+    fireEvent.click(getByRole('button', { name: 'Select' }));
+    fireEvent.click(getByRole('button', { name: 'Select All' }));
+    fireEvent.click(getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(batchDeleteTasks).toHaveBeenCalledWith(['1', '2']);
+    });
+    expect(queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('selects a visible range with shift-click in selection mode', async () => {
     useTaskStore.setState({
       _allTasks: [
@@ -620,7 +643,7 @@ describe('ListView', () => {
     });
 
     const { container, getByRole } = renderListView('inbox', 'Inbox');
-    const input = getByRole('combobox', { name: '' });
+    const input = getByRole('combobox', { name: 'Add Task' });
 
     await act(async () => {
       fireEvent.change(input, { target: { value: 'Area filtered task' } });
@@ -652,7 +675,7 @@ describe('ListView', () => {
 
       const { container, getByRole } = renderListView('inbox', 'Inbox');
 
-      const input = getByRole('combobox', { name: '' });
+      const input = getByRole('combobox', { name: 'Add Task' });
       await act(async () => {
         fireEvent.change(input, { target: { value: 'Tax deadline — April 15' } });
       });

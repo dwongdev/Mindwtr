@@ -84,7 +84,7 @@ export function AudioAttachmentModal({
                     </button>
                 </div>
                 {audioError ? (
-                    <div className="flex items-center justify-between text-xs text-red-500" role="alert" aria-live="assertive">
+                    <div className="flex items-center justify-between text-xs text-destructive" role="alert" aria-live="assertive">
                         <span>{audioError}</span>
                         <button
                             type="button"
@@ -96,7 +96,7 @@ export function AudioAttachmentModal({
                     </div>
                 ) : null}
                 {audioTranscriptionError ? (
-                    <div className="text-xs text-red-500" role="alert" aria-live="assertive">
+                    <div className="text-xs text-destructive" role="alert" aria-live="assertive">
                         {audioTranscriptionError}
                     </div>
                 ) : null}

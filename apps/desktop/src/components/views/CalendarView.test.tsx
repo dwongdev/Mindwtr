@@ -120,6 +120,15 @@ const selectDay = async (dayText: string) => {
     });
 };
 
+const expandPlanningPanel = async () => {
+    const expandButton = screen.queryByRole('button', { name: 'Expand planning panel' });
+    if (!expandButton) return;
+    await act(async () => {
+        fireEvent.click(expandButton);
+        await Promise.resolve();
+    });
+};
+
 const openNewTaskComposerForDay = async (dayText: string) => {
     await selectDay(dayText);
     await act(async () => {
@@ -525,6 +534,7 @@ describe('CalendarView', () => {
 
         renderCalendar();
         await flushCalendarEffects();
+        await expandPlanningPanel();
 
         const panel = screen.getByText('Plan next actions').closest('aside') as HTMLElement;
         expect(within(panel).getByText('Draft planning memo')).toBeInTheDocument();
@@ -534,7 +544,7 @@ describe('CalendarView', () => {
 
         await selectDay('4');
         const planTitle = panel.querySelector('[data-task-id="task-plan"]') as HTMLElement;
-        const planCard = planTitle.parentElement as HTMLElement;
+        const planCard = planTitle.closest('[data-planning-task-id]') as HTMLElement;
         await act(async () => {
             fireEvent.click(within(planCard).getByRole('button', { name: 'Schedule' }));
             await Promise.resolve();
@@ -560,10 +570,11 @@ describe('CalendarView', () => {
 
         renderCalendar();
         await flushCalendarEffects();
+        await expandPlanningPanel();
 
         const panel = screen.getByText('Plan next actions').closest('aside') as HTMLElement;
         const planTitle = within(panel).getByText('Draft planning memo');
-        const planCard = planTitle.closest('.rounded-md') as HTMLElement;
+        const planCard = planTitle.closest('[data-planning-task-id]') as HTMLElement;
         const disabledHintTarget = within(planCard).getByTitle('Select a day to plan first.');
         const scheduleButton = within(disabledHintTarget).getByRole('button', { name: 'Schedule' });
 
@@ -576,7 +587,7 @@ describe('CalendarView', () => {
         expect(within(planCard).getByRole('button', { name: 'Schedule' })).toBeEnabled();
     });
 
-    it('collapses and expands the calendar planning panel', async () => {
+    it('defaults the calendar planning panel to collapsed and keeps the disclosure reversible', async () => {
         storeMocks.taskStoreState.tasks = [
             makeTask({
                 id: 'task-plan',
@@ -587,6 +598,8 @@ describe('CalendarView', () => {
         renderCalendar();
         await flushCalendarEffects();
 
+        expect(screen.queryByText('Draft planning memo')).not.toBeInTheDocument();
+        await expandPlanningPanel();
         expect(screen.getByText('Draft planning memo')).toBeInTheDocument();
         await act(async () => {
             fireEvent.click(screen.getByRole('button', { name: 'Collapse planning panel' }));

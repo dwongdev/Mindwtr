@@ -238,13 +238,13 @@ export function ListControlsPanel({
             )}
 
             {isNextView && nextCount > NEXT_WARNING_THRESHOLD && (
-                <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-                    <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-500" />
+                <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-4">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 text-warning" />
                     <div>
-                        <p className="font-medium text-amber-700 dark:text-amber-400">
+                        <p className="font-medium text-warning">
                             {nextCount} {t('next.warningCount')}
                         </p>
-                        <p className="mt-1 text-sm text-amber-600 dark:text-amber-500">
+                        <p className="mt-1 text-sm text-muted-foreground">
                             {t('next.warningHint')}
                         </p>
                     </div>
@@ -303,6 +303,7 @@ export function ListControlsPanel({
                     type="text"
                     data-view-filter-input
                     placeholder={t('common.search')}
+                    aria-label={t('common.search')}
                     value={searchQuery}
                     onChange={(event) => onChangeSearch(event.target.value)}
                     className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -313,6 +314,7 @@ export function ListControlsPanel({
                 <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
                     <span className="text-xs font-medium text-muted-foreground">{t('process.delegateWhoLabel')}</span>
                     <select
+                        aria-label={t('process.delegateWhoLabel')}
                         value={selectedWaitingPerson}
                         onChange={(event) => onChangeSelectedWaitingPerson(event.target.value)}
                         className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"

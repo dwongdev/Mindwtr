@@ -51,7 +51,7 @@ describe('SettingsMainPage', () => {
         expect(getByText('Window Behavior')).toBeInTheDocument();
         expect(getByText('Start Mindwtr automatically when you sign in to this computer.')).toBeInTheDocument();
 
-        fireEvent.click(getByRole('button', { name: 'Launch at startup' }));
+        fireEvent.click(getByRole('switch', { name: 'Launch at startup' }));
 
         expect(onLaunchAtStartupChange).toHaveBeenCalledWith(true);
     });
@@ -69,7 +69,7 @@ describe('SettingsMainPage', () => {
             />,
         );
 
-        fireEvent.click(getByRole('button', { name: 'Launch at startup' }));
+        fireEvent.click(getByRole('switch', { name: 'Launch at startup' }));
 
         expect(onLaunchAtStartupChange).not.toHaveBeenCalled();
     });

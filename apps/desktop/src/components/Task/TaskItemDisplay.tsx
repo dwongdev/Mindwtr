@@ -81,8 +81,8 @@ const getUrgencyColor = (task: Task) => {
     const urgency = getTaskUrgency(task);
     switch (urgency) {
         case 'overdue': return 'text-destructive font-bold';
-        case 'urgent': return 'text-orange-500 font-medium';
-        case 'upcoming': return 'text-yellow-600';
+        case 'urgent': return 'text-destructive font-medium';
+        case 'upcoming': return 'text-warning';
         default: return 'text-muted-foreground';
     }
 };
@@ -405,7 +405,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                 variant="info"
                 icon={CalendarIcon}
                 label={projectDeadlineLabel}
-                className="text-amber-600 dark:text-amber-300"
+                className="text-warning"
             />
         );
     };
@@ -450,7 +450,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                     variant="info"
                     icon={AlertTriangle}
                     label={dateIssueLabel}
-                    className="text-amber-500 dark:text-amber-300"
+                    className="text-warning"
                 />
             )}
             {task.location && (
@@ -573,9 +573,9 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
             aria-label={quickActionIsPromote ? t('status.next') : t('status.done')}
             className={cn(
                 quickActionIsPromote
-                    ? "text-sky-400 hover:text-sky-300 p-1 rounded hover:bg-sky-500/20"
-                    : "text-emerald-400 hover:text-emerald-300 p-1 rounded hover:bg-emerald-500/20",
-                isInboxItem && "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity",
+                    ? "text-info hover:text-info/80 p-1 rounded hover:bg-info/20"
+                    : "text-success hover:text-success/80 p-1 rounded hover:bg-success/20",
+                isInboxItem && "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity motion-reduce:transition-none",
             )}
         >
             {quickActionIsPromote ? <ArrowRight className="w-4 h-4" /> : <Check className="w-4 h-4" />}
@@ -905,9 +905,9 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                                 "p-1.5 rounded-full transition-colors",
                                 !focusToggle.alwaysVisible && "opacity-0 group-hover:opacity-100 focus:opacity-100",
                                 focusToggle.isFocused
-                                    ? "text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30"
+                                    ? "text-warning hover:bg-warning/10"
                                     : focusToggle.canToggle
-                                        ? "text-muted-foreground hover:text-yellow-500 hover:bg-muted"
+                                        ? "text-muted-foreground hover:text-warning hover:bg-muted"
                                         : "text-muted-foreground/30 cursor-not-allowed"
                             )}
                         >
@@ -969,7 +969,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                                     }
                                     onStatusChange(nextStatus);
                                 }}
-                                    className="text-[11px] font-medium px-2.5 py-0.5 rounded-full cursor-pointer appearance-none bg-primary/10 text-blue-700 border-none hover:bg-primary/15 focus:outline-none focus:ring-2 focus:ring-primary/40 dark:text-primary"
+                                    className="text-[11px] font-medium px-2.5 py-0.5 rounded-full cursor-pointer appearance-none bg-primary/10 text-primary border-none hover:bg-primary/15 focus:outline-none focus:ring-2 focus:ring-primary/40"
                                 >
                                     <option value="inbox">{t('status.inbox')}</option>
                                     <option value="next">{t('status.next')}</option>

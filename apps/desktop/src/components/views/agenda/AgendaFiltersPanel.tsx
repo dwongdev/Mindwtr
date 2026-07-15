@@ -154,6 +154,7 @@ export function AgendaFiltersPanel({
                 type="text"
                 data-view-filter-input
                 placeholder={t('common.search')}
+                aria-label={t('common.search')}
                 value={searchQuery}
                 onChange={(event) => onSearchChange(event.target.value)}
                 className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"

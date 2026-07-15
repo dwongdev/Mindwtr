@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { ArrowRight, BookOpen, Check, CheckCircle, ChevronLeft, ClipboardList, Clock, Trash2, User, X } from 'lucide-react';
 import { DEFAULT_PROJECT_COLOR, filterProjectsBySelectedArea, safeFormatDate, safeParseDate, tFallback, type Area, type Project, type Task, type TaskPriority, type TimeEstimate } from '@mindwtr/core';
 
@@ -226,11 +226,16 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
     // After a long step is submitted the view is left scrolled to the bottom;
     // bring the panel top (title of the next task) back into view on advance.
     const panelRef = useRef<HTMLDivElement | null>(null);
+    const [actionableChoice, setActionableChoice] = useState<'initial' | 'not-actionable' | 'later'>('initial');
     const processingTaskId = processingTask?.id;
     useEffect(() => {
         if (!processingTaskId) return;
         panelRef.current?.scrollIntoView?.({ block: 'start' });
     }, [processingTaskId]);
+
+    useEffect(() => {
+        setActionableChoice('initial');
+    }, [processingStep, processingTaskId]);
 
     if (!isProcessing || !processingTask) return null;
 
@@ -440,63 +445,98 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                     <p className="text-center text-sm text-muted-foreground">
                         {t('process.actionableDesc')}
                     </p>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => handleNotActionable('trash')}
-                            className="flex-1 flex items-center justify-center gap-1.5 bg-destructive/10 text-destructive py-2.5 rounded-lg text-xs font-medium hover:bg-destructive/20 transition-colors"
-                        >
-                            <Trash2 className="w-3.5 h-3.5" /> {t('process.trash')}
-                        </button>
-                        <button
-                            onClick={() => handleNotActionable('someday')}
-                            className="flex-1 flex items-center justify-center gap-1.5 bg-purple-500/10 text-purple-400 py-2.5 rounded-lg text-xs font-medium hover:bg-purple-500/20 transition-colors"
-                        >
-                            <Clock className="w-3.5 h-3.5" /> {t('process.someday')}
-                        </button>
-                        {showReferenceOption && (
-                            <button
-                                onClick={() => handleNotActionable('reference')}
-                                className="flex-1 flex items-center justify-center gap-1.5 bg-cyan-500/10 text-cyan-400 py-2.5 rounded-lg text-xs font-medium hover:bg-cyan-500/20 transition-colors"
-                            >
-                                <BookOpen className="w-3.5 h-3.5" /> {t('process.reference')}
-                            </button>
-                        )}
-                    </div>
-                    <div className="space-y-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
-                        <div className="text-xs text-muted-foreground">{laterHint}</div>
-                        <InboxProcessingScheduleFields
-                            t={t}
-                            fields={scheduleFields}
-                            visibleFieldKeys={['start']}
-                            variant="guided"
-                        />
-                        <button
-                            type="button"
-                            onClick={handleLater}
-                            className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-500 text-white py-2.5 text-sm font-medium transition-colors hover:bg-blue-600"
-                        >
-                            <Clock className="w-4 h-4" /> {laterLabel}
-                        </button>
-                    </div>
-                    <div className={cn('gap-3', showDoneNowShortcut ? 'flex' : 'block')}>
-                        <button
-                            onClick={handleActionable}
-                            className={cn(
-                                'flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors',
-                                showDoneNowShortcut ? 'flex-1' : 'w-full'
+                    {actionableChoice === 'initial' && (
+                        <div className="space-y-3">
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleActionable}
+                                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-3 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                                >
+                                    {t('process.yesActionable')} <CheckCircle className="h-4 w-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActionableChoice('not-actionable')}
+                                    className="flex flex-1 items-center justify-center rounded-lg border border-border bg-card py-3 font-medium text-foreground transition-colors hover:bg-muted"
+                                >
+                                    {t('inbox.no')}
+                                </button>
+                            </div>
+                            {showDoneNowShortcut && (
+                                <button
+                                    onClick={handleTwoMinDone}
+                                    className="mx-auto flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-success transition-colors hover:bg-success/10"
+                                >
+                                    <CheckCircle className="h-4 w-4" /> {t('process.doneIt')}
+                                </button>
                             )}
-                        >
-                            {t('process.yesActionable')} <CheckCircle className="w-4 h-4" />
-                        </button>
-                        {showDoneNowShortcut && (
+                        </div>
+                    )}
+                    {actionableChoice === 'not-actionable' && (
+                        <div className="space-y-3">
                             <button
-                                onClick={handleTwoMinDone}
-                                className="flex-1 flex items-center justify-center gap-2 bg-green-500 text-white py-3 rounded-lg font-medium hover:bg-green-600 transition-colors"
+                                type="button"
+                                onClick={() => setActionableChoice('initial')}
+                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                             >
-                                <CheckCircle className="w-4 h-4" /> {t('process.doneIt')}
+                                <ChevronLeft className="h-3.5 w-3.5" /> {t('common.back')}
                             </button>
-                        )}
-                    </div>
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                <button
+                                    onClick={() => handleNotActionable('trash')}
+                                    className="flex items-center justify-center gap-1.5 rounded-lg bg-destructive/10 py-2.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" /> {t('process.trash')}
+                                </button>
+                                <button
+                                    onClick={() => handleNotActionable('someday')}
+                                    className="flex items-center justify-center gap-1.5 rounded-lg bg-status-someday/10 py-2.5 text-xs font-medium text-status-someday transition-colors hover:bg-status-someday/20"
+                                >
+                                    <Clock className="h-3.5 w-3.5" /> {t('process.someday')}
+                                </button>
+                                {showReferenceOption && (
+                                    <button
+                                        onClick={() => handleNotActionable('reference')}
+                                        className="flex items-center justify-center gap-1.5 rounded-lg bg-status-reference/10 py-2.5 text-xs font-medium text-status-reference transition-colors hover:bg-status-reference/20"
+                                    >
+                                        <BookOpen className="h-3.5 w-3.5" /> {t('process.reference')}
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setActionableChoice('later')}
+                                    className="flex items-center justify-center gap-1.5 rounded-lg bg-info/10 py-2.5 text-xs font-medium text-info transition-colors hover:bg-info/20"
+                                >
+                                    <Clock className="h-3.5 w-3.5" /> {laterLabel}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {actionableChoice === 'later' && (
+                        <div className="space-y-3 border-t border-border pt-3">
+                            <button
+                                type="button"
+                                onClick={() => setActionableChoice('not-actionable')}
+                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                                <ChevronLeft className="h-3.5 w-3.5" /> {t('common.back')}
+                            </button>
+                            <div className="text-xs text-muted-foreground">{laterHint}</div>
+                            <InboxProcessingScheduleFields
+                                t={t}
+                                fields={scheduleFields}
+                                visibleFieldKeys={['start']}
+                                variant="guided"
+                            />
+                            <button
+                                type="button"
+                                onClick={handleLater}
+                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-info py-2.5 text-sm font-medium text-info-foreground transition-colors hover:bg-info/90"
+                            >
+                                <Clock className="h-4 w-4" /> {laterLabel}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -530,7 +570,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                     <div className="flex gap-3">
                         <button
                             onClick={handleTwoMinDone}
-                            className="flex-1 flex items-center justify-center gap-2 bg-green-500 text-white py-3 rounded-lg font-medium hover:bg-green-600"
+                            className="flex-1 flex items-center justify-center gap-2 bg-success text-success-foreground py-3 rounded-lg font-medium hover:bg-success/90"
                         >
                             <CheckCircle className="w-4 h-4" /> {t('process.doneIt')}
                         </button>
@@ -560,7 +600,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                     <div className="flex gap-3">
                         <button
                             onClick={handleDelegate}
-                            className="flex-1 flex items-center justify-center gap-2 bg-orange-500 text-white py-3 rounded-lg font-medium hover:bg-orange-600"
+                            className="flex-1 flex items-center justify-center gap-2 bg-warning text-warning-foreground py-3 rounded-lg font-medium hover:bg-warning/90"
                         >
                             <User className="w-4 h-4" /> {t('process.delegate')}
                         </button>
@@ -619,7 +659,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                         </button>
                         <button
                             onClick={handleConfirmWaiting}
-                            className="flex-1 py-3 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600"
+                            className="flex-1 py-3 bg-warning text-warning-foreground rounded-lg font-medium hover:bg-warning/90"
                         >
                             {t('process.delegateMoveToWaiting')}
                         </button>
@@ -648,7 +688,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                                     <button
                                         key={tag}
                                         onClick={() => toggleTag(tag)}
-                                        className="px-2 py-1 bg-emerald-500 text-white rounded-full text-xs"
+                                        className="px-2 py-1 bg-success text-success-foreground rounded-full text-xs"
                                     >
                                         {tag}
                                     </button>
@@ -746,7 +786,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                                             className={cn(
                                                 'px-4 py-2 rounded-full text-sm font-medium transition-colors',
                                                 selectedTags.includes(tag)
-                                                    ? 'bg-emerald-500 text-white'
+                                                    ? 'bg-success text-success-foreground'
                                                     : 'bg-muted hover:bg-muted/80'
                                             )}
                                         >
@@ -1065,7 +1105,7 @@ export const InboxProcessingWizard = memo(function InboxProcessingWizard({
                                                 >
                                                     <div
                                                         className="w-3 h-3 rounded-full"
-                                                        style={{ backgroundColor: (project.areaId ? areaById.get(project.areaId)?.color : undefined) || '#6B7280' }}
+                                                        style={{ backgroundColor: (project.areaId ? areaById.get(project.areaId)?.color : undefined) || 'hsl(var(--muted-foreground))' }}
                                                     />
                                                     <span>{project.title}</span>
                                                 </button>

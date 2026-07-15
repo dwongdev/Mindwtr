@@ -42,17 +42,28 @@ export function SettingsSidebar({ title, subtitle, items, activeId, onSelect, se
                 <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
                 <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
             </div>
-            <div className="relative">
+            <select
+                value={activeId}
+                onChange={(event) => onSelect(event.target.value)}
+                aria-label={title}
+                className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 lg:hidden"
+            >
+                {items.map((item) => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
+                ))}
+            </select>
+            <div className="relative hidden lg:block">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                 <input
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={searchPlaceholder ?? 'Search settings\u2026'}
+                    aria-label={searchPlaceholder ?? 'Search settings\u2026'}
                     className="w-full h-8 pl-8 pr-3 text-xs bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
             </div>
-            <nav className="space-y-0.5">
+            <nav className="hidden space-y-0.5 lg:block">
                 {filtered.map(({ item, matchedKeywords }) => {
                     const Icon = item.icon;
                     const isActive = item.id === activeId;
@@ -75,7 +86,7 @@ export function SettingsSidebar({ title, subtitle, items, activeId, onSelect, se
                                         <span className="inline-flex items-center">
                                             <span
                                                 aria-hidden="true"
-                                                className="h-2 w-2 rounded-full bg-red-500"
+                                                className="h-2 w-2 rounded-full bg-destructive"
                                             />
                                             <span className="sr-only">{item.badgeLabel ?? 'Update available'}</span>
                                         </span>

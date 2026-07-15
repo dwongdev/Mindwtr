@@ -218,7 +218,7 @@ export function SettingsFeedbackModal({
 
                 {status === 'sent' ? (
                     <div className="space-y-4 p-4">
-                        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+                        <div className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
                             {t.feedbackSent}
                         </div>
                         <div className="flex justify-end">
@@ -337,7 +337,7 @@ export function SettingsFeedbackModal({
                                 >
                                     <span
                                         className={cn(
-                                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                            'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                             includeDiagnostics ? 'translate-x-4' : 'translate-x-1',
                                         )}
                                     />

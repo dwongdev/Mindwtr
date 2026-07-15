@@ -51,6 +51,7 @@ function SyncPreferenceToggle({
             <button
                 type="button"
                 role="switch"
+                aria-label={label}
                 aria-checked={checked}
                 onClick={onClick}
                 className={cn(
@@ -60,7 +61,7 @@ function SyncPreferenceToggle({
             >
                 <span
                     className={cn(
-                        'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                        'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                         checked ? 'translate-x-4' : 'translate-x-1',
                     )}
                 />

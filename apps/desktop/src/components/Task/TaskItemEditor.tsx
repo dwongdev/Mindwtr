@@ -285,8 +285,8 @@ export function TaskItemEditor({
                             className={cn(
                                 'mt-0.5 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-card motion-reduce:transition-none',
                                 isDoneActionActive
-                                    ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm'
-                                    : 'border-border bg-muted/30 text-muted-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-500'
+                                    ? 'border-success bg-success text-success-foreground shadow-sm'
+                                    : 'border-border bg-muted/30 text-muted-foreground hover:border-success/50 hover:bg-success/10 hover:text-success'
                             )}
                         >
                             <Check className="h-4 w-4" aria-hidden="true" />
@@ -320,8 +320,8 @@ export function TaskItemEditor({
                             className={cn(
                                 'p-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40',
                                 focusStar.isFocused
-                                    ? 'text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
-                                    : 'text-muted-foreground hover:text-yellow-500 hover:bg-muted/60',
+                                    ? 'text-warning hover:bg-warning/10'
+                                    : 'text-muted-foreground hover:text-warning hover:bg-muted/60',
                             )}
                         >
                             <FocusStarIcon filled={focusStar.isFocused} className="w-4 h-4" />

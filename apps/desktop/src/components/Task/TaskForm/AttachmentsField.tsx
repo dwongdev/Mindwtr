@@ -78,7 +78,7 @@ export function AttachmentsField({
                 </div>
             </div>
             {attachmentError && (
-                <div role="alert" className="text-xs text-red-400">{attachmentError}</div>
+                <div role="alert" className="text-xs text-destructive">{attachmentError}</div>
             )}
             {visibleEditAttachments.length === 0 ? (
                 <p className="text-xs text-muted-foreground">{t('common.none')}</p>

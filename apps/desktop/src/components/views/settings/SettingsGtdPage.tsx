@@ -514,7 +514,7 @@ export function SettingsGtdPage({
                 {t.gtdDesc}
             </p>
             {SHOW_TEMP_ONBOARDING_TRIGGER ? (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 flex items-center justify-between gap-4">
+                <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 flex items-center justify-between gap-4">
                     <div className="min-w-0">
                         <div className="text-sm font-medium text-foreground">Temporary onboarding test</div>
                         <div className="text-xs text-muted-foreground mt-1">
@@ -524,7 +524,7 @@ export function SettingsGtdPage({
                     <button
                         type="button"
                         onClick={handleOpenOnboardingFlow}
-                        className="shrink-0 rounded-md border border-amber-500/40 bg-amber-500/15 px-3 py-2 text-sm font-medium text-foreground hover:bg-amber-500/25 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                        className="shrink-0 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-sm font-medium text-foreground hover:bg-warning/25 focus:outline-none focus:ring-2 focus:ring-warning/40"
                     >
                         Open onboarding flow
                     </button>
@@ -538,6 +538,7 @@ export function SettingsGtdPage({
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <select
+                            aria-label={t.autoArchive}
                             value={autoArchiveDays}
                             onChange={(e) => {
                                 const value = Number.parseInt(e.target.value, 10);
@@ -655,6 +656,7 @@ export function SettingsGtdPage({
                     <button
                         type="button"
                         role="switch"
+                        aria-label={t.featurePomodoro}
                         aria-checked={pomodoroEnabled}
                         onClick={() => {
                             updateSettings({
@@ -671,7 +673,7 @@ export function SettingsGtdPage({
                     >
                         <span
                             className={cn(
-                                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                 pomodoroEnabled ? 'translate-x-4' : 'translate-x-1'
                             )}
                         />
@@ -730,6 +732,7 @@ export function SettingsGtdPage({
                                 <button
                                     type="button"
                                     role="switch"
+                                    aria-label={t.pomodoroLinkTask}
                                     aria-checked={pomodoroLinkTask}
                                     onClick={() => updatePomodoroSettings({ linkTask: !pomodoroLinkTask })}
                                     className={cn(
@@ -739,7 +742,7 @@ export function SettingsGtdPage({
                                 >
                                     <span
                                         className={cn(
-                                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                            'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                             pomodoroLinkTask ? 'translate-x-4' : 'translate-x-1'
                                         )}
                                     />
@@ -753,6 +756,7 @@ export function SettingsGtdPage({
                                 <button
                                     type="button"
                                     role="switch"
+                                    aria-label={t.pomodoroAutoStartBreaks}
                                     aria-checked={pomodoroAutoStartBreaks}
                                     onClick={() => updatePomodoroSettings(
                                         { autoStartBreaks: !pomodoroAutoStartBreaks },
@@ -765,7 +769,7 @@ export function SettingsGtdPage({
                                 >
                                     <span
                                         className={cn(
-                                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                            'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                             pomodoroAutoStartBreaks ? 'translate-x-4' : 'translate-x-1'
                                         )}
                                     />
@@ -779,6 +783,7 @@ export function SettingsGtdPage({
                                 <button
                                     type="button"
                                     role="switch"
+                                    aria-label={t.pomodoroAutoStartFocus}
                                     aria-checked={pomodoroAutoStartFocus}
                                     onClick={() => updatePomodoroSettings(
                                         { autoStartFocus: !pomodoroAutoStartFocus },
@@ -791,7 +796,7 @@ export function SettingsGtdPage({
                                 >
                                     <span
                                         className={cn(
-                                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                            'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                             pomodoroAutoStartFocus ? 'translate-x-4' : 'translate-x-1'
                                         )}
                                     />
@@ -885,6 +890,7 @@ export function SettingsGtdPage({
                         <button
                             type="button"
                             role="switch"
+                            aria-label={t.captureSaveAudio}
                             aria-checked={saveAudioAttachments}
                             onClick={() => {
                                 updateSettings({
@@ -901,7 +907,7 @@ export function SettingsGtdPage({
                         >
                             <span
                                 className={cn(
-                                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                    'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                     saveAudioAttachments ? 'translate-x-4' : 'translate-x-1'
                                 )}
                             />
@@ -916,6 +922,7 @@ export function SettingsGtdPage({
                     <button
                         type="button"
                         role="switch"
+                        aria-label={t.quickAddAutoClean}
                         aria-checked={quickAddAutoClean}
                         onClick={() => {
                             updateSettings({ quickAddAutoClean: !quickAddAutoClean })
@@ -929,7 +936,7 @@ export function SettingsGtdPage({
                     >
                         <span
                             className={cn(
-                                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                 quickAddAutoClean ? 'translate-x-4' : 'translate-x-1'
                             )}
                         />
@@ -943,6 +950,7 @@ export function SettingsGtdPage({
                     <button
                         type="button"
                         role="switch"
+                        aria-label={t.markdownEditorAssist}
                         aria-checked={markdownEditorAssist}
                         onClick={() => {
                             updateSettings({ markdownEditorAssist: !markdownEditorAssist })
@@ -956,7 +964,7 @@ export function SettingsGtdPage({
                     >
                         <span
                             className={cn(
-                                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                 markdownEditorAssist ? 'translate-x-4' : 'translate-x-1'
                             )}
                         />
@@ -977,6 +985,7 @@ export function SettingsGtdPage({
                     <button
                         type="button"
                         role="switch"
+                        aria-label={t.weeklyReviewIncludeContextsStep}
                         aria-checked={includeContextStep}
                         onClick={() => updateWeeklyReviewConfig({ includeContextStep: !includeContextStep })}
                         className={cn(
@@ -986,7 +995,7 @@ export function SettingsGtdPage({
                     >
                         <span
                             className={cn(
-                                'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                 includeContextStep ? 'translate-x-4' : 'translate-x-1'
                             )}
                         />
@@ -1043,6 +1052,7 @@ export function SettingsGtdPage({
                         <button
                             type="button"
                             role="switch"
+                            aria-label={t.inboxTwoMinuteEnabled}
                             aria-checked={inboxTwoMinuteEnabled}
                             onClick={() => updateInboxProcessing({ twoMinuteEnabled: !inboxTwoMinuteEnabled })}
                             className={cn(
@@ -1052,7 +1062,7 @@ export function SettingsGtdPage({
                         >
                             <span
                                 className={cn(
-                                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                    'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                     inboxTwoMinuteEnabled ? 'translate-x-4' : 'translate-x-1'
                                 )}
                             />
@@ -1065,6 +1075,7 @@ export function SettingsGtdPage({
                         <button
                             type="button"
                             role="switch"
+                            aria-label={t.inboxTwoMinuteFirst}
                             aria-checked={inboxTwoMinuteFirst}
                             disabled={!inboxTwoMinuteEnabled}
                             onClick={() => updateInboxProcessing({ twoMinuteFirst: !inboxTwoMinuteFirst })}
@@ -1076,7 +1087,7 @@ export function SettingsGtdPage({
                         >
                             <span
                                 className={cn(
-                                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                    'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                     inboxTwoMinuteFirst ? 'translate-x-4' : 'translate-x-1'
                                 )}
                             />
@@ -1089,6 +1100,7 @@ export function SettingsGtdPage({
                         <button
                             type="button"
                             role="switch"
+                            aria-label={t.inboxProjectFirst}
                             aria-checked={inboxProjectFirst}
                             onClick={() => updateInboxProcessing({ projectFirst: !inboxProjectFirst })}
                             className={cn(
@@ -1098,7 +1110,7 @@ export function SettingsGtdPage({
                         >
                             <span
                                 className={cn(
-                                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                    'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                     inboxProjectFirst ? 'translate-x-4' : 'translate-x-1'
                                 )}
                             />
@@ -1111,6 +1123,7 @@ export function SettingsGtdPage({
                         <button
                             type="button"
                             role="switch"
+                            aria-label={t.inboxContextStepEnabled}
                             aria-checked={inboxContextStepEnabled}
                             onClick={() => updateInboxProcessing({ contextStepEnabled: !inboxContextStepEnabled })}
                             className={cn(
@@ -1120,7 +1133,7 @@ export function SettingsGtdPage({
                         >
                             <span
                                 className={cn(
-                                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                    'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                     inboxContextStepEnabled ? 'translate-x-4' : 'translate-x-1'
                                 )}
                             />
@@ -1133,6 +1146,7 @@ export function SettingsGtdPage({
                         <button
                             type="button"
                             role="switch"
+                            aria-label={t.inboxScheduleEnabled}
                             aria-checked={inboxScheduleEnabled}
                             onClick={() => updateInboxProcessing({ scheduleEnabled: !inboxScheduleEnabled })}
                             className={cn(
@@ -1142,7 +1156,7 @@ export function SettingsGtdPage({
                         >
                             <span
                                 className={cn(
-                                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                    'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                     inboxScheduleEnabled ? 'translate-x-4' : 'translate-x-1'
                                 )}
                             />
@@ -1256,7 +1270,7 @@ export function SettingsGtdPage({
                                             >
                                                 <span
                                                     className={cn(
-                                                        'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                                        'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                                         isOpenByDefault ? 'translate-x-4' : 'translate-x-1'
                                                     )}
                                                 />

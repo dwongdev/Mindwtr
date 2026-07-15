@@ -1234,7 +1234,7 @@ export function TaskItemFieldRenderer({
                 hasValue={hasValue}
             />
             {warning && (
-                <p className="text-xs text-amber-500 dark:text-amber-300" role="note">
+                <p className="text-xs text-warning" role="note">
                     {warning}
                 </p>
             )}

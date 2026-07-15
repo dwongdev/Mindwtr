@@ -131,6 +131,7 @@ export function SettingsCalendarPage({
                             <button
                                 type="button"
                                 role="switch"
+                                aria-label={t.calendarPushTitle}
                                 aria-checked={calendarPushEnabled}
                                 disabled={calendarPushLoading}
                                 onClick={() => onToggleCalendarPush(!calendarPushEnabled)}
@@ -203,6 +204,7 @@ export function SettingsCalendarPage({
                         <div className="text-sm font-medium">{t.calendarName}</div>
                         <input
                             value={newCalendarName}
+                            aria-label={t.calendarName}
                             onChange={(e) => onCalendarNameChange(e.target.value)}
                             placeholder={t.calendarName}
                             className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -212,6 +214,7 @@ export function SettingsCalendarPage({
                         <div className="text-sm font-medium">{t.calendarUrl}</div>
                         <input
                             value={newCalendarUrl}
+                            aria-label={t.calendarUrl}
                             onChange={(e) => onCalendarUrlChange(e.target.value)}
                             placeholder="https://... or file:///..."
                             className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -244,7 +247,7 @@ export function SettingsCalendarPage({
                         )}
                     </div>
                     {calendarError && (
-                        <div className="text-xs text-red-400">{calendarError}</div>
+                        <div className="text-xs text-destructive">{calendarError}</div>
                     )}
                 </div>
             </div>
@@ -273,7 +276,7 @@ export function SettingsCalendarPage({
                                                                 "h-5 w-5 rounded-full border transition focus:outline-none focus:ring-2 focus:ring-primary/40",
                                                                 selected
                                                                     ? "border-background ring-2 ring-primary ring-offset-2 ring-offset-background"
-                                                                    : "border-border hover:scale-105"
+                                                                    : "border-border hover:border-foreground/40"
                                                             )}
                                                             style={{ backgroundColor: color }}
                                                         />
@@ -290,7 +293,7 @@ export function SettingsCalendarPage({
                                     />
                                     <button
                                         onClick={() => onRemoveCalendar(calendar.id)}
-                                        className="text-sm text-red-400 hover:text-red-300"
+                                        className="text-sm text-destructive hover:text-destructive/80"
                                     >
                                         {t.calendarRemove}
                                     </button>

@@ -57,8 +57,9 @@ export function ListQuickAdd({
                     }
                 }}
                 placeholder={`${t('nav.addTask')}... ${t('quickAdd.example')}`}
+                ariaLabel={t('nav.addTask')}
                 className={cn(
-                    "w-full rounded-lg border border-border bg-card shadow-sm transition-all focus:border-primary focus:ring-2 focus:ring-primary/30",
+                    "w-full rounded-lg border border-border bg-card shadow-sm transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30",
                     dense ? "py-2 pl-3 pr-24 text-sm" : "py-3 pl-4 pr-24"
                 )}
             />

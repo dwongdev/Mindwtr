@@ -291,7 +291,7 @@ export function CalendarSelectedDayPanel({ controller }: CalendarSelectedDayPane
                                             <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                                                 <button
                                                     type="button"
-                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300"
+                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-success/15 text-success hover:bg-success/25"
                                                     onClick={() => markTaskDone(task.id)}
                                                     aria-label={t('status.done')}
                                                     title={t('status.done')}
@@ -354,7 +354,7 @@ export function CalendarSelectedDayPanel({ controller }: CalendarSelectedDayPane
                         className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                     {scheduleError && (
-                        <div className="text-xs text-red-400">{scheduleError}</div>
+                        <div className="text-xs text-destructive">{scheduleError}</div>
                     )}
                     {scheduleCandidates.length > 0 && (
                         <div className="space-y-1">

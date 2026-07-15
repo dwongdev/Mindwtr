@@ -35,17 +35,17 @@ export function ReviewHeader({
                 <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
                 <p className="text-sm text-muted-foreground">{taskCountLabel}</p>
             </div>
-            {filters && <div className="min-w-0 flex-1">{filters}</div>}
-            <div className="ml-auto flex items-center gap-3">
+            {filters && <div className="order-3 min-w-0 basis-full xl:order-none xl:flex-1">{filters}</div>}
+            <div className="flex w-full flex-wrap items-center gap-3 sm:ml-auto sm:w-auto">
                 <button
                     onClick={onShowDailyGuide}
-                    className="bg-muted/50 text-foreground px-4 py-2 rounded-xl hover:bg-muted transition-colors"
+                    className="whitespace-nowrap rounded-lg bg-muted/50 px-4 py-2 text-foreground transition-colors hover:bg-muted"
                 >
                     {labels.dailyReview}
                 </button>
                 <button
                     onClick={onShowGuide}
-                    className="bg-primary text-primary-foreground px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors"
+                    className="whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                     {labels.weeklyReview}
                 </button>

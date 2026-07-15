@@ -164,8 +164,8 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
     const phaseBadgeClass = cn(
         'text-xs px-2 py-0.5 rounded-full border font-medium',
         timerState.phase === 'focus'
-            ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700/40'
-            : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-700/40'
+            ? 'bg-info/10 text-info border-info/30'
+            : 'bg-success/10 text-success border-success/30'
     );
 
     if (collapsed) {
@@ -182,7 +182,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
                                 aria-hidden
                                 className={cn(
                                     'w-2 h-2 rounded-full animate-pulse shrink-0',
-                                    timerState.phase === 'focus' ? 'bg-blue-500' : 'bg-emerald-500'
+                                    timerState.phase === 'focus' ? 'bg-info' : 'bg-success'
                                 )}
                             />
                         )}
@@ -298,7 +298,7 @@ export function PomodoroPanel({ tasks }: PomodoroPanelProps) {
                             }}
                             title={markDoneLabel}
                             aria-label={markDoneLabel}
-                            className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors shrink-0 bg-emerald-50 text-emerald-700 border-emerald-500 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-300 dark:border-emerald-700 dark:hover:bg-emerald-900/30"
+                            className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded border transition-colors shrink-0 bg-success/10 text-success border-success/50 hover:bg-success/20"
                         >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             {markDoneLabel}

@@ -230,8 +230,8 @@ export function SettingsAiPage({
                 className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
             >
                 <div
-                    className="h-full bg-primary transition-[width]"
-                    style={{ width: `${speechDownloadPercent ?? 12}%` }}
+                    className="h-full w-full origin-left bg-primary transition-transform duration-300 ease-out motion-reduce:transition-none"
+                    style={{ transform: `scaleX(${(speechDownloadPercent ?? 12) / 100})` }}
                 />
             </div>
         </div>
@@ -281,6 +281,7 @@ export function SettingsAiPage({
                     <button
                         type="button"
                         role="switch"
+                        aria-label={t.aiEnable}
                         aria-checked={aiEnabled}
                         onClick={handleAiToggle}
                         className={cn(
@@ -290,7 +291,7 @@ export function SettingsAiPage({
                     >
                         <span
                             className={cn(
-                                "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                                "inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform",
                                 aiEnabled ? "translate-x-4" : "translate-x-1"
                             )}
                         />
@@ -315,6 +316,7 @@ export function SettingsAiPage({
                             <div className="flex items-center justify-between gap-4">
                                 <div className="text-sm font-medium">{t.aiProvider}</div>
                                 <select
+                                    aria-label={t.aiProvider}
                                     value={aiProvider}
                                     onChange={(e) => onProviderChange(e.target.value as AIProviderId)}
                                     className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -329,6 +331,7 @@ export function SettingsAiPage({
                                 <div className="text-sm font-medium">{t.aiModel}</div>
                                 <input
                                     type="text"
+                                    aria-label={t.aiModel}
                                     value={aiModel}
                                     onChange={(e) => onUpdateAISettings({ model: e.target.value })}
                                     list="ai-model-options"
@@ -349,6 +352,7 @@ export function SettingsAiPage({
                                 </div>
                                 <input
                                     type="text"
+                                    aria-label={t.aiCopilotModel}
                                     value={aiCopilotModel}
                                     onChange={(e) => onUpdateAISettings({ copilotModel: e.target.value })}
                                     list="ai-copilot-model-options"
@@ -369,6 +373,7 @@ export function SettingsAiPage({
                                         <div className="text-xs text-muted-foreground">{t.aiReasoningHint}</div>
                                     </div>
                                     <select
+                                        aria-label={t.aiReasoning}
                                         value={aiReasoningEffort}
                                         onChange={(e) => onUpdateAISettings({ reasoningEffort: e.target.value as AIReasoningEffort })}
                                         className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -385,6 +390,7 @@ export function SettingsAiPage({
                                     <div className="text-sm font-medium">{t.aiBaseUrl}</div>
                                     <input
                                         type="text"
+                                        aria-label={t.aiBaseUrl}
                                         value={aiBaseUrl}
                                         onChange={(e) => onUpdateAISettings({ baseUrl: e.target.value })}
                                         placeholder="http://localhost:11434/v1"
@@ -395,7 +401,7 @@ export function SettingsAiPage({
                                     />
                                     <div className="text-xs text-muted-foreground">{t.aiBaseUrlHint}</div>
                                     {showCustomBaseUrlModelHint && (
-                                        <div className="text-xs text-amber-600">{t.aiBaseUrlModelHint}</div>
+                                        <div className="text-xs text-warning">{t.aiBaseUrlModelHint}</div>
                                     )}
                                 </div>
                             )}
@@ -454,6 +460,7 @@ export function SettingsAiPage({
                                         <button
                                             type="button"
                                             role="switch"
+                                            aria-label={t.aiThinkingEnable}
                                             aria-checked={anthropicThinkingEnabled}
                                             onClick={onToggleAnthropicThinking}
                                             className={cn(
@@ -463,7 +470,7 @@ export function SettingsAiPage({
                                         >
                                             <span
                                                 className={cn(
-                                                    "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                                                    "inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform",
                                                     anthropicThinkingEnabled ? "translate-x-4" : "translate-x-1"
                                                 )}
                                             />
@@ -498,6 +505,7 @@ export function SettingsAiPage({
                                         <div className="text-xs text-muted-foreground">{t.aiThinkingHint}</div>
                                     </div>
                                     <select
+                                        aria-label={t.aiThinkingBudget}
                                         value={String(aiThinkingBudget)}
                                         onChange={(e) => onUpdateAISettings({ thinkingBudget: Number(e.target.value) })}
                                         className="text-sm bg-muted/50 text-foreground border border-border rounded px-2 py-1 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -515,6 +523,7 @@ export function SettingsAiPage({
                             <div className="text-sm font-medium">{t.aiApiKey}</div>
                             <input
                                 type="password"
+                                aria-label={t.aiApiKey}
                                 value={aiApiKey}
                                 onChange={(e) => onAiApiKeyChange(e.target.value)}
                                 placeholder={t.aiApiKey}
@@ -543,6 +552,7 @@ export function SettingsAiPage({
                     <button
                         type="button"
                         role="switch"
+                        aria-label={t.speechTitle}
                         aria-checked={speechEnabled}
                         onClick={() => onUpdateSpeechSettings({ enabled: !speechEnabled })}
                         className={cn(
@@ -552,7 +562,7 @@ export function SettingsAiPage({
                     >
                         <span
                             className={cn(
-                                "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                                "inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform",
                                 speechEnabled ? "translate-x-4" : "translate-x-1"
                             )}
                         />
@@ -626,7 +636,7 @@ export function SettingsAiPage({
                                     )}
                                 </div>
                                 {speechDownloadError ? (
-                                    <div className="text-xs text-red-500">{t.speechOfflineDownloadError}: {speechDownloadError}</div>
+                                    <div className="text-xs text-destructive">{t.speechOfflineDownloadError}: {speechDownloadError}</div>
                                 ) : null}
                                 {speechDownloadProgressView}
                             </div>
@@ -676,7 +686,7 @@ export function SettingsAiPage({
                                     )}
                                 </div>
                                 {speechDownloadError ? (
-                                    <div className="text-xs text-red-500">{t.speechOfflineDownloadError}: {speechDownloadError}</div>
+                                    <div className="text-xs text-destructive">{t.speechOfflineDownloadError}: {speechDownloadError}</div>
                                 ) : null}
                                 {speechDownloadProgressView}
                             </div>
@@ -685,6 +695,7 @@ export function SettingsAiPage({
                                 <div className="text-sm font-medium">{t.aiApiKey}</div>
                                 <input
                                     type="password"
+                                    aria-label={t.aiApiKey}
                                     value={speechApiKey}
                                     onChange={(e) => onSpeechApiKeyChange(e.target.value)}
                                     placeholder={t.aiApiKey}
@@ -700,6 +711,7 @@ export function SettingsAiPage({
                                 <div className="text-xs text-muted-foreground">{t.speechLanguageHint}</div>
                             </div>
                             <input
+                                aria-label={t.speechLanguage}
                                 value={speechLanguage}
                                 onChange={(e) => onUpdateSpeechSettings({ language: e.target.value })}
                                 placeholder={t.speechLanguageAuto}

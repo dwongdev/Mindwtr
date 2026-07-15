@@ -43,7 +43,7 @@ export function TextAttachmentModal({
                     {textLoading ? (
                         <div className="text-xs text-muted-foreground" aria-live="polite">{t('common.loading')}</div>
                     ) : textError ? (
-                        <div className="flex items-center justify-between text-xs text-red-500" role="alert" aria-live="assertive">
+                        <div className="flex items-center justify-between text-xs text-destructive" role="alert" aria-live="assertive">
                             <span>{textError}</span>
                             <button
                                 type="button"

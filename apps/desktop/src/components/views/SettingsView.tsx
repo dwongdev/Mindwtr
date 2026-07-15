@@ -277,7 +277,6 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
       return false;
     }
   }, [isTauri]);
-  const [saved, setSaved] = useState(false);
   const [localApiStatus, setLocalApiStatus] = useState<LocalApiServerStatus>({
     enabled: false,
     running: false,
@@ -323,8 +322,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
   const { requestConfirmation, confirmModal } = useConfirmDialog();
 
   const showSaved = useCallback(() => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    // Visible settings update immediately; successful saves stay silent.
   }, []);
 
   useEffect(() => {
@@ -1536,12 +1534,6 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
             </main>
           </div>
         </div>
-
-        {saved && (
-          <div className="fixed bottom-8 right-8 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-2">
-            {t.saved}
-          </div>
-        )}
 
         <SettingsUpdateModal
           t={t}

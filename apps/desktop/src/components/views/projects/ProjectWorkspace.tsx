@@ -1482,6 +1482,7 @@ export function ProjectWorkspace({
                                     type="text"
                                     data-view-filter-input
                                     placeholder={t('common.search')}
+                                    aria-label={t('common.search')}
                                     value={searchQuery}
                                     onChange={(event) => setSearchQuery(event.target.value)}
                                     className={cn(

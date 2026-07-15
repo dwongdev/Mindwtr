@@ -97,28 +97,31 @@ export function CalendarPlanningPanel({
                 </div>
             )}
 
-            <div className="space-y-2">
+            <div className="divide-y divide-border/70">
                 {planningTasks.map((task) => {
                     const dueLabel = getDueLabel(task, resolveText('taskEdit.dueDateLabel', 'Due date'));
                     return (
                         <div
                             key={task.id}
-                            className="rounded-md border border-border bg-background/70 p-2"
+                            data-planning-task-id={task.id}
+                            className="flex items-center gap-3 py-2 first:pt-0 last:pb-0"
                         >
-                            <div
-                                data-task-id={task.id}
-                                className="truncate text-sm font-medium text-foreground"
-                                title={task.title}
-                            >
-                                {task.title}
-                            </div>
-                            {dueLabel && (
-                                <div className="mt-1 truncate text-xs text-muted-foreground">
-                                    {dueLabel}
+                            <div className="min-w-0 flex-1">
+                                <div
+                                    data-task-id={task.id}
+                                    className="truncate text-sm font-medium text-foreground"
+                                    title={task.title}
+                                >
+                                    {task.title}
                                 </div>
-                            )}
+                                {dueLabel && (
+                                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                                        {dueLabel}
+                                    </div>
+                                )}
+                            </div>
                             <span
-                                className="mt-2 inline-flex"
+                                className="inline-flex shrink-0"
                                 title={selectedDate ? undefined : targetLabel}
                             >
                                 <button
@@ -146,7 +149,7 @@ export function CalendarPlanningPanel({
                     );
                 })}
                 {planningTasks.length === 0 && (
-                    <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    <div className="py-2 text-sm text-muted-foreground">
                         {resolveText('calendar.planningEmpty', 'No unscheduled next actions.')}
                     </div>
                 )}

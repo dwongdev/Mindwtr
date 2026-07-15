@@ -417,9 +417,9 @@ export function ObsidianView() {
                                         className={cn(
                                             'rounded-full px-3 py-1.5',
                                             watcherError
-                                                ? 'bg-amber-100 text-amber-800'
+                                                ? 'bg-warning/15 text-warning'
                                                 : isWatching
-                                                    ? 'bg-emerald-100 text-emerald-800'
+                                                    ? 'bg-success/15 text-success'
                                                     : 'bg-muted'
                                         )}
                                     >
@@ -437,7 +437,7 @@ export function ObsidianView() {
                                 </p>
                             )}
                             {watcherError && (
-                                <p className="text-xs text-amber-700">{watcherError}</p>
+                                <p className="text-xs text-warning">{watcherError}</p>
                             )}
                         </div>
 
@@ -552,19 +552,19 @@ export function ObsidianView() {
                 )}
 
                 {canScan && importMode === 'tasknotes' && taskNotesDetectedPaths.length > 0 && (
-                    <section className="rounded-2xl border border-sky-200 bg-sky-50/70 p-5 shadow-sm">
+                    <section className="rounded-2xl border border-info/25 bg-info/5 p-5 shadow-sm">
                         <div className="space-y-3">
                             <div>
-                                <h2 className="text-sm font-semibold text-sky-900">
+                                <h2 className="text-sm font-semibold text-foreground">
                                     {resolveText('obsidian.taskNotesDetectedTitle', 'TaskNotes mode is active')}
                                 </h2>
-                                <p className="mt-1 text-sm text-sky-900/85">
+                                <p className="mt-1 text-sm text-foreground/85">
                                     {resolveText(
                                         'obsidian.taskNotesDetectedBody',
                                         'Mindwtr detected TaskNotes-style frontmatter in these files, so inline checklist tasks from other notes are ignored.'
                                     )}
                                 </p>
-                                <p className="mt-2 text-xs text-sky-900/70">
+                                <p className="mt-2 text-xs text-muted-foreground">
                                     {resolveText(
                                         'obsidian.taskNotesDetectedHint',
                                         'Look for a status field plus TaskNotes metadata like tags: [task], due, scheduled, contexts, projects, timeEstimate, recurrence, or completedDate.'
@@ -575,13 +575,13 @@ export function ObsidianView() {
                                 {visibleTaskNotesDetectedPaths.map((path) => (
                                     <div
                                         key={path}
-                                        className="rounded-xl border border-sky-200/80 bg-white/70 px-3 py-2 text-sm text-sky-950"
+                                        className="rounded-xl border border-info/25 bg-background/70 px-3 py-2 text-sm text-foreground"
                                     >
                                         <span className="font-mono">{path}</span>
                                     </div>
                                 ))}
                                 {hiddenTaskNotesDetectedCount > 0 && (
-                                    <p className="text-xs text-sky-900/70">
+                                    <p className="text-xs text-muted-foreground">
                                         +{hiddenTaskNotesDetectedCount} {resolveText('obsidian.taskNotesDetectedMore', 'more matching files')}
                                     </p>
                                 )}
@@ -670,7 +670,7 @@ export function ObsidianView() {
                                                 {isPending ? (
                                                     <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
                                                 ) : task.completed ? (
-                                                    <CheckSquare2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+                                                    <CheckSquare2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
                                                 ) : (
                                                     <Square className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
                                                 )}
@@ -680,7 +680,7 @@ export function ObsidianView() {
                                                             className={cn(
                                                                 'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium',
                                                                 task.format === 'tasknotes'
-                                                                    ? 'border-sky-200 bg-sky-50 text-sky-700'
+                                                                    ? 'border-info/30 bg-info/10 text-info'
                                                                     : 'border-border/70 bg-background text-muted-foreground'
                                                             )}
                                                         >
@@ -700,7 +700,7 @@ export function ObsidianView() {
                                                             </span>
                                                         )}
                                                         {metadata?.priority && (
-                                                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                                                            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning">
                                                                 {metadata.priority}
                                                             </span>
                                                         )}

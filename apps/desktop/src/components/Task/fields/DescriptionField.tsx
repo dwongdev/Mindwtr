@@ -101,7 +101,7 @@ export function DescriptionField({
                         disabled={descriptionAudioState === 'transcribing'}
                         className={cn(
                             'rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60',
-                            descriptionAudioState === 'recording' && 'text-red-500 hover:text-red-500'
+                            descriptionAudioState === 'recording' && 'text-destructive hover:text-destructive'
                         )}
                         aria-label={descriptionAudioLabel}
                         title={descriptionAudioLabel}
@@ -196,7 +196,7 @@ export function DescriptionField({
                 </div>
             )}
             {descriptionAudioError ? (
-                <p className="text-xs text-red-500">{descriptionAudioError}</p>
+                <p className="text-xs text-destructive">{descriptionAudioError}</p>
             ) : null}
             <ExpandedMarkdownEditor
                 isOpen={descriptionExpanded}

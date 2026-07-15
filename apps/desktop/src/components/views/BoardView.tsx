@@ -661,7 +661,7 @@ export function BoardView() {
                                             >
                                                 <span
                                                     className="w-2 h-2 rounded-full"
-                                                    style={{ backgroundColor: projectColor || "#6B7280" }}
+                                                    style={{ backgroundColor: projectColor || "hsl(var(--muted-foreground))" }}
                                                 />
                                                 <span className="truncate max-w-[140px]">{project.title}</span>
                                             </button>

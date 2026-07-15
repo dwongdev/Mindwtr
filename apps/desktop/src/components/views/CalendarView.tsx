@@ -38,11 +38,12 @@ const PROJECTED_RECURRENCE_LABEL_DATE_FORMAT = 'MMM d';
 const CALENDAR_PLANNING_PANEL_COLLAPSED_KEY = 'mindwtr.calendar.planningPanelCollapsed';
 
 const readPlanningPanelCollapsedPreference = (): boolean => {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === 'undefined') return true;
     try {
-        return window.localStorage.getItem(CALENDAR_PLANNING_PANEL_COLLAPSED_KEY) === 'true';
+        const stored = window.localStorage.getItem(CALENDAR_PLANNING_PANEL_COLLAPSED_KEY);
+        return stored === null ? true : stored === 'true';
     } catch {
-        return false;
+        return true;
     }
 };
 
@@ -179,7 +180,7 @@ export function CalendarView() {
                         {resolveText('calendar.tasksAndEvents', 'Tasks and external events by date')}
                     </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                     <button
                         type="button"
                         onClick={handleToday}
@@ -188,7 +189,7 @@ export function CalendarView() {
                         <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
                         {resolveText('calendar.today', 'Today')}
                     </button>
-                    <div className="inline-flex rounded-md border border-border bg-card p-1">
+                    <div className="grid w-full grid-cols-2 rounded-md border border-border bg-card p-1 sm:inline-flex sm:w-auto">
                         {([
                             ['day', resolveText('calendar.day', 'Day')],
                             ['week', resolveText('calendar.week', 'Week')],
@@ -210,7 +211,7 @@ export function CalendarView() {
                             </button>
                         ))}
                     </div>
-                    <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1">
+                    <div className="flex w-full items-center gap-1 rounded-md border border-border bg-card p-1 sm:w-auto">
                         <button
                             type="button"
                             onClick={handlePrevMonth}
@@ -220,11 +221,11 @@ export function CalendarView() {
                         >
                             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                         </button>
-                        <div className="relative">
+                        <div className="relative min-w-0 flex-1 sm:flex-none">
                             <button
                                 type="button"
                                 onClick={() => setIsMonthPickerOpen((open) => !open)}
-                                className="h-8 min-w-[11rem] rounded px-3 text-sm font-semibold hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                className="h-8 w-full min-w-0 rounded px-3 text-sm font-semibold hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40 sm:min-w-[11rem]"
                                 aria-haspopup="dialog"
                                 aria-expanded={isMonthPickerOpen}
                             >
@@ -283,6 +284,7 @@ export function CalendarView() {
                             type="text"
                             data-view-filter-input
                             placeholder={t('common.search')}
+                            aria-label={t('common.search')}
                             value={viewFilterQuery}
                             onChange={(event) => setViewFilterQuery(event.target.value)}
                             className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -299,7 +301,7 @@ export function CalendarView() {
             </div>
 
             {externalError && (
-                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-foreground">
                     {externalError}
                 </div>
             )}
@@ -348,7 +350,7 @@ export function CalendarView() {
                 {viewMode === 'month' && (
                 <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden shadow-sm">
                     {weekdayHeaders.map((day) => (
-                        <div key={day} className="bg-card p-2 text-center text-sm font-medium text-muted-foreground">
+                        <div key={day} className="bg-card p-1 text-center text-xs font-medium text-muted-foreground sm:p-2 sm:text-sm">
                             {day}
                         </div>
                     ))}
@@ -369,7 +371,7 @@ export function CalendarView() {
                             <div
                                 key={day.toString()}
                                 className={cn(
-                                    "group bg-card min-h-[128px] cursor-pointer p-2 transition-colors hover:bg-accent/50 relative",
+                                    "group relative min-h-24 cursor-pointer bg-card p-1 transition-colors hover:bg-accent/50 sm:min-h-[128px] sm:p-2",
                                     !isSameCalendarMonth(day, currentMonth, calendarSystem) && "bg-muted/50 text-muted-foreground",
                                     isSelected && "ring-2 ring-primary"
                                 )}
@@ -385,13 +387,13 @@ export function CalendarView() {
                             >
                                 <div className="mb-2 flex items-center justify-between gap-2">
                                     <div className="flex min-w-0 items-center gap-1.5">
-                                        <div className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-medium" style={todayMarkerStyle}>
+                                        <div className="flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium sm:h-6 sm:w-6 sm:text-sm" style={todayMarkerStyle}>
                                             <span className="tabular-nums leading-none">
                                                 {getCalendarDayOfMonth(day, calendarSystem)}
                                             </span>
                                         </div>
                                         {isToday(day) && (
-                                            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-normal text-primary">
+                                            <span className="hidden rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-normal text-primary sm:inline">
                                                 {resolveText('calendar.today', 'Today')}
                                             </span>
                                         )}
@@ -629,8 +631,8 @@ export function CalendarView() {
                                             ))}
                                             {showNow && (
                                                 <div className="absolute left-0 right-0 z-20 flex items-center" style={{ top: nowTop }}>
-                                                    <span className="h-2 w-2 -translate-x-1 rounded-full bg-red-500" />
-                                                    <span className="h-0.5 flex-1 bg-red-500" />
+                                                    <span className="h-2 w-2 -translate-x-1 rounded-full bg-destructive" />
+                                                    <span className="h-0.5 flex-1 bg-destructive" />
                                                 </div>
                                             )}
                                             {layoutTimedItems(day).map((item) => {

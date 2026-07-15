@@ -118,7 +118,7 @@ export function SettingsAboutPage({
                     </button>
                 </div>
                 {updateError && (
-                    <div className="text-red-500 text-sm">{t.checkFailed}</div>
+                    <div className="text-destructive text-sm">{t.checkFailed}</div>
                 )}
                 {updateNotice && !updateError && (
                     <div className="text-sm text-muted-foreground">{updateNotice}</div>
@@ -150,7 +150,7 @@ export function SettingsAboutPage({
                     <span className="text-muted-foreground">{t.github}</span>
                     <button
                         onClick={() => onOpenLink('https://github.com/dongdongbh/Mindwtr')}
-                        className="text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+                        className="text-info hover:underline cursor-pointer flex items-center gap-1"
                     >
                         github.com/dongdongbh/Mindwtr
                         <ExternalLink className="w-3 h-3" />
@@ -161,7 +161,7 @@ export function SettingsAboutPage({
                     <span className="text-muted-foreground">{t.sponsorProject}</span>
                     <button
                         onClick={() => onOpenLink('https://mindwtr.app/donate?src=app_about')}
-                        className="text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+                        className="text-info hover:underline cursor-pointer flex items-center gap-1"
                     >
                         mindwtr.app/donate
                         <ExternalLink className="w-3 h-3" />

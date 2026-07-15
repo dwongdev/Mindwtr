@@ -1028,7 +1028,7 @@ export function AgendaView() {
             className="rounded-xl border border-border/70 border-l-4 border-l-amber-400 bg-card/70 p-6 shadow-sm dark:border-border/60 dark:border-l-amber-400/80 dark:bg-card/60"
         >
             <h3 className="font-bold text-lg flex items-center gap-2 mb-4 text-foreground">
-                <FocusStarIcon className="w-5 h-5 text-yellow-500 dark:text-amber-300" filled />
+                <FocusStarIcon className="w-5 h-5 text-warning" filled />
                 {t('agenda.todaysFocus')}
                 <span className="text-sm font-normal text-muted-foreground">
                     ({focusedCount}/{focusTaskLimit})
@@ -1222,7 +1222,7 @@ export function AgendaView() {
                             <AgendaCollapsibleSection
                                 title={t('focus.schedule') || t('agenda.dueToday')}
                                 icon={Clock}
-                                color="text-yellow-600"
+                                color="text-warning"
                                 count={sections.schedule.length}
                                 expanded={expandedSections.schedule}
                                 onToggle={() => toggleSection('schedule')}
@@ -1242,7 +1242,7 @@ export function AgendaView() {
                                 <AgendaCollapsibleSection
                                     title={t('agenda.nextActions')}
                                     icon={ArrowRight}
-                                    color="text-blue-600"
+                                    color="text-info"
                                     count={sections.nextActions.length}
                                     expanded={expandedSections.nextActions}
                                     onToggle={() => toggleSection('nextActions')}
@@ -1262,7 +1262,7 @@ export function AgendaView() {
                                 <AgendaCollapsibleSection
                                     title={t('agenda.nextActions')}
                                     icon={ArrowRight}
-                                    color="text-blue-600"
+                                    color="text-info"
                                     count={sections.nextActions.length}
                                     expanded={expandedSections.nextActions}
                                     onToggle={() => toggleSection('nextActions')}
@@ -1326,7 +1326,7 @@ export function AgendaView() {
                             <AgendaCollapsibleSection
                                 title={t('agenda.reviewDue') || 'Review Due'}
                                 icon={Clock}
-                                color="text-purple-600"
+                                color="text-status-someday"
                                 count={sections.reviewDue.length}
                                 expanded={expandedSections.reviewDue}
                                 onToggle={() => toggleSection('reviewDue')}
@@ -1346,7 +1346,7 @@ export function AgendaView() {
                             icon={Folder}
                             onProjectPress={handleOpenReviewProject}
                             projects={reviewDueProjects}
-                            color="text-indigo-600"
+                            color="text-status-reference"
                             t={t}
                         />
                     </div>
@@ -1354,9 +1354,9 @@ export function AgendaView() {
             )}
 
             {!top3Only && !hasAgendaContent && (
-                <div className="text-center py-12 text-muted-foreground flex flex-col items-center gap-2">
-                    <CheckCircle2 className="w-10 h-10 text-emerald-500/80" aria-hidden="true" strokeWidth={1.5} />
-                    <p className="text-lg font-medium text-foreground">{t('agenda.allClear')}</p>
+                <div className="flex flex-col items-center gap-1 py-8 text-center text-muted-foreground">
+                    <CheckCircle2 className="h-6 w-6 text-success/80" aria-hidden="true" strokeWidth={1.5} />
+                    <p className="text-base font-medium text-foreground">{t('agenda.allClear')}</p>
                     <p className="text-sm">
                         {hasTaskFilters
                             ? t('filters.noMatch')

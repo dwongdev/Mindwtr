@@ -1094,7 +1094,7 @@ describe('TaskItemDisplay', () => {
         expect(getByRole('button', { name: 'More options' })).toBeInTheDocument();
         const statusSelect = getByRole('combobox', { name: 'task.aria.status' });
         expect(statusSelect).toBeInTheDocument();
-        expect(statusSelect).toHaveClass('text-blue-700', 'dark:text-primary');
+        expect(statusSelect).toHaveClass('bg-primary/10', 'text-primary');
         expect(queryByRole('button', { name: 'task.convertToReference' })).not.toBeInTheDocument();
         expect(queryByRole('button', { name: 'task.aria.delete' })).not.toBeInTheDocument();
     });

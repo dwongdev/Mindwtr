@@ -68,10 +68,10 @@ export function InboxProcessor({
     return (
         <>
             {showStartButton && (
-                <div className="flex items-stretch gap-2">
+                <div className="flex flex-wrap items-stretch gap-2">
                     <button
                         onClick={startProcessing}
-                        className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 px-4 rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                        className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap bg-primary px-4 py-3 font-medium text-primary-foreground transition-colors hover:bg-primary/90 rounded-lg"
                     >
                         <Play className="w-4 h-4" />
                         {t('process.btn')} ({inboxCount})

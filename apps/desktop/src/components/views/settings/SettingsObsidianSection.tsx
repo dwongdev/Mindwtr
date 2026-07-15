@@ -158,6 +158,7 @@ export function SettingsObsidianSection({
                 <button
                     type="button"
                     role="switch"
+                    aria-label={t.obsidianEnable}
                     aria-checked={obsidianEnabled}
                     onClick={() => onObsidianEnabledChange(!obsidianEnabled)}
                     className={cn(
@@ -167,7 +168,7 @@ export function SettingsObsidianSection({
                 >
                     <span
                         className={cn(
-                            "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                            "inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform",
                             obsidianEnabled ? "translate-x-4" : "translate-x-1",
                         )}
                     />
@@ -181,6 +182,7 @@ export function SettingsObsidianSection({
                             <input
                                 type="text"
                                 value={obsidianVaultPath}
+                                aria-label={t.obsidianVaultPath}
                                 onChange={(event) => onObsidianVaultPathChange(event.target.value)}
                                 placeholder="/path/to/your/Obsidian/vault"
                                 className="flex-1 bg-muted p-2 rounded text-sm font-mono border border-border focus:outline-none focus:ring-2 focus:ring-primary"
@@ -212,7 +214,7 @@ export function SettingsObsidianSection({
                         )}
                         <p className="text-xs text-muted-foreground">{t.obsidianVaultPathHint}</p>
                         {obsidianVaultWarning && (
-                            <p className="text-xs text-amber-600">
+                            <p className="text-xs text-warning">
                                 {obsidianHasVaultMarker === false ? t.obsidianMissingMarker : obsidianVaultWarning}
                             </p>
                         )}
@@ -222,6 +224,7 @@ export function SettingsObsidianSection({
                         <label className="text-sm font-medium">{t.obsidianScanFolders}</label>
                         <textarea
                             value={obsidianScanFoldersText}
+                            aria-label={t.obsidianScanFolders}
                             onChange={(event) => onObsidianScanFoldersTextChange(event.target.value)}
                             rows={3}
                             className="bg-muted p-2 rounded text-sm font-mono border border-border focus:outline-none focus:ring-2 focus:ring-primary"
@@ -235,6 +238,7 @@ export function SettingsObsidianSection({
                         <input
                             type="text"
                             value={obsidianInboxFile}
+                            aria-label={t.obsidianInboxFile}
                             onChange={(event) => onObsidianInboxFileChange(event.target.value)}
                             placeholder="Mindwtr/Inbox.md"
                             className="bg-muted p-2 rounded text-sm font-mono border border-border focus:outline-none focus:ring-2 focus:ring-primary"
@@ -256,6 +260,7 @@ export function SettingsObsidianSection({
                             <button
                                 type="button"
                                 role="switch"
+                                aria-label={t.obsidianDataviewMetadata}
                                 aria-checked={obsidianDataviewMetadataEnabled}
                                 onClick={() => onObsidianDataviewMetadataEnabledChange(!obsidianDataviewMetadataEnabled)}
                                 className={cn(
@@ -265,7 +270,7 @@ export function SettingsObsidianSection({
                             >
                                 <span
                                     className={cn(
-                                        'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                        'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                         obsidianDataviewMetadataEnabled ? 'translate-x-4' : 'translate-x-1',
                                     )}
                                 />
@@ -287,6 +292,7 @@ export function SettingsObsidianSection({
                             <button
                                 type="button"
                                 role="switch"
+                                aria-label={t.obsidianTaskNotesIncludeArchived}
                                 aria-checked={obsidianTaskNotesIncludeArchived}
                                 onClick={() => onObsidianTaskNotesIncludeArchivedChange(!obsidianTaskNotesIncludeArchived)}
                                 className={cn(
@@ -296,7 +302,7 @@ export function SettingsObsidianSection({
                             >
                                 <span
                                     className={cn(
-                                        'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                        'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                                         obsidianTaskNotesIncludeArchived ? 'translate-x-4' : 'translate-x-1',
                                     )}
                                 />
@@ -327,7 +333,7 @@ export function SettingsObsidianSection({
                                 </span>
                             </p>
                             {obsidianWatcherError ? (
-                                <p className="text-xs text-amber-600">
+                                <p className="text-xs text-warning">
                                     {t.obsidianWatcherUnavailable} {obsidianWatcherError}
                                 </p>
                             ) : obsidianIsWatching ? (

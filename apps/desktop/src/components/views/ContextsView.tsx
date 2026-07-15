@@ -501,9 +501,9 @@ export function ContextsView() {
     return (
         <>
             <div className="h-full px-4 py-3">
-                <div className="mx-auto flex h-full w-full max-w-[84rem] min-w-0 gap-5 xl:gap-6 2xl:max-w-[88rem]">
+                <div className="mx-auto flex h-full w-full max-w-[84rem] min-w-0 gap-0 lg:gap-5 xl:gap-6 2xl:max-w-[88rem]">
                     {/* Sidebar List of Contexts */}
-                    <div className="min-w-[13.5rem] w-[clamp(13.5rem,16vw,15.5rem)] flex-shrink-0 flex flex-col gap-4 border-r border-border pr-5 xl:pr-6">
+                    <div className="hidden min-w-[13.5rem] w-[clamp(13.5rem,16vw,15.5rem)] flex-shrink-0 flex-col gap-4 border-r border-border pr-5 lg:flex xl:pr-6">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-bold tracking-tight">{t('contexts.title')}</h2>
                             <Filter className="w-5 h-5 text-muted-foreground" />
@@ -571,19 +571,37 @@ export function ContextsView() {
 
                     {/* Context Tasks */}
                     <div className="min-w-0 flex-1 flex flex-col h-full overflow-hidden">
-                        <header className="flex items-center gap-3 mb-6">
+                        <header className="mb-6 flex flex-wrap items-center gap-3">
                             <div className="p-2 bg-primary/10 rounded-lg">
                                 <Tag className="w-6 h-6 text-primary" />
                             </div>
-                            <div>
-                                <h2 className="text-2xl font-bold">
+                            <div className="min-w-0 flex-1">
+                                <h2 className="truncate text-2xl font-bold">
                                     {selectedContext === NO_CONTEXT_TOKEN ? t('contexts.none') : (selectedContext ?? allTokensLabel)}
                                 </h2>
                                 <p className="text-muted-foreground text-sm">
                                     {filteredTasks.length} {t('common.tasks')}
                                 </p>
                             </div>
-                            <div className="ml-auto">
+                            <div className="order-3 w-full lg:hidden">
+                                <label htmlFor="contexts-token-select" className="sr-only">{allTokensLabel}</label>
+                                <select
+                                    id="contexts-token-select"
+                                    value={selectedContext ?? ''}
+                                    onChange={(event) => setSelectedContext(event.target.value || null)}
+                                    className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                >
+                                    <option value="">{allTokensLabel}</option>
+                                    <option value={NO_CONTEXT_TOKEN}>{t('contexts.none')}</option>
+                                    <optgroup label={contextsLabel}>
+                                        {allContextTokens.map((token) => <option key={token} value={token}>{token}</option>)}
+                                    </optgroup>
+                                    <optgroup label={tagsLabel}>
+                                        {allTagTokens.map((token) => <option key={token} value={token}>{token}</option>)}
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div className="order-4 w-full lg:order-none lg:ml-auto lg:w-auto">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <ToolbarButton
                                         active={selectionMode}
@@ -644,6 +662,7 @@ export function ContextsView() {
                                 type="text"
                                 data-view-filter-input
                                 placeholder={t('common.search')}
+                                aria-label={t('common.search')}
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 className="w-full text-sm px-3 py-2 rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -739,7 +758,7 @@ export function ContextsView() {
                                     ))
                                 )
                             ) : (
-                                <div className="text-center text-muted-foreground py-12">
+                                <div className="px-1 py-8 text-left text-sm text-muted-foreground">
                                     {normalizedSearchQuery ? t('filters.noMatch') : t('contexts.noTasks')}
                                 </div>
                             )}

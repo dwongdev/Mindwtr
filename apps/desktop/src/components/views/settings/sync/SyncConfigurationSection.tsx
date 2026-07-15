@@ -111,7 +111,7 @@ const SwitchRow = ({
         >
             <span
                 className={cn(
-                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                    'inline-block h-4 w-4 transform rounded-full bg-background shadow transition-transform',
                     checked ? 'translate-x-4' : 'translate-x-1',
                 )}
             />
@@ -134,7 +134,7 @@ const ConnectionBadge = ({
             className={cn(
                 'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs',
                 state === 'success'
-                    ? 'border-emerald-600/40 text-emerald-500'
+                    ? 'border-success/40 text-success'
                     : 'border-destructive/40 text-destructive'
             )}
         >
@@ -382,7 +382,7 @@ const renderWebDavPanel = ({
             </div>
         </div>
         {!isTauri && (
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-warning">
                 Web warning: WebDAV passwords are stored in browser storage. Use only on trusted devices.
             </p>
         )}

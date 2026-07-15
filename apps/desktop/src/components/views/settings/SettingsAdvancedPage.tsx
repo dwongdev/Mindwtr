@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { SettingsLabels } from './labels';
 import type { LocalApiServerStatus } from '../../../lib/local-api-server';
 import type { DesktopRenderingConfig } from '../../../lib/desktop-rendering';
+import { Switch } from '../../ui/Switch';
 
 type SettingsAdvancedPageProps = {
     t: SettingsLabels;
@@ -73,22 +74,12 @@ function Toggle({
     onChange: () => void;
 }) {
     return (
-        <button
-            type="button"
+        <Switch
             disabled={disabled}
             aria-label={label}
-            onClick={onChange}
-            className={`inline-flex h-[22px] w-10 items-center rounded-full transition-colors ${
-                enabled ? 'bg-primary' : 'bg-muted'
-            } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
-            aria-pressed={enabled}
-        >
-            <span
-                className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white transition-transform ${
-                    enabled ? 'translate-x-[20px]' : 'translate-x-[2px]'
-                }`}
-            />
-        </button>
+            checked={enabled}
+            onCheckedChange={onChange}
+        />
     );
 }
 

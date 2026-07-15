@@ -397,7 +397,10 @@ describe('InboxProcessor', () => {
         fireEvent.click(getByRole('button', { name: /process\.btn/i }));
         fireEvent.click(getByText('process.refineNext'));
 
+        expect(queryByText('process.reference')).toBeNull();
+        fireEvent.click(getByText('inbox.no'));
         expect(getByText('process.reference')).toBeTruthy();
+        fireEvent.click(getByText('common.back'));
 
         fireEvent.click(getByText('process.yesActionable'));
         fireEvent.click(getByText('process.moreThanOneStepNo'));
@@ -419,6 +422,7 @@ describe('InboxProcessor', () => {
         fireEvent.click(getByRole('button', { name: /process\.btn/i }));
         fireEvent.click(getByText('process.refineNext'));
 
+        fireEvent.click(getByText('inbox.no'));
         expect(getByText('process.reference')).toBeTruthy();
     });
 
@@ -455,6 +459,7 @@ describe('InboxProcessor', () => {
 
         fireEvent.click(getByRole('button', { name: /process\.btn/i }));
         fireEvent.click(getByText('process.refineNext'));
+        fireEvent.click(getByText('inbox.no'));
         fireEvent.click(getByText('process.reference'));
 
         await user.type(getByPlaceholderText('@home'), '@docs, @desk');
@@ -491,7 +496,9 @@ describe('InboxProcessor', () => {
         fireEvent.click(getByRole('button', { name: /process\.btn/i }));
         fireEvent.click(getByText('process.refineNext'));
 
+        fireEvent.click(getByText('inbox.no'));
         expect(getByText('process.reference')).toBeTruthy();
+        fireEvent.click(getByText('common.back'));
 
         fireEvent.click(getByText('process.yesActionable'));
         fireEvent.click(getByText('process.moreThanOneStepNo'));
@@ -507,6 +514,8 @@ describe('InboxProcessor', () => {
 
         fireEvent.click(getByRole('button', { name: /process\.btn/i }));
         fireEvent.click(getByText('process.refineNext'));
+        fireEvent.click(getByText('inbox.no'));
+        fireEvent.click(getByText('Later'));
         fireEvent.change(getByLabelText('taskEdit.startDateLabel'), {
             target: { value: '2026-03-23' },
         });

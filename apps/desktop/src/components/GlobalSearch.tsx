@@ -443,6 +443,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                     <Search className="w-5 h-5 text-muted-foreground" />
                     <input
                         ref={inputRef}
+                        aria-label={t('search.title')}
                         value={query}
                         onChange={e => {
                             setQuery(e.target.value);
@@ -450,12 +451,12 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                         }}
                         onKeyDown={handleListKeyDown}
                         placeholder={t('search.placeholder') || "Search tasks and projects..."}
-                        className="flex-1 bg-transparent border-none outline-none text-lg placeholder:text-muted-foreground"
+                        className="min-w-0 flex-1 bg-transparent border-none outline-none text-lg placeholder:text-muted-foreground"
                     />
                     {canSave && (
                         <button
                             onClick={handleSaveSearch}
-                            className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-muted/50 hover:bg-muted transition-colors text-muted-foreground"
+                            className="flex items-center gap-1 whitespace-nowrap rounded-md bg-muted/50 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted"
                             title={t('search.saveSearch')}
                         >
                             <Save className="w-3 h-3" />
@@ -485,7 +486,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                                 key={chip.key}
                                 type="button"
                                 onClick={chip.onRemove}
-                                className="flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
+                                className="flex items-center gap-1 whitespace-nowrap rounded-full border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
                             >
                                 <span>{chip.label}</span>
                                 <X className="w-3 h-3" />
@@ -504,7 +505,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                                         type="button"
                                         onClick={() => toggleStatus(status)}
                                         className={cn(
-                                            "px-2 py-1 rounded-full border text-xs transition-colors",
+                                            "whitespace-nowrap rounded-full border px-2 py-1 text-xs transition-colors",
                                             selectedStatuses.includes(status)
                                                 ? "bg-primary/15 text-primary border-primary/40"
                                                 : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/60"
@@ -529,7 +530,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                                         type="button"
                                         onClick={() => setScope(option.id as typeof scope)}
                                         className={cn(
-                                            "px-2 py-1 rounded-full border text-xs transition-colors",
+                                            "whitespace-nowrap rounded-full border px-2 py-1 text-xs transition-colors",
                                             scope === option.id
                                                 ? "bg-primary/15 text-primary border-primary/40"
                                                 : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/60"
@@ -544,6 +545,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                             <div className="space-y-2">
                                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Area</div>
                                 <select
+                                    aria-label={t('taskEdit.areaLabel') || 'Area'}
                                     value={selectedArea}
                                     onChange={(event) => setSelectedArea(event.target.value)}
                                     className="w-full rounded border border-border bg-muted/40 px-2 py-1 text-xs"
@@ -558,6 +560,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                             <div className="space-y-2">
                                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Due</div>
                                 <select
+                                    aria-label={t('taskEdit.dueDateLabel') || 'Due'}
                                     value={duePreset}
                                     onChange={(event) => setDuePreset(event.target.value as DuePreset)}
                                     className="w-full rounded border border-border bg-muted/40 px-2 py-1 text-xs"
@@ -578,6 +581,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                             </div>
                             <input
                                 type="text"
+                                aria-label={t('taskEdit.locationLabel') || 'Location'}
                                 value={locationQuery}
                                 onChange={(event) => setLocationQuery(event.target.value)}
                                 placeholder={t('taskEdit.locationPlaceholder') || 'e.g. Office'}
@@ -593,7 +597,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                                         type="button"
                                         onClick={() => toggleToken(token)}
                                         className={cn(
-                                            "px-2 py-1 rounded-full border text-xs transition-colors",
+                                            "whitespace-nowrap rounded-full border px-2 py-1 text-xs transition-colors",
                                             selectedTokens.includes(token)
                                                 ? "bg-primary/15 text-primary border-primary/40"
                                                 : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/60"
@@ -604,13 +608,13 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                                 ))}
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <button
                                 type="button"
                                 aria-pressed={includeCompleted}
                                 onClick={() => setIncludeCompleted((prev) => !prev)}
                                 className={cn(
-                                    "px-2 py-1 rounded-full border text-xs transition-colors",
+                                    "whitespace-nowrap rounded-full border px-2 py-1 text-xs transition-colors",
                                     includeCompleted
                                         ? "bg-primary/15 text-primary border-primary/40"
                                         : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/60"
@@ -623,7 +627,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                                 aria-pressed={includeReference}
                                 onClick={() => setIncludeReference((prev) => !prev)}
                                 className={cn(
-                                    "px-2 py-1 rounded-full border text-xs transition-colors",
+                                    "whitespace-nowrap rounded-full border px-2 py-1 text-xs transition-colors",
                                     includeReference
                                         ? "bg-primary/15 text-primary border-primary/40"
                                         : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/60"
@@ -636,7 +640,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                                 aria-pressed={hideFutureTasks}
                                 onClick={() => setHideFutureTasks((prev) => !prev)}
                                 className={cn(
-                                    "px-2 py-1 rounded-full border text-xs transition-colors",
+                                    "whitespace-nowrap rounded-full border px-2 py-1 text-xs transition-colors",
                                     hideFutureTasks
                                         ? "bg-primary/15 text-primary border-primary/40"
                                         : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/60"
@@ -712,9 +716,9 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                             data-search-index={index}
                         >
                             {result.type === 'project' ? (
-                                <FileText className="w-4 h-4 text-blue-500" />
+                                <FileText className="w-4 h-4 text-info" />
                             ) : (
-                                <CheckCircle className={cn("w-4 h-4", (result.item as SearchTaskResult).status === 'done' ? "text-green-500" : "text-gray-400")} />
+                                <CheckCircle className={cn("w-4 h-4", (result.item as SearchTaskResult).status === 'done' ? "text-success" : "text-muted-foreground")} />
                             )}
 
                             <div className="flex-1 flex flex-col overflow-hidden">

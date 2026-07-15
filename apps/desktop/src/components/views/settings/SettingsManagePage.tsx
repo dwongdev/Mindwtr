@@ -185,7 +185,7 @@ function TokenRow({
                     setEditValue(value);
                     setEditing(true);
                 }}
-                className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8 rounded-md transition-colors flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                 title={translate('common.edit')}
             >
                 <Pencil className="w-3.5 h-3.5" />
@@ -193,7 +193,7 @@ function TokenRow({
             <button
                 type="button"
                 onClick={() => onDelete(value)}
-                className="text-destructive hover:bg-destructive/10 h-8 w-8 rounded-md transition-colors flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-destructive opacity-0 transition-colors hover:bg-destructive/10 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                 title={translate('common.delete')}
             >
                 <Trash2 className="w-4 h-4" />

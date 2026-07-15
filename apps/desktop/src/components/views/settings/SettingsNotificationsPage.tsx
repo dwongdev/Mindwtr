@@ -1,8 +1,8 @@
 import type { AppData } from '@mindwtr/core';
 
-import { cn } from '../../../lib/utils';
 import { reportError } from '../../../lib/report-error';
 import { requestDesktopNotificationPermission } from '../../../lib/notification-service';
+import { Switch } from '../../ui/Switch';
 
 type Labels = {
     notificationsDesc: string;
@@ -81,23 +81,11 @@ export function SettingsNotificationsPage({
                 <div>
                     <p className="text-sm font-medium">{t.notificationsEnable}</p>
                 </div>
-                <button
-                    type="button"
-                    role="switch"
-                    aria-checked={notificationsEnabled}
-                    onClick={() => handleUpdate({ notificationsEnabled: !notificationsEnabled })}
-                    className={cn(
-                        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
-                        notificationsEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
-                    )}
-                >
-                    <span
-                        className={cn(
-                            "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
-                            notificationsEnabled ? "translate-x-4" : "translate-x-1"
-                        )}
-                    />
-                </button>
+                <Switch
+                    checked={notificationsEnabled}
+                    onCheckedChange={(checked) => handleUpdate({ notificationsEnabled: checked })}
+                    aria-label={t.notificationsEnable}
+                />
             </div>
 
             <div className="flex items-start justify-between gap-4">
@@ -105,24 +93,12 @@ export function SettingsNotificationsPage({
                     <p className="text-sm font-medium">{t.startDateNotifications}</p>
                     <p className="text-xs text-muted-foreground mt-1">{t.startDateNotificationsDesc}</p>
                 </div>
-                <button
-                    type="button"
-                    role="switch"
-                    aria-checked={startDateNotificationsEnabled}
-                    onClick={() => handleUpdate({ startDateNotificationsEnabled: !startDateNotificationsEnabled })}
+                <Switch
+                    checked={startDateNotificationsEnabled}
+                    onCheckedChange={(checked) => handleUpdate({ startDateNotificationsEnabled: checked })}
+                    aria-label={t.startDateNotifications}
                     disabled={!notificationsEnabled}
-                    className={cn(
-                        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                        startDateNotificationsEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
-                    )}
-                >
-                    <span
-                        className={cn(
-                            "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
-                            startDateNotificationsEnabled ? "translate-x-4" : "translate-x-1"
-                        )}
-                    />
-                </button>
+                />
             </div>
 
             <div className="flex items-start justify-between gap-4">
@@ -130,24 +106,12 @@ export function SettingsNotificationsPage({
                     <p className="text-sm font-medium">{t.dueDateNotifications}</p>
                     <p className="text-xs text-muted-foreground mt-1">{t.dueDateNotificationsDesc}</p>
                 </div>
-                <button
-                    type="button"
-                    role="switch"
-                    aria-checked={dueDateNotificationsEnabled}
-                    onClick={() => handleUpdate({ dueDateNotificationsEnabled: !dueDateNotificationsEnabled })}
+                <Switch
+                    checked={dueDateNotificationsEnabled}
+                    onCheckedChange={(checked) => handleUpdate({ dueDateNotificationsEnabled: checked })}
+                    aria-label={t.dueDateNotifications}
                     disabled={!notificationsEnabled}
-                    className={cn(
-                        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                        dueDateNotificationsEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
-                    )}
-                >
-                    <span
-                        className={cn(
-                            "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
-                            dueDateNotificationsEnabled ? "translate-x-4" : "translate-x-1"
-                        )}
-                    />
-                </button>
+                />
             </div>
 
             <div className="flex items-start justify-between gap-4">
@@ -155,24 +119,12 @@ export function SettingsNotificationsPage({
                     <p className="text-sm font-medium">{t.reviewAtNotifications}</p>
                     <p className="text-xs text-muted-foreground mt-1">{t.reviewAtNotificationsDesc}</p>
                 </div>
-                <button
-                    type="button"
-                    role="switch"
-                    aria-checked={reviewAtNotificationsEnabled}
-                    onClick={() => handleUpdate({ reviewAtNotificationsEnabled: !reviewAtNotificationsEnabled })}
+                <Switch
+                    checked={reviewAtNotificationsEnabled}
+                    onCheckedChange={(checked) => handleUpdate({ reviewAtNotificationsEnabled: checked })}
+                    aria-label={t.reviewAtNotifications}
                     disabled={!notificationsEnabled}
-                    className={cn(
-                        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                        reviewAtNotificationsEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
-                    )}
-                >
-                    <span
-                        className={cn(
-                            "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
-                            reviewAtNotificationsEnabled ? "translate-x-4" : "translate-x-1"
-                        )}
-                    />
-                </button>
+                />
             </div>
 
             <div className="border-t border-border/50"></div>
@@ -185,29 +137,18 @@ export function SettingsNotificationsPage({
 
                 <div className="flex items-center justify-between gap-4">
                     <div className="text-sm font-medium">{t.weeklyReview}</div>
-                    <button
-                        type="button"
-                        role="switch"
-                        aria-checked={weeklyReviewEnabled}
-                        onClick={() => handleUpdate({ weeklyReviewEnabled: !weeklyReviewEnabled })}
+                    <Switch
+                        checked={weeklyReviewEnabled}
+                        onCheckedChange={(checked) => handleUpdate({ weeklyReviewEnabled: checked })}
+                        aria-label={t.weeklyReview}
                         disabled={!notificationsEnabled}
-                        className={cn(
-                            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                            weeklyReviewEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
-                        )}
-                    >
-                        <span
-                            className={cn(
-                                "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
-                                weeklyReviewEnabled ? "translate-x-4" : "translate-x-1"
-                            )}
-                        />
-                    </button>
+                    />
                 </div>
 
                 <div className="flex items-center justify-between gap-4">
                     <div className="text-sm font-medium">{t.weeklyReviewDay}</div>
                     <select
+                        aria-label={t.weeklyReviewDay}
                         value={weeklyReviewDay}
                         disabled={!notificationsEnabled || !weeklyReviewEnabled}
                         onChange={(e) => handleUpdate({ weeklyReviewDay: Number(e.target.value) })}
@@ -225,6 +166,7 @@ export function SettingsNotificationsPage({
                     <div className="text-sm font-medium">{t.weeklyReviewTime}</div>
                     <input
                         type="time"
+                        aria-label={t.weeklyReviewTime}
                         value={weeklyReviewTime}
                         disabled={!notificationsEnabled || !weeklyReviewEnabled}
                         onChange={(e) => handleUpdate({ weeklyReviewTime: e.target.value })}
@@ -246,29 +188,18 @@ export function SettingsNotificationsPage({
                     <div className="flex items-center gap-3">
                         <input
                             type="time"
+                            aria-label={t.dailyDigestMorning}
                             value={dailyDigestMorningTime}
                             disabled={!notificationsEnabled || !dailyDigestMorningEnabled}
                             onChange={(e) => handleUpdate({ dailyDigestMorningTime: e.target.value })}
                             className="bg-muted px-2 py-1 rounded text-sm border border-border disabled:opacity-50 disabled:cursor-not-allowed"
                         />
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={dailyDigestMorningEnabled}
-                            onClick={() => handleUpdate({ dailyDigestMorningEnabled: !dailyDigestMorningEnabled })}
+                        <Switch
+                            checked={dailyDigestMorningEnabled}
+                            onCheckedChange={(checked) => handleUpdate({ dailyDigestMorningEnabled: checked })}
+                            aria-label={t.dailyDigestMorning}
                             disabled={!notificationsEnabled}
-                            className={cn(
-                                "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                                dailyDigestMorningEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
-                            )}
-                        >
-                            <span
-                                className={cn(
-                                    "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
-                                    dailyDigestMorningEnabled ? "translate-x-4" : "translate-x-1"
-                                )}
-                            />
-                        </button>
+                        />
                     </div>
                 </div>
 
@@ -277,29 +208,18 @@ export function SettingsNotificationsPage({
                     <div className="flex items-center gap-3">
                         <input
                             type="time"
+                            aria-label={t.dailyDigestEvening}
                             value={dailyDigestEveningTime}
                             disabled={!notificationsEnabled || !dailyDigestEveningEnabled}
                             onChange={(e) => handleUpdate({ dailyDigestEveningTime: e.target.value })}
                             className="bg-muted px-2 py-1 rounded text-sm border border-border disabled:opacity-50 disabled:cursor-not-allowed"
                         />
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={dailyDigestEveningEnabled}
-                            onClick={() => handleUpdate({ dailyDigestEveningEnabled: !dailyDigestEveningEnabled })}
+                        <Switch
+                            checked={dailyDigestEveningEnabled}
+                            onCheckedChange={(checked) => handleUpdate({ dailyDigestEveningEnabled: checked })}
+                            aria-label={t.dailyDigestEvening}
                             disabled={!notificationsEnabled}
-                            className={cn(
-                                "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                                dailyDigestEveningEnabled ? "bg-primary border-primary" : "bg-muted/50 border-border"
-                            )}
-                        >
-                            <span
-                                className={cn(
-                                    "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
-                                    dailyDigestEveningEnabled ? "translate-x-4" : "translate-x-1"
-                                )}
-                            />
-                        </button>
+                        />
                     </div>
                 </div>
             </div>

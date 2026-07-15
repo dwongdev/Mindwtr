@@ -55,7 +55,7 @@ export function ReviewFiltersBar({
     };
 
     return (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-wrap items-center gap-2">
             {renderFilterButton('all', t('common.all'), statusCounts.all)}
             {statusOptions.map((status) => (
                 renderFilterButton(status, t(`status.${status}`), statusCounts[status])

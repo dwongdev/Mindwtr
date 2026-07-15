@@ -415,7 +415,7 @@ export function ProjectsSidebar({
                                                         selectedProjectId === project.id
                                                             ? "bg-primary/10 text-primary"
                                                             : project.isFocused
-                                                                ? "bg-amber-500/10 hover:bg-amber-500/15"
+                                                                ? "bg-warning/10 hover:bg-warning/15"
                                                                 : "hover:bg-muted/40 text-foreground",
                                                         isDragging && "opacity-70",
                                                         isTaskOver && "ring-2 ring-primary/50 bg-primary/5",
@@ -448,7 +448,7 @@ export function ProjectsSidebar({
                                                                     }}
                                                                     className={cn(
                                                                         "text-sm transition-colors",
-                                                                        project.isFocused ? "text-amber-500" : "text-muted-foreground hover:text-amber-500",
+                                                                        project.isFocused ? "text-warning" : "text-muted-foreground hover:text-warning",
                                                                         !project.isFocused && focusedCount >= 5 && "opacity-30 cursor-not-allowed",
                                                                     )}
                                                                     title={project.isFocused ? removeFromFocusLabel : focusedCount >= 5 ? maxFocusedProjectsLabel : addToFocusLabel}
@@ -471,7 +471,7 @@ export function ProjectsSidebar({
                                                                         {nextAction.title}
                                                                     </span>
                                                                 ) : projTasks.length > 0 ? (
-                                                                    <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                                                    <span className="text-xs text-warning flex items-center gap-1">
                                                                         <AlertTriangle className="w-3 h-3" />
                                                                         {t('projects.noNextAction')}
                                                                     </span>

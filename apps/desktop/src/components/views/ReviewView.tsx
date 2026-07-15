@@ -299,6 +299,7 @@ export function ReviewView() {
                         type="text"
                         data-view-filter-input
                         placeholder={t('common.search')}
+                        aria-label={t('common.search')}
                         value={searchQuery}
                         onChange={(event) => setSearchQuery(event.target.value)}
                         className="h-9 min-w-[200px] flex-1 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"

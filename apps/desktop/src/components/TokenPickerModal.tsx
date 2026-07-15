@@ -101,7 +101,7 @@ export function TokenPickerModal({
                             }
                         }}
                         placeholder={placeholder}
-                        className="w-full rounded-lg border border-border bg-card px-3 py-2 shadow-sm transition-all focus:border-transparent focus:ring-2 focus:ring-primary"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 shadow-sm transition-colors focus:border-transparent focus:ring-2 focus:ring-primary"
                     />
                     <div className="flex max-h-64 flex-wrap gap-2 overflow-y-auto rounded-lg border border-border/80 bg-card/60 p-3">
                         {filteredTokens.length > 0 ? filteredTokens.map((token) => {
