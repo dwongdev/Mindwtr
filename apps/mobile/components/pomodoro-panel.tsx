@@ -340,7 +340,7 @@ export function PomodoroPanel({
           <Text style={[styles.title, { color: tc.text }]}>{cardTitle}</Text>
         </View>
         <View style={styles.phaseStatus}>
-          <Text style={[styles.phaseStatusText, { color: timerState.phase === 'focus' ? '#2563EB' : '#059669' }]}>
+          <Text style={[styles.phaseStatusText, { color: timerState.phase === 'focus' ? tc.tint : tc.success }]}>
             {phaseLabel}
           </Text>
         </View>
