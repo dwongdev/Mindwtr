@@ -11,6 +11,7 @@ type ProjectNextActionPromptProps = {
     onAddTask: () => void;
     onCancel: () => void;
     onChooseTask: (taskId: string) => void;
+    onCompleteProject: () => void;
     onNewTitleChange: (value: string) => void;
     t: (key: string) => string;
 };
@@ -23,6 +24,7 @@ export function ProjectNextActionPrompt({
     onAddTask,
     onCancel,
     onChooseTask,
+    onCompleteProject,
     onNewTitleChange,
     t,
 }: ProjectNextActionPromptProps) {
@@ -110,13 +112,18 @@ export function ProjectNextActionPrompt({
                         />
                     </div>
 
-                    <div className="flex justify-end gap-2">
-                        <Button variant="secondary" onClick={onCancel}>
-                            {resolveText('common.skip', 'Skip')}
+                    <div className="flex justify-between items-center gap-2">
+                        <Button variant="ghost" onClick={onCompleteProject}>
+                            {resolveText('projects.nextActionPromptComplete', 'Complete project')}
                         </Button>
-                        <Button onClick={onAddTask} disabled={!canAddTask}>
-                            {resolveText('projects.nextActionPromptAddButton', 'Add next action')}
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button variant="secondary" onClick={onCancel}>
+                                {resolveText('common.skip', 'Skip')}
+                            </Button>
+                            <Button onClick={onAddTask} disabled={!canAddTask}>
+                                {resolveText('projects.nextActionPromptAddButton', 'Add next action')}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>

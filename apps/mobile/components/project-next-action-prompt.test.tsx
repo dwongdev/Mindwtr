@@ -9,9 +9,10 @@ import {
     ProjectNextActionPromptProvider,
 } from './project-next-action-prompt';
 
-const { addTask, updateTask, showToast, parseNextActionInput, storeState } = vi.hoisted(() => ({
+const { addTask, updateTask, updateProject, showToast, parseNextActionInput, storeState } = vi.hoisted(() => ({
     addTask: vi.fn(),
     updateTask: vi.fn(),
+    updateProject: vi.fn(),
     showToast: vi.fn(),
     parseNextActionInput: vi.fn((input: string, context: { projectId: string; sectionId?: string | null }) => ({
         title: `parsed:${input}`,
@@ -20,6 +21,7 @@ const { addTask, updateTask, showToast, parseNextActionInput, storeState } = vi.
     storeState: {
         addTask: vi.fn(),
         updateTask: vi.fn(),
+        updateProject: vi.fn(),
         projects: [] as any[],
         _allProjects: [] as any[],
         tasks: [] as any[],
@@ -39,6 +41,7 @@ const translate = vi.hoisted(() => {
         'projects.nextActionPromptAddNew': 'Add a new next action',
         'projects.nextActionPromptPlaceholder': 'New next action...',
         'projects.nextActionPromptAddButton': 'Add next action',
+        'projects.nextActionPromptComplete': 'Complete project',
         'status.waiting': 'Waiting',
     };
     return (key: string) => labels[key] ?? key;
@@ -47,6 +50,7 @@ const translate = vi.hoisted(() => {
 vi.mock('@mindwtr/core', () => {
     storeState.addTask = addTask;
     storeState.updateTask = updateTask;
+    storeState.updateProject = updateProject;
     const useTaskStore = Object.assign(
         (selector?: (state: typeof storeState) => unknown) =>
             selector ? selector(storeState) : storeState,
@@ -168,6 +172,7 @@ describe('ProjectNextActionPromptProvider', () => {
         ]);
         addTask.mockResolvedValue({ success: true, id: 'created-task' });
         updateTask.mockResolvedValue({ success: true });
+        updateProject.mockResolvedValue({ success: true });
     });
 
     it('builds prompt data from an optimistic completed task snapshot', () => {
@@ -273,6 +278,44 @@ describe('ProjectNextActionPromptProvider', () => {
             message: 'Project is locked',
             tone: 'error',
         }));
+    });
+
+    it('archives the project when the complete action is chosen', async () => {
+        function Trigger() {
+            return (
+                <Text
+                    accessibilityLabel="Open next action prompt"
+                    onPress={() => presentProjectNextActionPrompt({ ...currentTask, status: 'done' } as any)}
+                >
+                    Open
+                </Text>
+            );
+        }
+
+        let tree!: renderer.ReactTestRenderer;
+        await renderer.act(async () => {
+            tree = renderer.create(
+                <ProjectNextActionPromptProvider>
+                    <Trigger />
+                </ProjectNextActionPromptProvider>,
+            );
+            await Promise.resolve();
+        });
+
+        const trigger = tree.root.find((node) => node.props.accessibilityLabel === 'Open next action prompt');
+        await renderer.act(async () => {
+            trigger.props.onPress();
+            await Promise.resolve();
+        });
+
+        const completeButton = tree.root.find((node) => node.props.accessibilityLabel === 'Complete project');
+        await renderer.act(async () => {
+            completeButton.props.onPress();
+            await Promise.resolve();
+        });
+
+        expect(updateProject).toHaveBeenCalledWith('project-1', { status: 'archived' });
+        expect(hasText(tree, "What's the next action?")).toBe(false);
     });
 
     it('routes new next-action input through the quick-add parser (#859)', async () => {

@@ -20,6 +20,7 @@ const { addTask, updateTask, restoreTask, showToast, getChecklistProgress, getTa
   storeState: {
     addTask: vi.fn(),
     updateTask: vi.fn(),
+    updateProject: vi.fn(),
     restoreTask: vi.fn(),
     projects: [] as any[],
     _allProjects: [] as any[],
@@ -66,6 +67,7 @@ const translate = vi.hoisted(() => {
     'projects.nextActionPromptAddNew': 'Add a new next action',
     'projects.nextActionPromptPlaceholder': 'New next action...',
     'projects.nextActionPromptAddButton': 'Add next action',
+    'projects.nextActionPromptComplete': 'Complete project',
     'task.aria.delete': 'Delete task',
     'task.deleteConfirmBody': 'Move this task to Trash?',
     'taskEdit.recurrenceLabel': 'Recurrence',

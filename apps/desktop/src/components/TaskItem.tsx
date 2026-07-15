@@ -829,6 +829,22 @@ export const TaskItem = memo(function TaskItem({
             })
             .catch((error) => reportError('Failed to add project next action', error));
     }, [addTask, closeProjectNextActionPrompt, projectNextActionPrompt, projectNextActionTitle]);
+    const handleCompleteProjectNextAction = useCallback(() => {
+        if (!projectNextActionPrompt) return;
+        const { projectId } = projectNextActionPrompt;
+        // Archiving is the same reversible call the Archive button makes and
+        // completes the project's remaining tasks in core (no confirmation, see
+        // handleArchiveProject in ProjectWorkspace). Read the store lazily so
+        // this row component does not subscribe to the project actions.
+        void Promise.resolve(useTaskStore.getState().updateProject(projectId, { status: 'archived' }))
+            .then((result) => {
+                if (result && result.success === false) {
+                    throw new Error(result.error || 'Failed to complete project');
+                }
+                closeProjectNextActionPrompt();
+            })
+            .catch((error) => reportError('Failed to complete project from next-action prompt', error));
+    }, [closeProjectNextActionPrompt, projectNextActionPrompt]);
     const closeWaitingAssignmentPrompt = useCallback(() => {
         setShowWaitingAssignmentPrompt(false);
     }, []);
@@ -1428,6 +1444,7 @@ export const TaskItem = memo(function TaskItem({
                     onAddTask={handleAddProjectNextAction}
                     onCancel={closeProjectNextActionPrompt}
                     onChooseTask={handlePromoteProjectNextAction}
+                    onCompleteProject={handleCompleteProjectNextAction}
                     onNewTitleChange={setProjectNextActionTitle}
                     t={t}
                 />

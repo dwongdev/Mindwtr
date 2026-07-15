@@ -16,6 +16,7 @@ type ProjectNextActionPromptModalProps = {
     onAddTask: () => void;
     onCancel: () => void;
     onChooseTask: (taskId: string) => void;
+    onCompleteProject: () => void;
     onNewTitleChange: (value: string) => void;
 };
 
@@ -30,6 +31,7 @@ export function ProjectNextActionPromptModal({
     onAddTask,
     onCancel,
     onChooseTask,
+    onCompleteProject,
     onNewTitleChange,
 }: ProjectNextActionPromptModalProps) {
     const canAddTask = newTitle.trim().length > 0;
@@ -119,6 +121,20 @@ export function ProjectNextActionPromptModal({
                     </View>
 
                     <View style={styles.nextActionActions}>
+                        <Pressable
+                            style={styles.nextActionCompleteButton}
+                            onPress={onCompleteProject}
+                            disabled={submitting}
+                            accessibilityRole="button"
+                            accessibilityLabel={tFallback(t, 'projects.nextActionPromptComplete', 'Complete project')}
+                            accessibilityState={{ disabled: submitting }}
+                        >
+                            <Text
+                                style={[styles.nextActionSecondaryText, { color: submitting ? tc.secondaryText : tc.tint }]}
+                            >
+                                {tFallback(t, 'projects.nextActionPromptComplete', 'Complete project')}
+                            </Text>
+                        </Pressable>
                         <Pressable
                             style={[styles.nextActionSecondaryButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
                             onPress={onCancel}

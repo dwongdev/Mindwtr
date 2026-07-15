@@ -322,6 +322,24 @@ function SwipeableTaskItemInner({
             .finally(() => setIsProjectNextActionSubmitting(false));
     }, [closeProjectNextActionPrompt, isProjectNextActionSubmitting, showActionFailure, updateTask]);
 
+    const handleCompleteProjectNextAction = useCallback(() => {
+        if (!projectNextActionPrompt || isProjectNextActionSubmitting) return;
+        const { projectId } = projectNextActionPrompt;
+        setIsProjectNextActionSubmitting(true);
+        // Archiving completes the project's remaining tasks in core and is
+        // reversible (Reactivate); no confirmation, matching the Archive button.
+        void Promise.resolve(useTaskStore.getState().updateProject(projectId, { status: 'archived' }))
+            .then((result) => {
+                const failure = getActionFailureMessage(result);
+                if (failure) throw new Error(failure);
+                closeProjectNextActionPrompt();
+            })
+            .catch((error) => {
+                showActionFailure(getUnknownErrorMessage(error));
+            })
+            .finally(() => setIsProjectNextActionSubmitting(false));
+    }, [closeProjectNextActionPrompt, isProjectNextActionSubmitting, projectNextActionPrompt, showActionFailure]);
+
     const handleAddProjectNextAction = useCallback(() => {
         if (!projectNextActionPrompt || isProjectNextActionSubmitting) return;
         const title = projectNextActionTitle.trim();
@@ -643,6 +661,7 @@ function SwipeableTaskItemInner({
                     onAddTask={handleAddProjectNextAction}
                     onCancel={closeProjectNextActionPrompt}
                     onChooseTask={handlePromoteProjectNextAction}
+                    onCompleteProject={handleCompleteProjectNextAction}
                     onNewTitleChange={setProjectNextActionTitle}
                 />
             ) : null}

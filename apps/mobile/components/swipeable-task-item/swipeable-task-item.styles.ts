@@ -282,6 +282,14 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    nextActionCompleteButton: {
+        // Secondary "escape hatch" pushed to the left, away from Skip/Add.
+        marginRight: 'auto',
+        minHeight: 44,
+        paddingHorizontal: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     nextActionPrimaryButton: {
         minHeight: 44,
         paddingHorizontal: 16,

@@ -623,7 +623,7 @@ export const en: Record<string, string> = {
         'projects.archive': 'Archive',
         'projects.reactivate': 'Reactivate',
         'projects.actionsLabel': 'Actions',
-        'projects.archiveHelp': 'Completing a project files it in Archived — reactivate it anytime.',
+        'projects.archiveHelp': 'Archiving a project completes it and its remaining tasks — reactivate it anytime.',
         'projects.completeConfirm': 'Mark this project completed and finish all its tasks?',
         'projects.archiveConfirm': 'Archive this project and move incomplete tasks to Done?',
         'projects.sequential': 'Sequential',
@@ -647,6 +647,7 @@ export const en: Record<string, string> = {
         'projects.nextActionPromptAddNew': 'Add a new next action',
         'projects.nextActionPromptPlaceholder': 'New next action...',
         'projects.nextActionPromptAddButton': 'Add next action',
+        'projects.nextActionPromptComplete': 'Complete project',
 
         // Review Steps
         'review.title': 'Review',

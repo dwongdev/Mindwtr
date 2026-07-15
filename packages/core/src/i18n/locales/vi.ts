@@ -639,6 +639,7 @@ export const viOverrides: Record<string, string> = {
         'projects.nextActionPromptAddNew': 'Thêm hành động tiếp theo mới',
         'projects.nextActionPromptPlaceholder': 'Hành động tiếp theo mới...',
         'projects.nextActionPromptAddButton': 'Thêm hành động tiếp theo',
+        'projects.nextActionPromptComplete': 'Hoàn thành dự án',
 
         // Review Steps
         'review.title': 'Xem lại',

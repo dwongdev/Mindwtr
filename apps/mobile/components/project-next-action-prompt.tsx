@@ -133,6 +133,25 @@ export function ProjectNextActionPromptProvider({ children }: { children: React.
             .finally(() => setIsSubmitting(false));
     }, [closePrompt, isSubmitting, showActionFailure, updateTask]);
 
+    const handleCompleteProject = useCallback(() => {
+        if (!prompt || isSubmitting) return;
+        const { projectId } = prompt;
+        setIsSubmitting(true);
+        // Archiving completes the project's remaining tasks in core and is
+        // reversible from the editor (Reactivate); no confirmation, matching
+        // the Archive button.
+        void Promise.resolve(useTaskStore.getState().updateProject(projectId, { status: 'archived' }))
+            .then((result) => {
+                const failure = getActionFailureMessage(result);
+                if (failure) throw new Error(failure);
+                closePrompt();
+            })
+            .catch((error) => {
+                showActionFailure(getUnknownErrorMessage(error));
+            })
+            .finally(() => setIsSubmitting(false));
+    }, [closePrompt, isSubmitting, prompt, showActionFailure]);
+
     const handleAddTask = useCallback(() => {
         if (!prompt || isSubmitting) return;
         const rawTitle = newTitle.trim();
@@ -178,6 +197,7 @@ export function ProjectNextActionPromptProvider({ children }: { children: React.
                     onAddTask={handleAddTask}
                     onCancel={closePrompt}
                     onChooseTask={handleChooseTask}
+                    onCompleteProject={handleCompleteProject}
                     onNewTitleChange={setNewTitle}
                 />
             ) : null}

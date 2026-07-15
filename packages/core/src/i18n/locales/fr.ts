@@ -628,6 +628,7 @@ export const frOverrides: Record<string, string> = {
         'projects.nextActionPromptAddNew': 'Ajouter une nouvelle action',
         'projects.nextActionPromptPlaceholder': 'Décrivez la prochaine action…',
         'projects.nextActionPromptAddButton': 'Ajouter l’action',
+        'projects.nextActionPromptComplete': 'Terminer le projet',
 
         // Review Steps
         'review.title': 'Revue',
