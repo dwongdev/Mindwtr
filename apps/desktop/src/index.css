@@ -172,6 +172,13 @@
     box-shadow: none !important;
   }
 
+  /* E-ink maps every surface to pure white, so background-based selection
+     highlights vanish; mark the active listbox option with an outline. */
+  :root.theme-eink [role='option'][aria-selected='true'] {
+    outline: 2px solid hsl(var(--foreground));
+    outline-offset: -2px;
+  }
+
   :root.theme-nord {
     color-scheme: dark;
     --background: 220 16.4% 21.6%;
@@ -184,7 +191,7 @@
     --primary-foreground: 220 16.4% 21.6%;
     --secondary: 220 16.8% 31.6%;
     --secondary-foreground: 218.8 27.9% 88%;
-    --muted: 221.7 16.3% 27.6%;
+    --muted: 220 16.8% 31.6%;
     --muted-foreground: 218.8 27.9% 88%;
     --accent: 220 16.5% 35.7%;
     --accent-foreground: 217.5 26.7% 94.1%;

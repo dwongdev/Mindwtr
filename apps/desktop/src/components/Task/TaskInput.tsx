@@ -646,8 +646,10 @@ export function TaskInput({
                             aria-selected={index === selectedIndex}
                             onClick={() => void applyOption(option)}
                             className={cn(
-                                'w-full text-left px-2 py-1 rounded hover:bg-muted/50',
-                                index === selectedIndex && 'bg-muted/70'
+                                'w-full text-left px-2 py-1 rounded',
+                                index === selectedIndex
+                                    ? 'bg-accent text-accent-foreground'
+                                    : 'hover:bg-muted/50'
                             )}
                         >
                             {option.kind === 'create' ? `✨ ${option.label}` : option.label}

@@ -227,8 +227,10 @@ export function TokenAutocompleteInput({
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => applyToken(option)}
                             className={cn(
-                                'w-full text-left px-2 py-1 rounded hover:bg-muted/50',
-                                index === selectedIndex && 'bg-muted/70',
+                                'w-full text-left px-2 py-1 rounded',
+                                index === selectedIndex
+                                    ? 'bg-accent text-accent-foreground'
+                                    : 'hover:bg-muted/50',
                             )}
                         >
                             {option}
