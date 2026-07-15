@@ -65,7 +65,7 @@ describe('TrashView', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Select' }));
         fireEvent.click(screen.getByRole('button', { name: /Select all/i }));
-        fireEvent.click(screen.getByRole('button', { name: 'Restore to Inbox' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
 
         await waitFor(() => {
             expect(useTaskStore.getState()._allTasks.find((task) => task.id === recentTask.id)?.deletedAt).toBeUndefined();

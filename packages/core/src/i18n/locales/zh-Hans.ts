@@ -1287,6 +1287,7 @@ export const zhHans: Record<string, string> = {
         'trash.title': '垃圾桶',
         'trash.searchPlaceholder': '搜索已删除任务...',
         'trash.noTasksFound': '未找到已删除任务。',
+        'trash.restore': '恢复',
         'trash.restoreToInbox': '恢复到收集箱',
         'trash.deletePermanently': '永久删除',
         'trash.empty': '垃圾桶为空',

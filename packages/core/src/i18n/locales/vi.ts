@@ -1401,6 +1401,7 @@ export const viOverrides: Record<string, string> = {
         'trash.title': 'Thùng rác',
         'trash.searchPlaceholder': 'Tìm kiếm nhiệm vụ trong thùng rác...',
         'trash.noTasksFound': 'Không tìm thấy nhiệm vụ trong thùng rác.',
+        'trash.restore': 'Khôi phục',
         'trash.restoreToInbox': 'Khôi phục về Hộp thư đến',
         'trash.deletePermanently': 'Xóa vĩnh viễn',
         'trash.empty': 'Thùng rác trống',

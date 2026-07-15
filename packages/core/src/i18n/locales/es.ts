@@ -1024,6 +1024,7 @@ export const esOverrides: Record<string, string> = {
         'trash.title': 'Papelera',
         'trash.searchPlaceholder': 'Buscar tareas eliminadas...',
         'trash.noTasksFound': 'No se encontraron tareas eliminadas.',
+        'trash.restore': 'Restaurar',
         'trash.restoreToInbox': 'Restaurar a la bandeja',
         'trash.deletePermanently': 'Eliminar permanentemente',
         'trash.empty': 'La papelera está vacía',

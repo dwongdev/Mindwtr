@@ -1287,6 +1287,7 @@ export const zhHant: Record<string, string> = {
         'trash.title': '垃圾桶',
         'trash.searchPlaceholder': '搜索已刪除任務...',
         'trash.noTasksFound': '未找到已刪除任務。',
+        'trash.restore': '復原',
         'trash.restoreToInbox': '恢復到收集箱',
         'trash.deletePermanently': '永久刪除',
         'trash.empty': '垃圾桶爲空',

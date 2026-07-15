@@ -1109,6 +1109,7 @@ export const trOverrides: Record<string, string> = {
         'trash.title': 'Çöp',
         'trash.searchPlaceholder': 'Çöpe atılan görevleri ara...',
         'trash.noTasksFound': 'Çöpe atılmış görev bulunamadı.',
+        'trash.restore': 'Geri Yükle',
         'trash.restoreToInbox': 'Gelen Kutusuna Geri Yükle',
         'trash.deletePermanently': 'Kalıcı Olarak Sil',
         'trash.empty': 'Çöp kutusu boş',

@@ -155,7 +155,7 @@ describe('TrashScreen', () => {
     renderer.act(() => { findPressableByLabel(tree, 'Select').props.onPress(); });
     renderer.act(() => { findPressableByLabel(tree, 'Select all').props.onPress(); });
     await renderer.act(async () => {
-      findPressableByLabel(tree, 'trash.restoreToInbox').props.onPress();
+      findPressableByLabel(tree, 'trash.restore').props.onPress();
       await Promise.resolve();
     });
 

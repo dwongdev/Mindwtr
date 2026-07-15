@@ -1093,6 +1093,7 @@ export const jaOverrides: Record<string, string> = {
         'trash.title': 'ごみ',
         'trash.searchPlaceholder': 'ゴミ箱に入れられたタスクを検索...',
         'trash.noTasksFound': 'ゴミ箱に入れられたタスクは見つかりませんでした。',
+        'trash.restore': '復元',
         'trash.restoreToInbox': '受信トレイに復元',
         'trash.deletePermanently': '完全に削除',
         'trash.empty': 'ゴミ箱が空です',

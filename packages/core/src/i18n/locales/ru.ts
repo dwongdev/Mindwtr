@@ -1093,6 +1093,7 @@ export const ruOverrides: Record<string, string> = {
         'trash.title': 'Мусор',
         'trash.searchPlaceholder': 'Поиск удаленных задач...',
         'trash.noTasksFound': 'Удаленных задач не обнаружено.',
+        'trash.restore': 'Восстановить',
         'trash.restoreToInbox': 'Восстановить в папке "Входящие"',
         'trash.deletePermanently': 'Удалить навсегда',
         'trash.empty': 'Корзина пуста',

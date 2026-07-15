@@ -1163,6 +1163,7 @@ export const ptOverrides: Record<string, string> = {
         'trash.title': 'Lixo',
         'trash.searchPlaceholder': 'Pesquisar tarefas na lixeira...',
         'trash.noTasksFound': 'Nenhuma tarefa descartada foi encontrada.',
+        'trash.restore': 'Restaurar',
         'trash.restoreToInbox': 'Restaurar para caixa de entrada',
         'trash.deletePermanently': 'Excluir permanentemente',
         'trash.empty': 'A lixeira está vazia',

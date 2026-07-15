@@ -1349,6 +1349,7 @@ export const csOverrides: Record<string, string> = {
         'trash.title': 'Koš',
         'trash.searchPlaceholder': 'Hledat úkoly v koši…',
         'trash.noTasksFound': 'V koši nebyly nalezeny žádné úkoly.',
+        'trash.restore': 'Obnovit',
         'trash.restoreToInbox': 'Obnovit do Schránky',
         'trash.deletePermanently': 'Smazat trvale',
         'trash.empty': 'Koš je prázdný',

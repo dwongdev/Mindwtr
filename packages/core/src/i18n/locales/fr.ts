@@ -1391,6 +1391,7 @@ export const frOverrides: Record<string, string> = {
         'trash.title': 'Corbeille',
         'trash.searchPlaceholder': 'Rechercher des tâches dans la corbeille…',
         'trash.noTasksFound': 'Aucune tâche supprimée n’a été trouvée.',
+        'trash.restore': 'Restaurer',
         'trash.restoreToInbox': 'Restaurer dans la boîte de réception',
         'trash.deletePermanently': 'Supprimer définitivement',
         'trash.empty': 'La corbeille est vide',

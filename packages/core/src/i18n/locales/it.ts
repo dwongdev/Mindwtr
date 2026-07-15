@@ -1268,6 +1268,7 @@ export const itOverrides: Record<string, string> = {
         'trash.title': 'Cestino',
         'trash.searchPlaceholder': 'Cerca attività nel cestino...',
         'trash.noTasksFound': 'Nessuna attività nel cestino trovata.',
+        'trash.restore': 'Ripristina',
         'trash.restoreToInbox': 'Ripristina in Entrata',
         'trash.deletePermanently': 'Elimina definitivamente',
         'trash.empty': 'Il cestino è vuoto',

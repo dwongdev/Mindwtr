@@ -1092,6 +1092,7 @@ export const hiOverrides: Record<string, string> = {
         'trash.title': 'कचरा',
         'trash.searchPlaceholder': 'ट्रैश किए गए कार्य खोजें...',
         'trash.noTasksFound': 'कोई रद्दी किया गया कार्य नहीं मिला.',
+        'trash.restore': 'पुनर्स्थापित करें',
         'trash.restoreToInbox': 'इनबॉक्स में पुनर्स्थापित करें',
         'trash.deletePermanently': 'स्थायी रूप से हटाएँ',
         'trash.empty': 'कचरा खाली है',

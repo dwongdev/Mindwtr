@@ -1417,6 +1417,7 @@ export const en: Record<string, string> = {
         'trash.title': 'Trash',
         'trash.searchPlaceholder': 'Search trashed tasks...',
         'trash.noTasksFound': 'No trashed tasks found.',
+        'trash.restore': 'Restore',
         'trash.restoreToInbox': 'Restore to Inbox',
         'trash.deletePermanently': 'Delete Permanently',
         'trash.empty': 'Trash is empty',

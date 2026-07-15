@@ -452,11 +452,11 @@ export default function TrashScreen() {
                 onPress={() => { void handleBulkRestore(); }}
                 disabled={selectionCount === 0}
                 accessibilityRole="button"
-                accessibilityLabel={t('trash.restoreToInbox')}
+                accessibilityLabel={t('trash.restore')}
                 style={[styles.bulkButton, { backgroundColor: tc.taskItemBg }]}
               >
                 <Text style={[styles.bulkButtonText, { color: tc.text }]}>
-                  {t('trash.restoreToInbox')}
+                  {t('trash.restore')}
                 </Text>
               </Pressable>
               <Pressable

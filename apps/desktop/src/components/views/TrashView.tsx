@@ -257,7 +257,7 @@ export function TrashView() {
                             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <Undo2 className="h-3.5 w-3.5" />
-                            {t('trash.restoreToInbox')}
+                            {t('trash.restore')}
                         </button>
                         <button
                             type="button"
@@ -356,7 +356,7 @@ export function TrashView() {
                                         <button
                                             onClick={() => restoreTask(task.id)}
                                             className="p-2 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors"
-                                            title={t('trash.restoreToInbox')}
+                                            title={t('trash.restore')}
                                         >
                                             <Undo2 className="w-4 h-4" />
                                         </button>

@@ -1093,6 +1093,7 @@ export const plOverrides: Record<string, string> = {
         'trash.title': 'Kosz',
         'trash.searchPlaceholder': 'Szukaj usuniętych zadań...',
         'trash.noTasksFound': 'Nie znaleziono usuniętych zadań.',
+        'trash.restore': 'Przywróć',
         'trash.restoreToInbox': 'Przywróć do skrzynki odbiorczej',
         'trash.deletePermanently': 'Usuń trwale',
         'trash.empty': 'Kosz jest pusty',

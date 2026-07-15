@@ -1136,6 +1136,7 @@ export const arOverrides: Record<string, string> = {
         'trash.title': 'نفاية',
         'trash.searchPlaceholder': 'البحث في المهام المحذوفة...',
         'trash.noTasksFound': 'لم يتم العثور على المهام المحذوفة.',
+        'trash.restore': 'استعادة',
         'trash.restoreToInbox': 'استعادة إلى البريد الوارد',
         'trash.deletePermanently': 'حذف نهائيا',
         'trash.empty': 'سلة المهملات فارغة',

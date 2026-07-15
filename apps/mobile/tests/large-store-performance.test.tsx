@@ -21,6 +21,7 @@ import {
 
 import FocusScreen from '../app/(drawer)/(tabs)/focus';
 import ArchivedScreen from '../app/(drawer)/archived';
+import TrashScreen from '../app/(drawer)/trash';
 import { ProjectRow } from '../components/projects-screen/ProjectRow';
 import {
   buildProjectListRows,
@@ -73,6 +74,8 @@ const PERFORMANCE_BUDGET_MS = {
   renderFocus: 350,
   renderArchived: 350,
   selectAllArchived: 150,
+  renderTrash: 350,
+  selectAllTrash: 150,
   renderProjects: 350,
 } as const;
 
@@ -742,6 +745,61 @@ describe('large-store mobile interaction performance', () => {
 
     act(() => {
       archivedTree?.unmount();
+    });
+  }, 15_000);
+
+  it('keeps Trash select-all within the large-store budget', async () => {
+    const data = createLargeStoreData();
+    const trashedTasks = data.tasks.map((task) => ({
+      ...task,
+      deletedAt: '2026-05-04T12:00:00.000Z',
+    }));
+    loadLargeStore({
+      ...data,
+      tasks: trashedTasks,
+      targetTask: trashedTasks[1234],
+    });
+
+    let trashTree: ReactTestRenderer | null = null;
+    const renderTrashMs = measureSync(() => {
+      act(() => {
+        trashTree = renderer.create(<TrashScreen />);
+      });
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expectWithinBudget('Render Trash', renderTrashMs, PERFORMANCE_BUDGET_MS.renderTrash);
+    const selectButton = trashTree!.root.find(
+      (node) => node.props.accessibilityLabel === 'Select',
+    );
+    act(() => {
+      selectButton.props.onPress();
+    });
+    const selectAllButton = trashTree!.root.find(
+      (node) => node.props.accessibilityLabel === 'Select All',
+    );
+    const selectAllTrashMs = measureSync(() => {
+      act(() => {
+        selectAllButton.props.onPress();
+      });
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expectWithinBudget(
+      'Select all Trash tasks',
+      selectAllTrashMs,
+      PERFORMANCE_BUDGET_MS.selectAllTrash,
+    );
+    expect(trashTree!.root.findAll(
+      (node) => node.props.accessibilityLabel === `${LARGE_TASK_COUNT} selected`,
+    ).length).toBeGreaterThan(0);
+
+    act(() => {
+      trashTree?.unmount();
     });
   }, 15_000);
 

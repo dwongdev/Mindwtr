@@ -1155,6 +1155,7 @@ export const deOverrides: Record<string, string> = {
         'trash.title': 'Papierkorb',
         'trash.searchPlaceholder': 'Suchen nach Aufgaben im Papierkorb ...',
         'trash.noTasksFound': 'Keine Aufgaben im Papierkorb gefunden.',
+        'trash.restore': 'Wiederherstellen',
         'trash.restoreToInbox': 'In den Posteingang wiederherstellen',
         'trash.deletePermanently': 'Endgültig Löschen',
         'trash.empty': 'Papierkorb ist leer',

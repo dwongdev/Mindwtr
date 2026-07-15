@@ -1098,6 +1098,7 @@ export const koOverrides: Record<string, string> = {
         'trash.title': '쓰레기',
         'trash.searchPlaceholder': '휴지통에 있는 작업 검색...',
         'trash.noTasksFound': '휴지통에 버린 작업이 없습니다.',
+        'trash.restore': '복원',
         'trash.restoreToInbox': '받은편지함으로 복원',
         'trash.deletePermanently': '영구적으로 삭제',
         'trash.empty': '휴지통이 비어 있습니다.',
