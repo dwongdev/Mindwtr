@@ -3,6 +3,7 @@ import { addDays } from 'date-fns';
 import { safeParseDate } from './date';
 import { useTaskStore, flushPendingSave, resetForTests, setStorageAdapter } from './store';
 import { buildEntityMap } from './store-helpers';
+import { shouldShowTaskForStart } from './task-utils';
 import type { StorageAdapter } from './storage';
 import type { AppData, Area, Project, Task } from './types';
 
@@ -903,6 +904,158 @@ describe('TaskStore', () => {
         expect(task?.startTime).toBeUndefined();
         expect(task?.isFocusedToday).toBe(false);
         expect(useTaskStore.getState().getDerivedState().focusedCount).toBe(0);
+    });
+
+    it('promotes an inbox task to next when a start date is set', async () => {
+        vi.setSystemTime(new Date('2026-07-15T10:00:00.000Z'));
+        const { addTask, updateTask } = useTaskStore.getState();
+        const created = await addTask('Unclarified capture', {});
+        expect(created.success).toBe(true);
+        const id = created.id!;
+        expect(useTaskStore.getState()._tasksById.get(id)?.status).toBe('inbox');
+
+        await expect(updateTask(id, { startTime: '2026-07-15' })).resolves.toEqual({ success: true });
+
+        const task = useTaskStore.getState()._tasksById.get(id);
+        expect(task?.status).toBe('next');
+        expect(task?.startTime).toBe('2026-07-15');
+    });
+
+    it('promotes an inbox task with a FUTURE start date but keeps it hidden until then', async () => {
+        vi.setSystemTime(new Date('2026-07-15T10:00:00.000Z'));
+        const { addTask, updateTask } = useTaskStore.getState();
+        const created = await addTask('Deferred clarify', {});
+        const id = created.id!;
+
+        await expect(updateTask(id, { startTime: '2026-08-01' })).resolves.toEqual({ success: true });
+
+        const task = useTaskStore.getState()._tasksById.get(id)!;
+        expect(task.status).toBe('next');
+        // Status outranks the date for classification, but the row still stays
+        // hidden from Focus/Next until the start arrives — that IS the feature.
+        expect(shouldShowTaskForStart(task, { showFutureStarts: false })).toBe(false);
+    });
+
+    it('does not promote someday or waiting tasks when a start date is set', async () => {
+        vi.setSystemTime(new Date('2026-07-15T10:00:00.000Z'));
+        const { addTask, updateTask } = useTaskStore.getState();
+        const someday = await addTask('Tickler', { status: 'someday' });
+        const waiting = await addTask('Follow-up', { status: 'waiting' });
+
+        await expect(updateTask(someday.id!, { startTime: '2026-07-20' })).resolves.toEqual({ success: true });
+        await expect(updateTask(waiting.id!, { startTime: '2026-07-20' })).resolves.toEqual({ success: true });
+
+        expect(useTaskStore.getState()._tasksById.get(someday.id!)?.status).toBe('someday');
+        expect(useTaskStore.getState()._tasksById.get(waiting.id!)?.status).toBe('waiting');
+    });
+
+    it('does not promote when a start date is cleared (undefined or null)', async () => {
+        const { addTask, updateTask } = useTaskStore.getState();
+        const undefinedClear = await addTask('Clear undefined', {});
+        const nullClear = await addTask('Clear null', {});
+
+        await expect(updateTask(undefinedClear.id!, { startTime: undefined })).resolves.toEqual({ success: true });
+        await expect(updateTask(nullClear.id!, { startTime: null as unknown as undefined })).resolves.toEqual({ success: true });
+
+        expect(useTaskStore.getState()._tasksById.get(undefinedClear.id!)?.status).toBe('inbox');
+        expect(useTaskStore.getState()._tasksById.get(nullClear.id!)?.status).toBe('inbox');
+    });
+
+    it('does not promote when an unchanged start date is re-sent', async () => {
+        const { addTask, updateTask } = useTaskStore.getState();
+        const created = await addTask('Dated inbox', { startTime: '2026-07-20' });
+        const id = created.id!;
+        // Created with a start date and no status → already promoted to next.
+        expect(useTaskStore.getState()._tasksById.get(id)?.status).toBe('next');
+        // Demote back to inbox, then re-send the identical start value: no promotion.
+        await updateTask(id, { status: 'inbox' });
+        expect(useTaskStore.getState()._tasksById.get(id)?.status).toBe('inbox');
+
+        await expect(updateTask(id, { startTime: '2026-07-20' })).resolves.toEqual({ success: true });
+
+        expect(useTaskStore.getState()._tasksById.get(id)?.status).toBe('inbox');
+    });
+
+    it('demotes a dated next task to inbox without re-promoting', async () => {
+        const { addTask, updateTask } = useTaskStore.getState();
+        const created = await addTask('Dated next', { status: 'next', startTime: '2026-07-20' });
+        const id = created.id!;
+        expect(useTaskStore.getState()._tasksById.get(id)?.status).toBe('next');
+
+        await expect(updateTask(id, { status: 'inbox' })).resolves.toEqual({ success: true });
+
+        const task = useTaskStore.getState()._tasksById.get(id);
+        expect(task?.status).toBe('inbox');
+        expect(task?.startTime).toBe('2026-07-20');
+    });
+
+    it('lets an explicit status in the same patch win over start-date promotion', async () => {
+        const { addTask, updateTask } = useTaskStore.getState();
+        const someday = await addTask('To someday', {});
+        const stayInbox = await addTask('Stay inbox', {});
+
+        await expect(updateTask(someday.id!, { status: 'someday', startTime: '2026-07-20' })).resolves.toEqual({ success: true });
+        await expect(updateTask(stayInbox.id!, { status: 'inbox', startTime: '2026-07-20' })).resolves.toEqual({ success: true });
+
+        expect(useTaskStore.getState()._tasksById.get(someday.id!)?.status).toBe('someday');
+        expect(useTaskStore.getState()._tasksById.get(stayInbox.id!)?.status).toBe('inbox');
+    });
+
+    it('promotes via start date while starring in the same patch', async () => {
+        vi.setSystemTime(new Date('2026-07-15T10:00:00.000Z'));
+        const { addTask, updateTask } = useTaskStore.getState();
+        const created = await addTask('Star and date', {});
+        const id = created.id!;
+
+        await expect(updateTask(id, { isFocusedToday: true, startTime: '2026-07-15' })).resolves.toEqual({ success: true });
+
+        const task = useTaskStore.getState()._tasksById.get(id);
+        expect(task?.status).toBe('next');
+        expect(task?.isFocusedToday).toBe(true);
+    });
+
+    it('resets boardOrder when a start date promotes an inbox task', async () => {
+        const { addTask, updateTask } = useTaskStore.getState();
+        const created = await addTask('Board inbox', {});
+        const id = created.id!;
+        await updateTask(id, { boardOrder: 42 });
+        expect(useTaskStore.getState()._tasksById.get(id)?.boardOrder).toBe(42);
+
+        await expect(updateTask(id, { startTime: '2026-07-20' })).resolves.toEqual({ success: true });
+
+        const task = useTaskStore.getState()._tasksById.get(id);
+        expect(task?.status).toBe('next');
+        expect(task?.boardOrder).toBeUndefined();
+    });
+
+    it('creates a task with a start date and no explicit status as next', async () => {
+        const { addTask } = useTaskStore.getState();
+        const created = await addTask('Dated capture', { startTime: '2026-07-20' });
+        expect(created.success).toBe(true);
+        expect(useTaskStore.getState()._tasksById.get(created.id!)?.status).toBe('next');
+    });
+
+    it('honours an explicit inbox status at creation even with a start date', async () => {
+        const { addTask } = useTaskStore.getState();
+        const created = await addTask('Explicit inbox', { status: 'inbox', startTime: '2026-07-20' });
+        expect(useTaskStore.getState()._tasksById.get(created.id!)?.status).toBe('inbox');
+    });
+
+    it('honours an explicit someday status at creation even with a start date', async () => {
+        const { addTask } = useTaskStore.getState();
+        const created = await addTask('Explicit someday', { status: 'someday', startTime: '2026-07-20' });
+        expect(useTaskStore.getState()._tasksById.get(created.id!)?.status).toBe('someday');
+    });
+
+    it('promotes an inbox task to next via batchUpdateTasks start-date patch', async () => {
+        const { addTask, batchUpdateTasks } = useTaskStore.getState();
+        const created = await addTask('Batch inbox', {});
+        const id = created.id!;
+        expect(useTaskStore.getState()._tasksById.get(id)?.status).toBe('inbox');
+
+        await expect(batchUpdateTasks([{ id, updates: { startTime: '2026-07-20' } }])).resolves.toEqual({ success: true });
+
+        expect(useTaskStore.getState()._tasksById.get(id)?.status).toBe('next');
     });
 
     it('derives date-coherence issues from updateTask without auto-mutating dates', async () => {
