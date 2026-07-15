@@ -408,7 +408,10 @@ describe('QuickAddModal', () => {
         await waitFor(() => {
             expect(addTask).toHaveBeenCalledWith('Draft launch brief', expect.anything());
         });
-        expect(useUiStore.getState().editingTaskId).toBe('task-shortcut');
+        // The editing session starts only after the async save resolves.
+        await waitFor(() => {
+            expect(useUiStore.getState().editingTaskId).toBe('task-shortcut');
+        });
     });
 
     it('saves and keeps the dialog open for the next entry on Shift+Enter', async () => {
@@ -435,7 +438,10 @@ describe('QuickAddModal', () => {
             expect(addTask).toHaveBeenCalledWith('First batch entry', expect.anything());
         });
         // The dialog stays open with a cleared input, ready for the next task.
-        expect(screen.getByPlaceholderText('Add Task')).toHaveValue('');
+        // The clear happens after the async save resolves, so wait for it.
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText('Add Task')).toHaveValue('');
+        });
         expect(useUiStore.getState().editingTaskId).toBeNull();
     });
 
