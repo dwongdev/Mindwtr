@@ -439,10 +439,10 @@ export function QuickCaptureSheetBody({
 
                 <CompactText
                   style={[styles.syntaxHint, { color: tc.secondaryText }]}
-                  numberOfLines={2}
+                  numberOfLines={4}
                   ellipsizeMode="tail"
                 >
-                  {t('quickAdd.placeholder')}
+                  {t('quickAdd.help')}
                 </CompactText>
 
                 {handleImportTextFile ? (
