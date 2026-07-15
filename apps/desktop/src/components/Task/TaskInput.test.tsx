@@ -203,6 +203,54 @@ describe('TaskInput autocomplete', () => {
         });
     });
 
+    it('lists every parser-supported slash command in the popup', () => {
+        const { getByRole } = render(<TaskInputHarness initialValue="/" />);
+        const input = getByRole('combobox') as HTMLInputElement;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        fireEvent.click(input);
+
+        for (const name of ['/link:<url>', '/energy:<level>', '/area:<name>', '/archived', '/*']) {
+            expect(getByRole('option', { name })).toBeInTheDocument();
+        }
+    });
+
+    it('suggests the valid energy levels after /energy: and inserts the canonical token', async () => {
+        const { getByRole, getAllByRole } = render(<TaskInputHarness initialValue="/energy:" />);
+        const input = getByRole('combobox') as HTMLInputElement;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        fireEvent.click(input);
+
+        expect(getAllByRole('option').map((option) => option.textContent)).toEqual([
+            '/energy:low',
+            '/energy:medium',
+            '/energy:high',
+        ]);
+
+        fireEvent.keyDown(input, { key: 'ArrowDown' });
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        await waitFor(() => {
+            expect(input.value).toBe('/energy:medium ');
+        });
+    });
+
+    it('completes the /* focus command from the popup', async () => {
+        const { getByRole } = render(<TaskInputHarness initialValue="/*" />);
+        const input = getByRole('combobox') as HTMLInputElement;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        fireEvent.click(input);
+
+        expect(getByRole('option', { name: '/*' })).toBeInTheDocument();
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        await waitFor(() => {
+            expect(input.value).toBe('/* ');
+        });
+    });
+
     it('keeps the metadata-applied caret when the parent value update is delayed', async () => {
         const onAcceptSuggestion = vi.fn(() => true);
         const rafCallbacks: FrameRequestCallback[] = [];

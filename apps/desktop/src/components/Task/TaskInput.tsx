@@ -9,7 +9,9 @@ import {
 } from './token-autocomplete';
 
 type TriggerType = 'project' | 'context' | 'tag' | 'area' | 'person' | 'command';
-type SlashCommand = 'due' | 'start' | 'review' | 'note' | 'inbox' | 'next' | 'waiting' | 'someday' | 'done';
+type SlashCommand =
+    | 'due' | 'start' | 'review' | 'note' | 'link' | 'energy' | 'area'
+    | 'inbox' | 'next' | 'waiting' | 'someday' | 'done' | 'archived' | '*';
 
 interface TriggerState {
     type: TriggerType;
@@ -108,17 +110,38 @@ const SLASH_COMMANDS: Array<{
     { command: 'start', hint: '<when>', requiresArgument: true },
     { command: 'review', hint: '<when>', requiresArgument: true },
     { command: 'note', hint: '<text>', requiresArgument: true },
+    { command: 'link', hint: '<url>', requiresArgument: true },
+    { command: 'energy', hint: '<level>', requiresArgument: true },
+    { command: 'area', hint: '<name>', requiresArgument: true },
     { command: 'next', requiresArgument: false },
     { command: 'waiting', requiresArgument: false },
     { command: 'someday', requiresArgument: false },
     { command: 'inbox', requiresArgument: false },
     { command: 'done', requiresArgument: false },
+    { command: 'archived', requiresArgument: false },
+    { command: '*', requiresArgument: false },
 ];
+
+// The parser only accepts these exact tokens for /energy: — suggest them so
+// a partial token like "l" never ends up in the task title.
+const ENERGY_LEVEL_VALUES = ['low', 'medium', 'high'];
 
 function getSlashCommandOptions(query: string): Option[] {
     const separatorIndex = query.indexOf(':');
     const rawCommandQuery = (separatorIndex >= 0 ? query.slice(0, separatorIndex) : query).trim().toLowerCase();
     const rawValue = separatorIndex >= 0 ? query.slice(separatorIndex + 1).trim() : '';
+
+    if (separatorIndex >= 0 && rawCommandQuery === 'energy') {
+        return ENERGY_LEVEL_VALUES
+            .filter((level) => level.startsWith(rawValue.toLowerCase()))
+            .map((level) => ({
+                kind: 'command' as const,
+                label: `/energy:${level}`,
+                value: level,
+                command: 'energy' as const,
+                requiresArgument: true,
+            }));
+    }
 
     return SLASH_COMMANDS
         .filter(({ command }) => (
@@ -143,7 +166,7 @@ function getSlashCommandOptions(query: string): Option[] {
 function getTrigger(text: string, caret: number): TriggerState | null {
     if (caret < 0) return null;
     const before = text.slice(0, caret);
-    const commandMatch = /(?:^|\s)\/([a-z-]*)(?::([\s\S]*))?$/i.exec(before);
+    const commandMatch = /(?:^|\s)\/(\*|[a-z-]*)(?::([\s\S]*))?$/i.exec(before);
     if (commandMatch) {
         const rawMatch = commandMatch[0] ?? '';
         const slashOffset = rawMatch.indexOf('/');

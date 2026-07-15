@@ -1103,12 +1103,53 @@ export const TaskItem = memo(function TaskItem({
             return true;
         }
 
-        setField('status', suggestion.command);
-        return true;
+        if (
+            suggestion.command === 'inbox'
+            || suggestion.command === 'next'
+            || suggestion.command === 'waiting'
+            || suggestion.command === 'someday'
+            || suggestion.command === 'done'
+            || suggestion.command === 'archived'
+        ) {
+            setField('status', suggestion.command);
+            return true;
+        }
+
+        if (suggestion.command === '*') {
+            if (draft.focusedToday) return true;
+            const action = resolveFocusStar({ allowUnclarified: true });
+            if (!action.canToggle) {
+                const blockedText = getFocusStarBlockedText(t, action, focusTaskLimit);
+                if (blockedText) showToast(blockedText, 'info');
+                return true;
+            }
+            setField('focusedToday', true);
+            // Draft mirror of the core star↔status rule: starring clarifies
+            // an inbox draft to Next.
+            if (draft.status === 'inbox') setField('status', 'next');
+            return true;
+        }
+
+        if (suggestion.command === 'energy') {
+            const level = value.toLowerCase();
+            if (level !== 'low' && level !== 'medium' && level !== 'high') return false;
+            setField('energyLevel', level);
+            return true;
+        }
+
+        // /link and /area have no draft field mapping here; the editor wrapper
+        // resolves /area against its area list, /link stays as text.
+        return false;
     }, [
         draft.description,
+        draft.focusedToday,
+        draft.status,
+        focusTaskLimit,
+        resolveFocusStar,
         settings?.gtd?.defaultScheduleTime,
         setField,
+        showToast,
+        t,
     ]);
 
     useEffect(() => {

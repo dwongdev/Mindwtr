@@ -226,6 +226,15 @@ export function TaskItemEditor({
             setEditSectionId('');
             return true;
         }
+        if (suggestion.kind === 'command' && suggestion.command === 'area') {
+            const name = suggestion.value.trim().toLowerCase();
+            const matched = name ? areas.find((area) => area.name.toLowerCase() === name) : undefined;
+            if (!matched) return false;
+            setEditAreaId(matched.id);
+            setEditProjectId('');
+            setEditSectionId('');
+            return true;
+        }
         return false;
     };
 

@@ -507,6 +507,127 @@ describe('TaskItem', () => {
         });
     });
 
+    it('applies an accepted /energy: level as metadata without keeping the command in the title', async () => {
+        const editableTask: Task = {
+            ...mockTask,
+            id: 'editor-title-slash-energy-task',
+            title: 'Email',
+            status: 'next',
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [editableTask],
+                _allTasks: [editableTask],
+                _tasksById: new Map([[editableTask.id, editableTask]]),
+                projects: [],
+                _allProjects: [],
+                _projectsById: new Map(),
+                sections: [],
+                _allSections: [],
+                _sectionsById: new Map(),
+                areas: [],
+                _allAreas: [],
+                _areasById: new Map(),
+            }));
+        });
+
+        const { findByRole, getAllByRole, getByDisplayValue, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={editableTask} />
+            </LanguageProvider>
+        );
+
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
+        });
+        const titleInput = getByDisplayValue('Email') as HTMLInputElement;
+        fireEvent.change(titleInput, { target: { value: 'Email /energy:hi today' } });
+        titleInput.setSelectionRange('Email /energy:hi'.length, 'Email /energy:hi'.length);
+        fireEvent.click(titleInput);
+
+        expect(await findByRole('option', { name: '/energy:high' })).toBeInTheDocument();
+        await act(async () => {
+            fireEvent.keyDown(titleInput, { key: 'Enter' });
+        });
+
+        await waitFor(() => expect(titleInput.value).toBe('Email today'));
+
+        await act(async () => {
+            fireEvent.click(getByRole('button', { name: 'Save' }));
+        });
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'editor-title-slash-energy-task');
+            expect(updatedTask?.title).toBe('Email today');
+            expect(updatedTask?.energyLevel).toBe('high');
+        });
+    });
+
+    it('resolves an accepted /area: name against the area list without keeping the command in the title', async () => {
+        const editableTask: Task = {
+            ...mockTask,
+            id: 'editor-title-slash-area-task',
+            title: 'Email',
+            status: 'next',
+        };
+        const area = {
+            id: 'area-deep-work',
+            name: 'Deep Work',
+            order: 0,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [editableTask],
+                _allTasks: [editableTask],
+                _tasksById: new Map([[editableTask.id, editableTask]]),
+                projects: [],
+                _allProjects: [],
+                _projectsById: new Map(),
+                sections: [],
+                _allSections: [],
+                _sectionsById: new Map(),
+                areas: [area],
+                _allAreas: [area],
+                _areasById: new Map([[area.id, area]]),
+            }));
+        });
+
+        const { findByRole, getAllByRole, getByDisplayValue, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={editableTask} />
+            </LanguageProvider>
+        );
+
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
+        });
+        const titleInput = getByDisplayValue('Email') as HTMLInputElement;
+        fireEvent.change(titleInput, { target: { value: 'Email /area:Deep Work today' } });
+        titleInput.setSelectionRange('Email /area:Deep Work'.length, 'Email /area:Deep Work'.length);
+        fireEvent.click(titleInput);
+
+        expect(await findByRole('option', { name: '/area:Deep Work' })).toBeInTheDocument();
+        await act(async () => {
+            fireEvent.keyDown(titleInput, { key: 'Enter' });
+        });
+
+        await waitFor(() => expect(titleInput.value).toBe('Email today'));
+
+        await act(async () => {
+            fireEvent.click(getByRole('button', { name: 'Save' }));
+        });
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === 'editor-title-slash-area-task');
+            expect(updatedTask?.title).toBe('Email today');
+            expect(updatedTask?.areaId).toBe('area-deep-work');
+        });
+    });
+
     it('keeps unaccepted quick-add-looking text literal in existing title edits', async () => {
         const editableTask: Task = {
             ...mockTask,
