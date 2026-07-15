@@ -36,6 +36,29 @@ describe('RichMarkdown', () => {
         expect(screen.getByText('const value = 1;')).toBeInTheDocument();
     });
 
+    it('autolinks bare emails without lookbehind regexes (old WebKit crashes on them)', async () => {
+        // The gfm autolink transform is patched (patches/mdast-util-gfm-autolink-literal@2.0.1.patch)
+        // because its lookbehind regex throws "invalid group specifier name" on
+        // WKWebView < Safari 16.4. Guard both the behavior and the patch itself.
+        render(
+            <LanguageProvider>
+                <RichMarkdown markdown={'Contact person@example.com please.'} />
+            </LanguageProvider>
+        );
+
+        expect(screen.getByRole('link', { name: 'person@example.com' })).toHaveAttribute(
+            'href',
+            'mailto:person@example.com'
+        );
+
+        const { createRequire } = await import('node:module');
+        const { readFileSync } = await import('node:fs');
+        const { dirname, join } = await import('node:path');
+        const entry = createRequire(import.meta.url).resolve('mdast-util-gfm-autolink-literal');
+        const source = readFileSync(join(dirname(entry), 'lib', 'index.js'), 'utf8');
+        expect(source).not.toMatch(/\(\?<[=!]/);
+    });
+
     it('keeps RFC 2392 message-id links clickable', () => {
         render(
             <LanguageProvider>

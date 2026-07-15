@@ -1,3 +1,4 @@
+import { Component, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { normalizeMarkdownInternalLinks, tFallback } from '@mindwtr/core';
@@ -99,10 +100,34 @@ function CodeBlock({ children, className, ...props }: any) {
     );
 }
 
+// Markdown parsing runs during render; a bad regex or plugin failure on one
+// task's notes must degrade to plain text, not take down the whole view.
+class MarkdownFallbackBoundary extends Component<{ markdown: string; children: ReactNode }, { failed: boolean }> {
+    state = { failed: false };
+
+    static getDerivedStateFromError() {
+        return { failed: true };
+    }
+
+    componentDidUpdate(previousProps: { markdown: string }) {
+        if (this.state.failed && previousProps.markdown !== this.props.markdown) {
+            this.setState({ failed: false });
+        }
+    }
+
+    render() {
+        if (this.state.failed) {
+            return <p className="whitespace-pre-wrap leading-relaxed">{this.props.markdown}</p>;
+        }
+        return this.props.children;
+    }
+}
+
 export function RichMarkdown({ markdown }: { markdown: string }) {
     const linkContext = useInternalMarkdownLinkContext();
 
     return (
+        <MarkdownFallbackBoundary markdown={markdown || ''}>
         <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkPreserveBlankLines]}
             disallowedElements={['img']}
@@ -184,5 +209,6 @@ export function RichMarkdown({ markdown }: { markdown: string }) {
         >
             {normalizeMarkdownInternalLinks(markdown || '')}
         </ReactMarkdown>
+        </MarkdownFallbackBoundary>
     );
 }
