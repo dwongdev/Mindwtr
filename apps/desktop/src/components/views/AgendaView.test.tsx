@@ -389,7 +389,7 @@ describe('AgendaView', () => {
         expect(queryByRole('heading', { name: /next actions/i })).not.toBeInTheDocument();
     });
 
-    it('hides future-start next actions in Focus by default', () => {
+    it('always hides future-start next actions without a visibility control', () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-02-28T12:00:00.000Z'));
 
@@ -411,49 +411,15 @@ describe('AgendaView', () => {
             _allProjects: [],
             areas: [],
             _allAreas: [],
-            settings: {},
+            settings: { appearance: { showFutureStarts: true } },
             highlightTaskId: null,
         });
 
-        const { getByText, queryByText } = renderAgenda();
+        const { queryByRole, queryByText } = renderAgenda();
 
         expect(queryByText('Future start next task')).not.toBeInTheDocument();
-        expect(getByText('1 task hidden (future start)')).toBeInTheDocument();
-    });
-
-    it('does not count future-start someday tasks in the hidden notice', () => {
-        vi.useFakeTimers();
-        vi.setSystemTime(new Date('2026-02-28T12:00:00.000Z'));
-
-        // Focus never surfaces someday tasks, so a future-start someday
-        // recurrence must not inflate the notice count (#856).
-        const futureSomedayTask: Task = {
-            id: 'future-start-someday-task',
-            title: 'Future someday recurrence',
-            status: 'someday',
-            startTime: '2026-03-03T09:00:00.000Z',
-            recurrence: 'weekly',
-            tags: [],
-            contexts: [],
-            createdAt: nowIso,
-            updatedAt: nowIso,
-        };
-
-        useTaskStore.setState({
-            tasks: [futureSomedayTask],
-            _allTasks: [futureSomedayTask],
-            projects: [],
-            _allProjects: [],
-            areas: [],
-            _allAreas: [],
-            settings: {},
-            highlightTaskId: null,
-        });
-
-        const { queryByText } = renderAgenda();
-
-        expect(queryByText('Future someday recurrence')).not.toBeInTheDocument();
         expect(queryByText(/hidden \(future start\)/)).not.toBeInTheDocument();
+        expect(queryByRole('button', { name: /^(show|hide)$/i })).not.toBeInTheDocument();
     });
 
     it('removes focused tasks immediately when a local edit makes them ineligible', async () => {
@@ -532,15 +498,15 @@ describe('AgendaView', () => {
             _allProjects: [project],
             areas: [],
             _allAreas: [],
-            settings: { appearance: { showFutureStarts: false } },
+            settings: { appearance: { showFutureStarts: true } },
             highlightTaskId: null,
         });
 
-        const { getByText, queryByText } = renderAgenda();
+        const { queryByText } = renderAgenda();
 
         expect(queryByText('Future first')).not.toBeInTheDocument();
         expect(queryByText('Following next')).not.toBeInTheDocument();
-        expect(getByText('1 task hidden (future start)')).toBeInTheDocument();
+        expect(queryByText(/future-start|future start/i)).not.toBeInTheDocument();
     });
 
     it('shows due-soon next actions before undated tasks and sinks far-future due tasks', () => {
@@ -1822,7 +1788,7 @@ describe('AgendaView', () => {
             expect(titleB.compareDocumentPosition(titleA) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
             // Default sort exposes a drag handle per focused row.
-            const handles = getAllByRole('button', { name: 'Order' });
+            const handles = getAllByRole('button', { name: 'Reorder' });
             expect(handles).toHaveLength(2);
         });
 
@@ -1868,12 +1834,12 @@ describe('AgendaView', () => {
             });
 
             const { getByRole, queryByRole, queryAllByRole } = renderAgenda();
-            expect(queryAllByRole('button', { name: 'Order' }).length).toBeGreaterThan(0);
+            expect(queryAllByRole('button', { name: 'Reorder' }).length).toBeGreaterThan(0);
 
             fireEvent.click(getByRole('button', { name: /^Filters$/i }));
             fireEvent.click(getByRole('button', { name: 'Start date' }));
 
-            expect(queryByRole('button', { name: 'Order' })).toBeNull();
+            expect(queryByRole('button', { name: 'Reorder' })).toBeNull();
         });
     });
 });

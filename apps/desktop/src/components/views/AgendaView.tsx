@@ -13,9 +13,8 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { FutureStartNotice } from './FutureStartNotice';
 import { shallow, useTaskStore, TaskPriority, TimeEstimate, applyFilter, buildAdvancedFilterCriteriaChips, criteriaFromSelections, removeAdvancedFilterCriteriaChip, selectionsFromCriteria, formatFocusTaskLimitText,
-    getFocusStarBlockedText, formatTimeEstimateLabel, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, getProjectDeadlineBoosts, getTaskMetadataFilterVisibility, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isFocusSequentialCandidate, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, sortTasksByFocusOrder, sortTasksBySavedPreference, translateWithFallback } from '@mindwtr/core';
+    getFocusStarBlockedText, formatTimeEstimateLabel, generateUUID, getUsedTaskTokens, getFocusSequentialFirstTaskIds, getProjectDeadlineBoosts, getTaskMetadataFilterVisibility, hasActiveFilterCriteria, markSavedFilterDeleted, normalizeFocusTaskLimit, safeParseDate, safeParseDueDate, isDueForReview, isTaskInActiveProject, SAVED_FILTER_NO_PROJECT_ID, shouldShowTaskForStart, sortFocusNextActions, sortTasksByFocusOrder, sortTasksBySavedPreference, translateWithFallback } from '@mindwtr/core';
 import type { FilterCriteria, FocusGroupBy, MultiValueFilterMatchMode, ProjectDeadlineBoost, SavedFilter, SortField, Task, TaskEnergyLevel } from '@mindwtr/core';
 import { useLanguage } from '../../contexts/language-context';
 import { cn } from '../../lib/utils';
@@ -304,7 +303,6 @@ export function AgendaView() {
     const [saveFilterPromptOpen, setSaveFilterPromptOpen] = useState(false);
     const [filterPendingDelete, setFilterPendingDelete] = useState<SavedFilter | null>(null);
     const filterInputRef = useRef<HTMLInputElement | null>(null);
-    const showFutureStarts = settings?.appearance?.showFutureStarts === true;
     const [persistedViewState, setPersistedViewState] = usePersistedViewState(
         FOCUS_VIEW_STATE_STORAGE_KEY,
         DEFAULT_FOCUS_VIEW_STATE,
@@ -338,22 +336,14 @@ export function AgendaView() {
         )
     ), [derivedActiveTasks, projectMap, resolvedAreaFilter, areaById]);
 
-    const { activeTasks, allTokens, hiddenFutureStartCount } = useMemo(() => {
+    const { activeTasks, allTokens } = useMemo(() => {
         const now = new Date();
-        const active = baseActiveTasks.filter((task) => shouldShowTaskForStart(task, { showFutureStarts, now }));
+        const active = baseActiveTasks.filter((task) => shouldShowTaskForStart(task, { now }));
         return {
             activeTasks: active,
             allTokens: getUsedTaskTokens(active, (task) => [...(task.contexts || []), ...(task.tags || [])]),
-            // Count only tasks Focus would actually surface once their start
-            // arrives (starred, next, review-due) — future-start someday and
-            // waiting items never render here, so counting them makes the
-            // notice claim tasks the Show toggle can't reveal (#856).
-            hiddenFutureStartCount: baseActiveTasks.filter((task) => (
-                !shouldShowTaskForStart(task, { showFutureStarts: false, now })
-                && isFocusSequentialCandidate(task, { now })
-            )).length,
         };
-    }, [baseActiveTasks, showFutureStarts]);
+    }, [baseActiveTasks]);
     const priorityOptions: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
     const energyLevelOptions: TaskEnergyLevel[] = ['low', 'medium', 'high'];
     const timeEstimateOptions: TimeEstimate[] = ['5min', '10min', '15min', '30min', '1hr', '2hr', '3hr', '4hr', '4hr+'];
@@ -427,14 +417,6 @@ export function AgendaView() {
     const resolveText = useCallback((key: string, fallback: string) => {
         return translateWithFallback(t, key, fallback);
     }, [t]);
-    const toggleFutureStarts = useCallback(() => {
-        void updateSettings({
-            appearance: {
-                ...(settings.appearance ?? {}),
-                showFutureStarts: !showFutureStarts,
-            },
-        }).catch(() => undefined);
-    }, [settings.appearance, showFutureStarts, updateSettings]);
     const removeAdvancedSavedFilterCriterion = useCallback((chipId: string) => {
         if (!activeSavedFilter) return;
         const nextCriteria = removeAdvancedFilterCriteriaChip(activeSavedFilter.criteria, chipId);
@@ -539,14 +521,14 @@ export function AgendaView() {
             .filter((task) => matchesSearchQuery(task.title));
         const reviewDueBase = baseActiveTasks
             .filter((task) => {
-                if (!shouldShowTaskForStart(task, { showFutureStarts, now })) return false;
+                if (!shouldShowTaskForStart(task, { now })) return false;
                 if (!isDueForReview(task.reviewAt, now)) return false;
                 if (!matchesSearchQuery(task.title)) return false;
                 return true;
             });
         const reviewDue = applyFilter(reviewDueBase, effectiveFilterCriteria, { projects, now, tokenMatchMode: 'all' });
         return { filteredActiveTasks: filtered, reviewDueCandidates: reviewDue };
-    }, [activeTasks, baseActiveTasks, effectiveFilterCriteria, matchesSearchQuery, projects, showFutureStarts]);
+    }, [activeTasks, baseActiveTasks, effectiveFilterCriteria, matchesSearchQuery, projects]);
 
     const reviewDueProjects = useMemo(() => {
         const now = new Date();
@@ -1171,13 +1153,6 @@ export function AgendaView() {
                     </div>
                 </div>
             )}
-
-            <FutureStartNotice
-                count={hiddenFutureStartCount}
-                shown={showFutureStarts}
-                onToggle={toggleFutureStarts}
-                resolveText={resolveText}
-            />
 
             {top3Only ? (
                 <div className="space-y-4">

@@ -36,7 +36,6 @@ import {
   selectionsFromCriteria,
   sortFocusNextActions,
   shouldShowTaskForStart,
-  isFocusSequentialCandidate,
   getFocusSequentialFirstTaskIds,
   generateUUID,
   getProjectDeadlineBoosts,
@@ -321,7 +320,6 @@ export default function FocusScreen() {
   const [showFocusReorderHint, setShowFocusReorderHint] = useState(true);
   const [saveFilterDialogVisible, setSaveFilterDialogVisible] = useState(false);
   const [saveFilterName, setSaveFilterName] = useState('');
-  const showFutureStarts = settings?.appearance?.showFutureStarts === true;
   const [expandedSections, setExpandedSections] = useState(DEFAULT_EXPANDED_SECTIONS);
   const [focusViewStateHydrated, setFocusViewStateHydrated] = useState(false);
   const didToggleSectionRef = useRef(false);
@@ -352,29 +350,12 @@ export default function FocusScreen() {
       && task.status !== 'reference'
     ))
   ), [visibleTasks]);
-  const activeTasks = useMemo(() => (
-    baseActiveTasks.filter((task) => shouldShowTaskForStart(task, { showFutureStarts }))
-  ), [baseActiveTasks, showFutureStarts]);
-  const futureStartTasks = useMemo(() => {
+  const activeTasks = useMemo(() => {
     const now = new Date();
-    // Count only tasks Focus would actually surface once their start arrives
-    // (starred, next, review-due). Future-start someday/waiting/inbox items
-    // never render in this tab, so counting them makes the notice claim tasks
-    // the Show toggle can't reveal (#856).
     return baseActiveTasks.filter((task) => (
-      !shouldShowTaskForStart(task, { showFutureStarts: false, now })
-      && isFocusSequentialCandidate(task, { now })
+      shouldShowTaskForStart(task, { now })
     ));
   }, [baseActiveTasks]);
-  const hiddenFutureStartCount = futureStartTasks.length;
-  const futureStartPreview = useMemo(() => {
-    if (!showFutureStarts || futureStartTasks.length === 0) return '';
-    const visibleTitles = futureStartTasks.slice(0, 2).map((task) => task.title.trim()).filter(Boolean);
-    const remainingCount = futureStartTasks.length - visibleTitles.length;
-    return remainingCount > 0
-      ? `${visibleTitles.join(', ')} +${remainingCount}`
-      : visibleTitles.join(', ');
-  }, [futureStartTasks, showFutureStarts]);
   const tokenOptions = useMemo(() => getFocusTokenOptions(activeTasks), [activeTasks]);
   const metadataFilterVisibility = useMemo(() => getTaskMetadataFilterVisibility(activeTasks, {
     prioritiesEnabled,
@@ -500,24 +481,6 @@ export default function FocusScreen() {
       },
     }).catch(() => undefined);
   }, [activeSavedFilter, effectiveFocusGroupBy, settings?.gtd, updateSettings]);
-  const toggleFutureStarts = useCallback(() => {
-    void updateSettings({
-      appearance: {
-        ...(settings.appearance ?? {}),
-        showFutureStarts: !showFutureStarts,
-      },
-    }).catch(() => undefined);
-  }, [settings.appearance, showFutureStarts, updateSettings]);
-  const formatFutureStartNotice = useCallback((count: number, shown: boolean) => {
-    const template = shown
-      ? (count === 1
-        ? resolveText('agenda.futureStartsShownOne', '1 future-start task shown')
-        : resolveText('agenda.futureStartsShownMany', '{count} future-start tasks shown'))
-      : (count === 1
-        ? resolveText('agenda.futureStartsHiddenOne', '1 task hidden (future start)')
-        : resolveText('agenda.futureStartsHiddenMany', '{count} tasks hidden (future start)'));
-    return template.replace('{count}', String(count));
-  }, [resolveText]);
   const showTaskUpdateError = useCallback((message?: string) => {
     showToast({
       title: resolveText('common.error', 'Error'),
@@ -1972,31 +1935,6 @@ export default function FocusScreen() {
                 </TouchableOpacity>
               </ScrollView>
             ) : null}
-            {hiddenFutureStartCount > 0 ? (
-              <View style={[styles.futureStartNotice, { borderColor: tc.border, backgroundColor: tc.cardBg }]}>
-                <View style={styles.futureStartCopy}>
-                  <Text style={[styles.futureStartText, { color: tc.secondaryText }]}>
-                    {formatFutureStartNotice(hiddenFutureStartCount, showFutureStarts)}
-                  </Text>
-                  {futureStartPreview ? (
-                    <Text style={[styles.futureStartPreview, { color: tc.text }]} numberOfLines={2}>
-                      {futureStartPreview}
-                    </Text>
-                  ) : null}
-                </View>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  onPress={toggleFutureStarts}
-                  style={styles.futureStartButton}
-                >
-                  <Text style={[styles.futureStartButtonText, { color: tc.tint }]}>
-                    {showFutureStarts
-                      ? resolveText('agenda.hideFutureStarts', 'Hide')
-                      : resolveText('agenda.showFutureStarts', 'Show')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
           </View>
           </View>
         )}
@@ -2568,39 +2506,6 @@ const styles = StyleSheet.create({
   clearFiltersText: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  futureStartNotice: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  futureStartCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 3,
-  },
-  futureStartText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  futureStartPreview: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  futureStartButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-  },
-  futureStartButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
   },
   dateText: {
     flex: 1,

@@ -1238,7 +1238,7 @@ describe('FocusScreen', () => {
   it('does not show later sequential actions when the first action has a hidden future start', () => {
     storeState.projects = [makeProject('project-1', { isSequential: true })];
     storeState.settings = {
-      appearance: { showFutureStarts: false },
+      appearance: { showFutureStarts: true },
       features: {},
     };
     storeState.tasks = [
@@ -1268,7 +1268,7 @@ describe('FocusScreen', () => {
     ).toEqual([]);
   });
 
-  it('names shown future-start tasks in the helper notice', () => {
+  it('always hides future-start tasks without a helper notice', () => {
     storeState.settings = {
       appearance: { showFutureStarts: true },
       features: {},
@@ -1289,8 +1289,11 @@ describe('FocusScreen', () => {
       tree = create(<FocusScreen />);
     });
 
-    expect(textContent(tree.root)).toContain('1 future-start task shown');
-    expect(textContent(tree.root)).toContain('Wait for vendor');
+    expect(
+      tree.root.findAllByType(SwipeableTaskItem).map((node) => node.props.task.id),
+    ).toEqual(['next-now']);
+    expect(textContent(tree.root)).not.toContain('future-start task');
+    expect(textContent(tree.root)).not.toContain('Wait for vendor');
   });
 
   it('applies and clears saved Focus filters from the chip row', () => {
