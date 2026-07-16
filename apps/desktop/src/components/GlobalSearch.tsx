@@ -187,7 +187,7 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     const hideFutureTasksText = hideFutureTasksLabel === 'filters.hideFutureTasks'
         ? 'Hide future tasks'
         : hideFutureTasksLabel;
-    const { totalResultsLabel, results, isTruncated } = useMemo(() => computeGlobalSearchResults({
+    const { totalResultsLabel, results, isTruncated, hasActiveSearch } = useMemo(() => computeGlobalSearchResults({
         query,
         tasks: _allTasks,
         projects,
@@ -692,13 +692,15 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                             </div>
                         </div>
                     )}
-                    {!ftsLoading && results.length === 0 && trimmedQuery !== '' && (
+                    {!ftsLoading && results.length === 0 && hasActiveSearch && (
                         <div className="text-center py-8 text-muted-foreground text-sm">
-                            {t('search.noResults')} "{trimmedQuery}"
+                            {trimmedQuery
+                                ? `${t('search.noResults')} "${trimmedQuery}"`
+                                : t('search.noResults')}
                         </div>
                     )}
 
-                    {!ftsLoading && results.length === 0 && trimmedQuery === '' && (
+                    {!ftsLoading && results.length === 0 && !hasActiveSearch && (
                         <div className="text-center py-8 text-muted-foreground text-sm">
                             {t('search.typeToSearch')}
                         </div>

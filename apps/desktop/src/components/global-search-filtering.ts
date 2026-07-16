@@ -91,10 +91,35 @@ export const computeGlobalSearchResults = ({
     ftsResults,
 }: ComputeGlobalSearchResultsInput) => {
     const trimmedQuery = query.trim();
+    const hasTaskOnlyFilters = (
+        selectedStatuses.length > 0
+        || selectedTokens.length > 0
+        || locationQuery.trim().length > 0
+        || duePreset !== 'any'
+        || !includeReference
+        || hideFutureTasks
+    );
+    const hasActiveFilters = (
+        hasTaskOnlyFilters
+        || selectedArea !== 'all'
+        || scope !== 'all'
+        || includeCompleted
+    );
+    const hasActiveSearch = trimmedQuery !== '' || hasActiveFilters;
+    const filterOnlyResults: SearchResults = hasActiveFilters
+        ? {
+            tasks: tasks.filter((task) => !task.deletedAt),
+            projects: hasTaskOnlyFilters
+                ? []
+                : projects.filter((project) => !project.deletedAt),
+        }
+        : { tasks: [], projects: [] };
     const fallbackResults = trimmedQuery === ''
-        ? { tasks: [] as SearchTaskResult[], projects: [] as SearchProjectResult[] }
+        ? filterOnlyResults
         : searchAll(tasks, projects, trimmedQuery);
-    const effectiveResults = ftsResults && (ftsResults.tasks.length + ftsResults.projects.length) > 0
+    const effectiveResults = trimmedQuery !== ''
+        && ftsResults
+        && (ftsResults.tasks.length + ftsResults.projects.length) > 0
         ? ftsResults
         : fallbackResults;
 
@@ -160,7 +185,7 @@ export const computeGlobalSearchResults = ({
     const totalResults = scopedProjects.length + scopedTasks.length;
     const sourceLimited = effectiveResults.limited === true;
     const sourceLimit = effectiveResults.limit ?? 200;
-    const results = trimmedQuery === '' ? [] : [
+    const results = !hasActiveSearch ? [] : [
         ...scopedProjects.map((project) => ({ type: 'project' as const, item: project })),
         ...scopedTasks.map((task) => ({ type: 'task' as const, item: task })),
     ].slice(0, 50);
@@ -171,5 +196,6 @@ export const computeGlobalSearchResults = ({
         totalResultsLabel: sourceLimited ? `${sourceLimit}+` : String(totalResults),
         results,
         isTruncated,
+        hasActiveSearch,
     };
 };

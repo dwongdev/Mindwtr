@@ -155,4 +155,59 @@ describe('computeGlobalSearchResults', () => {
 
         expect(result.results.map((item) => item.item.id)).toEqual([matchingId]);
     });
+
+    it('returns matching tasks when only filters are active', () => {
+        const result = computeGlobalSearchResults({
+            query: '',
+            tasks: [
+                { ...task('task-client-done', 'Client follow-up'), status: 'done', tags: ['#client'] },
+                { ...task('task-client-archived', 'Filed client note'), status: 'archived', tags: ['#client'] },
+                { ...task('task-home', 'Home task'), tags: ['#home'] },
+            ],
+            projects: [project('project-client', 'Client project')],
+            areas: [],
+            includeCompleted: false,
+            includeReference: true,
+            hideFutureTasks: false,
+            selectedStatuses: ['done', 'archived'],
+            selectedArea: 'all',
+            selectedTokens: ['#client'],
+            locationQuery: '',
+            duePreset: 'any',
+            scope: 'all',
+            weekStart: 'sunday',
+            ftsResults: {
+                tasks: [{ ...task('stale-result', 'Previous text result'), status: 'done', tags: ['#client'] }],
+                projects: [],
+            },
+        });
+
+        expect(result.hasActiveSearch).toBe(true);
+        expect(result.results.map((item) => item.item.id)).toEqual([
+            'task-client-done',
+            'task-client-archived',
+        ]);
+    });
+
+    it('keeps the empty-query prompt when no filters are active', () => {
+        const result = computeGlobalSearchResults({
+            query: '',
+            tasks: [task('task-work', 'Work task')],
+            projects: [project('project-work', 'Work project')],
+            areas: [],
+            includeCompleted: false,
+            includeReference: true,
+            hideFutureTasks: false,
+            selectedStatuses: [],
+            selectedArea: 'all',
+            selectedTokens: [],
+            locationQuery: '',
+            duePreset: 'any',
+            scope: 'all',
+            weekStart: 'sunday',
+        });
+
+        expect(result.hasActiveSearch).toBe(false);
+        expect(result.results).toEqual([]);
+    });
 });

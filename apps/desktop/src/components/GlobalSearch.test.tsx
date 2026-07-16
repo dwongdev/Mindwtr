@@ -50,6 +50,26 @@ const tasks: Task[] = [
         createdAt: now,
         updatedAt: now,
     },
+    {
+        id: 'task-done',
+        title: 'Completed report',
+        status: 'done',
+        tags: [],
+        contexts: [],
+        createdAt: now,
+        updatedAt: now,
+        completedAt: now,
+    },
+    {
+        id: 'task-archived',
+        title: 'Archived report',
+        status: 'archived',
+        tags: [],
+        contexts: [],
+        createdAt: now,
+        updatedAt: now,
+        completedAt: now,
+    },
 ];
 
 describe('GlobalSearch', () => {
@@ -144,5 +164,27 @@ describe('GlobalSearch', () => {
             'info',
         );
         expect(onNavigate).toHaveBeenCalledWith('next', 'task-home');
+    });
+
+    it('shows Done and Archived tasks when only status filters are selected', async () => {
+        render(
+            <LanguageProvider>
+                <GlobalSearch onNavigate={vi.fn()} />
+            </LanguageProvider>
+        );
+
+        await act(async () => {
+            window.dispatchEvent(new Event('mindwtr:open-search'));
+            await vi.advanceTimersByTimeAsync(50);
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
+
+        expect(screen.getByText('Completed report')).toBeInTheDocument();
+        expect(screen.getByText('Archived report')).toBeInTheDocument();
+        expect(screen.queryByText('Work task')).not.toBeInTheDocument();
+        expect(screen.queryByText('Type to search')).not.toBeInTheDocument();
     });
 });
