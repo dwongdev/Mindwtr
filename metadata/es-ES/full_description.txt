@@ -20,7 +20,7 @@ POR QUÉ MINDWTR
 - Planifica a tu manera: vistas de lista, calendario y tablero kanban.
 - Recordatorios, tareas repetidas, checklists, notas Markdown y adjuntos.
 - Importa desde Todoist, TickTick, OmniFocus y más.
-- Gratis y de código abierto. Sin anuncios, sin rastreo, sin ataduras.
+- Gratis y de código abierto. Sin anuncios ni ataduras.
 
 SIMPLE POR DEFECTO, POTENTE CUANDO HACE FALTA
 

@@ -20,7 +20,7 @@ WHY MINDWTR
 - Plan your way: list, calendar, and kanban board views.
 - Reminders, repeating tasks, checklists, Markdown notes, and attachments.
 - Import from Todoist, TickTick, OmniFocus, and more.
-- Free and open source. No ads, no tracking, no lock-in.
+- Free and open source. No ads or lock-in.
 
 SIMPLE BY DEFAULT, POWERFUL WHEN YOU NEED IT
 

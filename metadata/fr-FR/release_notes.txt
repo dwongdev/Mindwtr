@@ -1,4 +1,5 @@
-- Suivez le temps passe par tache : les sessions Pomodoro liees ajoutent leurs minutes a un champ synchronise et modifiable (optionnel).
-- Supprimer, terminer et archiver utilisent desormais Annuler au lieu de confirmations ; la semaine du calendrier suit votre region.
-- Capturez plus vite avec le jeton %personne, les fichiers partages depuis d'autres apps, le raccourci en arriere-plan "Ajouter a la boite Mindwtr" et les widgets d'ecran verrouille.
-- Les checklists sont independantes des notes, les pieces jointes sont de vraies copies, les conflits de synchronisation sont listes clairement et de nouvelles protections evitent la perte de donnees.
+- Classez Today's Focus a la main et synchronisez cet ordre entre vos appareils.
+- Restaurez ou supprimez definitivement plusieurs taches et projets depuis la Corbeille.
+- Terminez la revue hebdomadaire avec un resume clair de l'Inbox, des projets et de Waiting For.
+- Les dates de debut clarifient les taches Inbox vers Next, et les repetitions respectent leurs intervalles.
+- Le premier demarrage, les aides de capture, les themes et le texte sont plus clairs.

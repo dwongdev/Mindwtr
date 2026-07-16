@@ -1,4 +1,5 @@
-- Registra el tiempo por tarea: las sesiones Pomodoro vinculadas suman sus minutos a un campo sincronizado y editable (opcional).
-- Eliminar, completar y archivar ahora usan Deshacer en lugar de confirmaciones; la semana del calendario sigue tu region.
-- Captura mas rapido con el token %persona, archivos compartidos desde otras apps, el atajo en segundo plano "Anadir a la bandeja de Mindwtr" y widgets de pantalla de bloqueo.
-- Las listas de verificacion son independientes de las notas, los adjuntos se guardan como copias reales, los conflictos de sincronizacion se muestran con claridad y nuevas protecciones evitan perdida de datos.
+- Ordena Today's Focus a mano y sincroniza el orden entre dispositivos.
+- Restaura o elimina de forma permanente varias tareas y proyectos desde la Papelera.
+- Termina la revision semanal con un resumen claro de Inbox, proyectos y Waiting For.
+- Las fechas de inicio aclaran tareas de Inbox a Next, y las repeticiones respetan sus intervalos.
+- La primera configuracion, las ayudas de captura, los temas y el texto son mas claros.

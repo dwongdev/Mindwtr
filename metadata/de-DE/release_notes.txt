@@ -1,4 +1,5 @@
-- Zeiterfassung pro Aufgabe: verknuepfte Pomodoro-Fokussitzungen zaehlen ihre Minuten zu einem synchronisierten, editierbaren Feld (optional).
-- Loeschen, Erledigen und Archivieren nutzen jetzt Undo statt Bestaetigungsdialogen; die Kalenderwoche folgt deiner Region.
-- Schneller erfassen mit dem %Person-Token, geteilten Dateien aus anderen Apps, dem Kurzbefehl "Zur Mindwtr Inbox" und Sperrbildschirm-Widgets.
-- Checklisten sind von Notizen unabhaengig, Anhaenge werden als echte Kopien gespeichert, Sync-Konflikte klar aufgelistet und neue Schutzmechanismen verhindern Datenverlust.
+- Ordne Today's Focus von Hand und synchronisiere die Reihenfolge zwischen Geraeten.
+- Stelle mehrere Aufgaben und Projekte im Papierkorb wieder her oder loesche sie dauerhaft.
+- Beende den Wochenrueckblick mit einer klaren Zusammenfassung zu Inbox, Projekten und Waiting For.
+- Startdaten klaeren Inbox-Aufgaben zu Next, und Wiederholungen halten ihre Intervalle ein.
+- Einstiegshilfen, Quick-Add-Hinweise, Themes und Textlayouts sind klarer.

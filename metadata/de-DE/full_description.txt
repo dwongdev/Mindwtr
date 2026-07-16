@@ -20,7 +20,7 @@ WARUM MINDWTR
 - Planen, wie du willst: Liste, Kalender und Kanban-Board.
 - Erinnerungen, Wiederholungen, Checklisten, Markdown-Notizen und Anhaenge.
 - Import aus Todoist, TickTick, OmniFocus und mehr.
-- Kostenlos und Open Source. Keine Werbung, kein Tracking, kein Lock-in.
+- Kostenlos und Open Source. Keine Werbung, kein Lock-in.
 
 EINFACH ALS STANDARD, STARK BEI BEDARF
 
