@@ -10,6 +10,9 @@ export const BULK_MOVE_STATUS_ORDER: TaskStatus[] = ['inbox', 'next', 'waiting',
 
 export function getBulkMoveStatusOptions(currentStatus?: TaskStatus | 'all'): TaskStatus[] {
   if (!currentStatus || currentStatus === 'all') return BULK_MOVE_STATUS_ORDER;
+  if (currentStatus === 'done') {
+    return [...BULK_MOVE_STATUS_ORDER.filter((status) => status !== currentStatus), 'archived'];
+  }
   return BULK_MOVE_STATUS_ORDER.filter((status) => status !== currentStatus);
 }
 

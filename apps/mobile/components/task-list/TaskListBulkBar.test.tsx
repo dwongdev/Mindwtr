@@ -2,7 +2,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-import { TaskListBulkBar } from './TaskListBulkBar';
+import { getBulkMoveStatusOptions, TaskListBulkBar } from './TaskListBulkBar';
 
 vi.mock('@/hooks/use-theme-colors', () => ({
   useThemeColors: () => ({ tint: '#3b82f6', onTint: '#ffffff' }),
@@ -57,6 +57,7 @@ const t = (key: string) => ({
   'bulk.selectRangeActive': 'Pick end',
   'bulk.selected': 'selected',
   'common.loading': 'Loading',
+  'status.archived': 'Archived',
   'status.done': 'Done',
   'status.inbox': 'Inbox',
   'status.next': 'Next',
@@ -84,6 +85,18 @@ const renderBulkBar = (overrides: Partial<React.ComponentProps<typeof TaskListBu
 );
 
 describe('TaskListBulkBar', () => {
+  it('offers Archived only when moving completed tasks', () => {
+    expect(getBulkMoveStatusOptions('done')).toEqual([
+      'inbox',
+      'next',
+      'waiting',
+      'someday',
+      'reference',
+      'archived',
+    ]);
+    expect(getBulkMoveStatusOptions('next')).not.toContain('archived');
+  });
+
   it('shows a compact range toggle when bulk selection is active', () => {
     const html = renderBulkBar();
 

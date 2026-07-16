@@ -256,6 +256,12 @@ export default function ArchivedScreen() {
         exitSelectionMode();
     }, [batchMoveTasks, exitSelectionMode, selectedIdsArray]);
 
+    const handleBulkMoveToDone = useCallback(async () => {
+        if (selectedIdsArray.length === 0) return;
+        await batchMoveTasks(selectedIdsArray, 'done');
+        exitSelectionMode();
+    }, [batchMoveTasks, exitSelectionMode, selectedIdsArray]);
+
     const handleBulkDelete = useCallback(() => {
         if (selectedIdsArray.length === 0) return;
         Alert.alert(
@@ -360,6 +366,17 @@ export default function ArchivedScreen() {
                             >
                                 <Text style={[styles.bulkButtonText, { color: tc.text }]}>
                                     {tFallback(t, 'bulk.select', 'Select')} {tFallback(t, 'common.all', 'all')}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => { void handleBulkMoveToDone(); }}
+                                disabled={selectedIds.size === 0}
+                                accessibilityRole="button"
+                                accessibilityLabel={`${t('bulk.moveTo')} ${t('status.done')}`}
+                                style={[styles.bulkButton, { backgroundColor: tc.taskItemBg }]}
+                            >
+                                <Text style={[styles.bulkButtonText, { color: tc.text }]}>
+                                    {t('status.done')}
                                 </Text>
                             </Pressable>
                             <Pressable

@@ -663,6 +663,32 @@ describe('completion timestamp updates', () => {
         expect(updatedTask.completedAt).toBe('2026-07-06T08:00:00.000Z');
     });
 
+    it('preserves the completion time when moving an archived task back to done', () => {
+        const completedAt = '2026-07-06T08:00:00.000Z';
+        const task = createTask('t5-return', undefined, 0, {
+            status: 'archived',
+            completedAt,
+        });
+
+        const { updatedTask } = applyTaskUpdates(task, { status: 'done' }, now);
+
+        expect(updatedTask.status).toBe('done');
+        expect(updatedTask.completedAt).toBe(completedAt);
+    });
+
+    it('does not create another recurring occurrence when moving archived back to done', () => {
+        const task = createTask('t5-recurring', undefined, 0, {
+            status: 'archived',
+            completedAt: '2026-07-06T08:00:00.000Z',
+            dueDate: '2026-07-06',
+            recurrence: { rule: 'weekly', strategy: 'fluid' },
+        });
+
+        const { nextRecurringTask } = applyTaskUpdates(task, { status: 'done' }, now);
+
+        expect(nextRecurringTask).toBeNull();
+    });
+
     it('preserves attachments when completing a task', () => {
         const task = createTask('t7', undefined, 0, {
             status: 'next',

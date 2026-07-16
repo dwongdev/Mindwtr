@@ -3,7 +3,7 @@ import { ErrorBoundary } from '../ErrorBoundary';
 import { shallow, useTaskStore, sortTasksBy, safeFormatDate, tFallback } from '@mindwtr/core';
 import type { Task, TaskSortBy } from '@mindwtr/core';
 
-import { Undo2, Trash2 } from 'lucide-react';
+import { CheckCircle2, Undo2, Trash2 } from 'lucide-react';
 import { useLanguage } from '../../contexts/language-context';
 import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
@@ -280,6 +280,12 @@ export function ArchiveView() {
         exitSelectionMode();
     }, [batchMoveTasks, exitSelectionMode, selectedIdsArray]);
 
+    const handleBulkMoveToDone = useCallback(async () => {
+        if (selectedIdsArray.length === 0) return;
+        await batchMoveTasks(selectedIdsArray, 'done');
+        exitSelectionMode();
+    }, [batchMoveTasks, exitSelectionMode, selectedIdsArray]);
+
     const handleBulkDelete = useCallback(async () => {
         if (selectedIdsArray.length === 0) return;
         const confirmed = await requestConfirmation({
@@ -351,6 +357,16 @@ export function ArchiveView() {
                         t={t}
                     />
                     <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={() => { void handleBulkMoveToDone(); }}
+                            disabled={selectedIds.size === 0}
+                            aria-label={`${t('bulk.moveTo')} ${t('status.done')}`}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {t('status.done')}
+                        </button>
                         <button
                             type="button"
                             onClick={() => { void handleBulkRestore(); }}

@@ -3,6 +3,7 @@ import { tFallback, type TaskEnergyLevel, type TaskStatus } from '@mindwtr/core'
 
 type ListBulkActionsProps = {
     selectionCount: number;
+    currentStatus?: TaskStatus | 'all';
     onMoveToStatus: (status: TaskStatus) => void;
     onAssignArea?: (areaId: string | null) => void;
     areaOptions?: Array<{ id: string; name: string }>;
@@ -22,8 +23,14 @@ type ListBulkActionsProps = {
 const BULK_STATUS_OPTIONS: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'reference', 'done'];
 const BULK_ENERGY_OPTIONS: TaskEnergyLevel[] = ['low', 'medium', 'high'];
 
+export function getListBulkMoveStatusOptions(currentStatus?: TaskStatus | 'all'): TaskStatus[] {
+    if (currentStatus !== 'done') return BULK_STATUS_OPTIONS;
+    return [...BULK_STATUS_OPTIONS.filter((status) => status !== currentStatus), 'archived'];
+}
+
 export function ListBulkActions({
     selectionCount,
+    currentStatus,
     onMoveToStatus,
     onAssignArea,
     areaOptions,
@@ -51,6 +58,7 @@ export function ListBulkActions({
     const removeTagLabelRaw = t('bulk.removeTag');
     const removeTagLabel = removeTagLabelRaw === 'bulk.removeTag' ? 'Remove tag' : removeTagLabelRaw;
     const hasAreaAssignment = Boolean(onAssignArea) && (areaOptions?.length ?? 0) > 0;
+    const bulkStatusOptions = getListBulkMoveStatusOptions(currentStatus);
 
     return (
         <div className="flex flex-wrap items-center gap-2 bg-card border border-border rounded-lg p-3">
@@ -79,7 +87,7 @@ export function ListBulkActions({
                 aria-label={moveToLabel}
             >
                 <option value="">{moveToLabel}</option>
-                {BULK_STATUS_OPTIONS.map((status) => (
+                {bulkStatusOptions.map((status) => (
                     <option key={status} value={status}>
                         {t(`status.${status}`)}
                     </option>

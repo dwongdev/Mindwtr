@@ -33,6 +33,7 @@ type ListControlsPanelProps = {
     hasFilters: boolean;
     inboxProcessor: ReactNode;
     isBatchDeleting: boolean;
+    bulkMoveCurrentStatus: TaskStatus | 'all';
     showGroupBy: boolean;
     isNextView: boolean;
     isProcessing: boolean;
@@ -113,6 +114,7 @@ export function ListControlsPanel({
     hasFilters,
     inboxProcessor,
     isBatchDeleting,
+    bulkMoveCurrentStatus,
     showGroupBy,
     isNextView,
     isProcessing,
@@ -222,6 +224,7 @@ export function ListControlsPanel({
                     {selectedCount > 0 && (
                         <ListBulkActions
                             selectionCount={selectedCount}
+                            currentStatus={bulkMoveCurrentStatus}
                             onMoveToStatus={onMoveToStatus}
                             onAssignArea={onAssignArea}
                             areaOptions={areaOptions}

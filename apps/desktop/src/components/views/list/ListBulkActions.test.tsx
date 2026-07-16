@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ListBulkActions } from './ListBulkActions';
+import { getListBulkMoveStatusOptions, ListBulkActions } from './ListBulkActions';
 
 const t = (key: string) => {
     const labels: Record<string, string> = {
@@ -13,6 +13,7 @@ const t = (key: string) => {
         'status.someday': 'Someday',
         'status.reference': 'Reference',
         'status.done': 'Done',
+        'status.archived': 'Archived',
         'taskEdit.energyLevel': 'Energy Level',
         'energyLevel.low': 'Low energy',
         'energyLevel.medium': 'Medium energy',
@@ -52,6 +53,18 @@ describe('ListBulkActions', () => {
         });
 
         expect(onMoveToStatus).toHaveBeenCalledWith('waiting');
+    });
+
+    it('offers Archived only when moving completed tasks', () => {
+        expect(getListBulkMoveStatusOptions('done')).toEqual([
+            'inbox',
+            'next',
+            'waiting',
+            'someday',
+            'reference',
+            'archived',
+        ]);
+        expect(getListBulkMoveStatusOptions('next')).not.toContain('archived');
     });
 
     it('assigns selected area from bulk action select', () => {

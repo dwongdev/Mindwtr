@@ -89,6 +89,24 @@ describe('ArchiveView', () => {
         });
     });
 
+    it('bulk moves selected archived tasks back to Done without changing completion time', async () => {
+        render(
+            <LanguageProvider>
+                <ArchiveView />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Select Archived task' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Move to Done' }));
+
+        await waitFor(() => {
+            const movedTask = useTaskStore.getState()._tasksById.get(archivedTask.id);
+            expect(movedTask?.status).toBe('done');
+            expect(movedTask?.completedAt).toBe(archivedTask.completedAt);
+        });
+    });
+
     it('bulk moves selected archived tasks to Trash', async () => {
         render(
             <LanguageProvider>

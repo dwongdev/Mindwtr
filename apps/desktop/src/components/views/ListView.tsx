@@ -939,6 +939,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                     }}
                     isProcessing={isProcessing}
                     isBatchDeleting={isBatchDeleting}
+                    bulkMoveCurrentStatus={statusFilter}
                     selectedCount={selectedIdsArray.length}
                     allVisibleTasksSelected={allVisibleTasksSelected}
                     onSelectAllVisible={selectAllVisibleTasks}

@@ -90,12 +90,14 @@ vi.mock('../contexts/language-context', () => ({
       'bulk.confirmDeleteTitle': 'Delete tasks',
       'bulk.select': 'Select',
       'bulk.selected': 'selected',
+      'bulk.moveTo': 'Move to',
       'common.all': 'all',
       'common.cancel': 'Cancel',
       'common.delete': 'Delete',
       'common.done': 'Done',
       'common.tasks': 'tasks',
       'list.done': 'Completed',
+      'status.done': 'Done',
       'task.deleteConfirmBody': 'Move this task to Trash?',
       'trash.restoreToInbox': 'Restore to Inbox',
     }[key] ?? key),
@@ -259,6 +261,25 @@ describe('ArchivedScreen', () => {
 
     expect(mocks.batchMoveTasks).toHaveBeenCalledWith(['task-1', 'task-2'], 'inbox');
     expect(mocks.updateTask).not.toHaveBeenCalledWith('task-1', { status: 'inbox' });
+  });
+
+  it('bulk moves selected archived tasks back to Done', async () => {
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(<ArchivedScreen />);
+    });
+
+    renderer.act(() => {
+      tree.root.find((node) => node.props.accessibilityLabel === 'Select').props.onPress();
+    });
+    renderer.act(() => {
+      tree.root.find((node) => node.props.accessibilityLabel === 'Select Archived task').props.onPress();
+    });
+    await renderer.act(async () => {
+      await tree.root.find((node) => node.props.accessibilityLabel === 'Move to Done').props.onPress();
+    });
+
+    expect(mocks.batchMoveTasks).toHaveBeenCalledWith(['task-1'], 'done');
   });
 
   it('bulk moves selected archived tasks to Trash', async () => {

@@ -83,7 +83,8 @@ export function applyTaskUpdates(oldTask: Task, updates: Partial<Task>, now: str
         : {};
 
     if (statusChanged && incomingStatus === 'done') {
-        const completedAt = explicitCompletedAt ?? now;
+        const isReturningFromArchive = oldTask.status === 'archived';
+        const completedAt = explicitCompletedAt ?? (isReturningFromArchive ? (oldTask.completedAt || now) : now);
         finalUpdates = {
             ...updatesToApply,
             status: incomingStatus,
@@ -91,7 +92,12 @@ export function applyTaskUpdates(oldTask: Task, updates: Partial<Task>, now: str
             isFocusedToday: false,
             ...clearsFocusOrder,
         };
-        nextRecurringTask = createNextRecurringTask(oldTask, completedAt, oldTask.status);
+        // Moving an already-completed task back from Archived is a lifecycle
+        // correction, not another completion event. Preserve its completion
+        // timestamp and do not create a duplicate recurring occurrence.
+        nextRecurringTask = isReturningFromArchive
+            ? null
+            : createNextRecurringTask(oldTask, completedAt, oldTask.status);
     } else if (statusChanged && incomingStatus === 'archived') {
         finalUpdates = {
             ...updatesToApply,
