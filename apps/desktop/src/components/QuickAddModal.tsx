@@ -1106,9 +1106,9 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                     if (!container) return;
                     const focusable = Array.from(
                         container.querySelectorAll<HTMLElement>(
-                            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                            'button, [href], input, select, textarea, [tabindex]'
                         )
-                    ).filter((el) => !el.hasAttribute('disabled'));
+                    ).filter((el) => el.tabIndex >= 0 && !el.hasAttribute('disabled'));
                     if (focusable.length === 0) return;
                     const first = focusable[0];
                     const last = focusable[focusable.length - 1];
@@ -1279,6 +1279,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
                                 ref={fileInputRef}
                                 aria-label={tFallback(t, 'quickAdd.bulkImportTextFileLabel', 'Import text file')}
                                 className="sr-only"
+                                tabIndex={-1}
                                 type="file"
                                 accept=".txt,text/plain"
                                 onChange={(event) => {

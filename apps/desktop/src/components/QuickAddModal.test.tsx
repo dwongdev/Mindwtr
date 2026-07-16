@@ -445,7 +445,7 @@ describe('QuickAddModal', () => {
         expect(useUiStore.getState().editingTaskId).toBeNull();
     });
 
-    it('keeps the backdrop and Esc chip out of the tab order', async () => {
+    it('keeps the Esc chip and hidden file input out of the dialog tab order', async () => {
         renderQuickAddModal();
 
         await act(async () => {
@@ -455,8 +455,26 @@ describe('QuickAddModal', () => {
             await Promise.resolve();
         });
 
-        expect(screen.getByRole('button', { name: 'Close' })).toHaveAttribute('tabindex', '-1');
+        const dialog = screen.getByRole('dialog');
+        const closeButton = screen.getByRole('button', { name: 'Close' });
+        const fileInput = screen.getByLabelText('Import text file');
+        expect(closeButton).toHaveAttribute('tabindex', '-1');
+        expect(fileInput).toHaveAttribute('tabindex', '-1');
         expect(document.querySelector('[role="button"][tabindex="0"][aria-label="Close"]')).toBeNull();
+
+        const focusable = Array.from(
+            dialog.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]')
+        ).filter((element) => element.tabIndex >= 0 && !element.hasAttribute('disabled'));
+        expect(focusable).not.toContain(closeButton);
+        expect(focusable).not.toContain(fileInput);
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (!first || !last) throw new Error('Expected focusable Quick Add controls');
+        last.focus();
+        fireEvent.keyDown(last, { key: 'Tab' });
+        expect(document.activeElement).toBe(first);
+        expect(document.activeElement).not.toBe(closeButton);
     });
 
     it('attaches a pasted image to a text quick-add task', async () => {
