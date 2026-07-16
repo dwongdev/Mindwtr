@@ -139,13 +139,13 @@ describe('ReviewView', () => {
         });
 
         const { getByRole, getByText, queryByText } = renderWithProviders(<ReviewView />);
-        const statusSelect = getByRole('combobox', { name: 'Status' });
 
-        expect(within(statusSelect).getByRole('option', { name: 'Open tasks (1)' })).toBeInTheDocument();
+        fireEvent.click(getByRole('combobox', { name: 'Status' }));
+        expect(getByRole('option', { name: 'Open tasks (1)' })).toBeInTheDocument();
         expect(getByText('Open review task')).toBeInTheDocument();
         expect(queryByText('Completed review task')).not.toBeInTheDocument();
 
-        fireEvent.change(statusSelect, { target: { value: 'done' } });
+        fireEvent.click(getByRole('option', { name: 'Done (1)' }));
 
         expect(getByText('Completed review task')).toBeInTheDocument();
         expect(queryByText('Open review task')).not.toBeInTheDocument();

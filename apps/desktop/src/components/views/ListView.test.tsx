@@ -8,6 +8,7 @@ import { KeybindingProvider } from '../../contexts/keybinding-context';
 import { useUiStore } from '../../store/ui-store';
 import { restoreDeletedTasksWithFeedback } from './list/useListSelection';
 import { ListView, reportArchivedTaskQueryFailure } from './ListView';
+import { selectToolbarOption } from '../../test/toolbar-select';
 
 const reportErrorMock = vi.hoisted(() => vi.fn());
 
@@ -289,7 +290,7 @@ describe('ListView', () => {
 
     const { getByRole, queryByText } = renderListView('reference', 'Reference');
 
-    expect(getByRole('combobox', { name: 'Group' })).toHaveValue('area');
+    expect(getByRole('combobox', { name: 'Group' })).toHaveTextContent('Area');
     expect(queryByText('Work')).toBeInTheDocument();
     expect(queryByText('General')).toBeInTheDocument();
   });
@@ -336,7 +337,7 @@ describe('ListView', () => {
 
     const { getAllByText, getByRole, queryByText } = renderListView('inbox', 'Inbox');
 
-    expect(getByRole('combobox', { name: 'Group' })).toHaveValue('tag');
+    expect(getByRole('combobox', { name: 'Group' })).toHaveTextContent('Tags');
     expect(queryByText('#alpha')).toBeInTheDocument();
     expect(queryByText('#beta')).toBeInTheDocument();
     expect(queryByText('No tags')).toBeInTheDocument();
@@ -362,7 +363,7 @@ describe('ListView', () => {
 
     const { getByRole, queryByText } = renderListView('reference', 'Reference');
 
-    expect(getByRole('combobox', { name: 'Group' })).toHaveValue('context');
+    expect(getByRole('combobox', { name: 'Group' })).toHaveTextContent('Context');
     expect(queryByText('@home')).toBeInTheDocument();
     expect(queryByText('@work')).toBeInTheDocument();
     expect(queryByText('No context')).toBeInTheDocument();
@@ -385,7 +386,6 @@ describe('ListView', () => {
     }));
 
     const firstRender = renderListView('reference', 'Reference');
-    const groupSelect = firstRender.getByRole('combobox', { name: 'Group' }) as HTMLSelectElement;
     const workGroup = firstRender.getByRole('button', { name: /@work\s*1/i });
 
     fireEvent.click(workGroup);
@@ -400,10 +400,10 @@ describe('ListView', () => {
     expect(persisted.collapsedGroups?.context).toEqual(['context:@work']);
     expect(persisted.collapsedGroups?.tag ?? []).toEqual([]);
 
-    fireEvent.change(groupSelect, { target: { value: 'tag' } });
+    selectToolbarOption('Group', 'Tags', firstRender);
     expect(firstRender.getByRole('button', { name: /No tags\s*2/i })).toHaveAttribute('aria-expanded', 'true');
 
-    fireEvent.change(groupSelect, { target: { value: 'context' } });
+    selectToolbarOption('Group', 'Context', firstRender);
     firstRender.unmount();
 
     const secondRender = renderListView('reference', 'Reference');

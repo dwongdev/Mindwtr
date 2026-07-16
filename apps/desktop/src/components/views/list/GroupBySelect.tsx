@@ -1,6 +1,6 @@
 import { tFallback } from '@mindwtr/core';
 import { cn } from '../../../lib/utils';
-import { ToolbarSelectShell, toolbarSelectClass } from './list-toolbar';
+import { ToolbarSelect } from './ToolbarSelect';
 import { getGroupAxisLabel, type TaskGroupAxis } from './next-grouping';
 
 type GroupBySelectProps<Axis extends TaskGroupAxis> = {
@@ -23,19 +23,16 @@ export function GroupBySelect<Axis extends TaskGroupAxis>({
 }: GroupBySelectProps<Axis>) {
     const groupLabel = tFallback(t, 'list.groupBy', 'Group');
     return (
-        <ToolbarSelectShell className={cn('min-w-[180px]', className)} label={groupLabel}>
-            <select
-                value={value}
-                onChange={(event) => onChange(event.target.value as Axis)}
-                aria-label={groupLabel}
-                className={toolbarSelectClass}
-            >
-                {axes.map((axis) => (
-                    <option key={axis} value={axis} disabled={disabledAxes.includes(axis)}>
-                        {getGroupAxisLabel(axis, t)}
-                    </option>
-                ))}
-            </select>
-        </ToolbarSelectShell>
+        <ToolbarSelect
+            className={cn('min-w-[180px]', className)}
+            label={groupLabel}
+            value={value}
+            options={axes.map((axis) => ({
+                value: axis,
+                label: getGroupAxisLabel(axis, t),
+                disabled: disabledAxes.includes(axis),
+            }))}
+            onChange={(next) => onChange(next as Axis)}
+        />
     );
 }

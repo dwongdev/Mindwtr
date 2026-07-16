@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ListHeader } from './ListHeader';
+import { openToolbarSelect } from '../../../test/toolbar-select';
 
 const translations: Record<string, string> = {
     'bulk.select': 'Select',
@@ -90,6 +91,7 @@ describe('ListHeader', () => {
             />
         );
 
+        openToolbarSelect('Group');
         expect(screen.getByRole('option', { name: 'Tags' })).toBeInTheDocument();
     });
 });

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { LanguageProvider } from '../../contexts/language-context';
 import { ContextsView } from './ContextsView';
 import { CONTEXTS_VIEW_STATE_STORAGE_KEY, dispatchContextsTokenSelection } from '../../lib/contexts-view-state';
+import { selectToolbarOption } from '../../test/toolbar-select';
 
 const initialTaskState = useTaskStore.getState();
 const now = '2026-05-12T12:00:00.000Z';
@@ -101,10 +102,9 @@ describe('ContextsView', () => {
             makeTask('grp-someday', { title: 'Someday task', status: 'someday', tags: ['#Finance'] }),
         ];
         useTaskStore.setState({ tasks, _allTasks: tasks });
-        const { getByRole, getByText, getAllByText } = renderContextsView();
+        const { getByText, getAllByText } = renderContextsView();
 
-        const groupSelect = getByRole('combobox', { name: 'Group' });
-        fireEvent.change(groupSelect, { target: { value: 'status' } });
+        selectToolbarOption('Group', 'Status');
 
         // Status names also appear as filter chips, so assert on the group
         // header shape (a span next to the count) via duplicate presence.
@@ -114,7 +114,7 @@ describe('ContextsView', () => {
         expect(getByText('Next task')).toBeInTheDocument();
         expect(getByText('Waiting task')).toBeInTheDocument();
 
-        fireEvent.change(groupSelect, { target: { value: 'tag' } });
+        selectToolbarOption('Group', 'Tags');
 
         expect(getAllByText('#ERP').length).toBeGreaterThan(0);
         expect(getAllByText('#Finance').length).toBeGreaterThan(0);
@@ -239,11 +239,9 @@ describe('ContextsView', () => {
             settings: {},
         });
 
-        const { container, getByRole } = renderContextsView();
+        const { container } = renderContextsView();
 
-        fireEvent.change(getByRole('combobox', { name: 'Sort' }), {
-            target: { value: 'title' },
-        });
+        selectToolbarOption('Sort', 'Title');
 
         const text = container.textContent ?? '';
         expect(text.indexOf('Archive notes')).toBeLessThan(text.indexOf('Plan launch'));

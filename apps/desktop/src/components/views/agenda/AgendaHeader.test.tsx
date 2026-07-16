@@ -1,7 +1,8 @@
-import { fireEvent, render } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AgendaHeader } from './AgendaHeader';
+import { selectToolbarOption } from '../../../test/toolbar-select';
 
 const resolveText = (key: string, fallback: string) => {
     if (key === 'tags.title') return 'Tags';
@@ -31,13 +32,9 @@ const renderHeader = (overrides: Partial<Parameters<typeof AgendaHeader>[0]> = {
 describe('AgendaHeader', () => {
     it('offers tag as a Focus grouping option', () => {
         const onChangeGroupBy = vi.fn();
-        const { getByLabelText } = renderHeader({ onChangeGroupBy });
+        renderHeader({ onChangeGroupBy });
 
-        const groupSelect = getByLabelText('Group') as HTMLSelectElement;
-
-        expect([...groupSelect.options].map((option) => option.value)).toContain('tag');
-
-        fireEvent.change(groupSelect, { target: { value: 'tag' } });
+        selectToolbarOption('Group', 'Tags');
 
         expect(onChangeGroupBy).toHaveBeenCalledWith('tag');
     });
@@ -46,11 +43,11 @@ describe('AgendaHeader', () => {
     // sat at a different height and radius than every other list toolbar, and the
     // grouping value rendered without the GROUP caption (#861).
     it('renders its controls in the shared list-toolbar style', () => {
-        const { container, getByLabelText, getByText } = renderHeader();
+        const { container, getByRole, getByText } = renderHeader();
 
-        const groupShell = (getByLabelText('Group') as HTMLSelectElement).parentElement;
-        expect(groupShell?.className).toContain('h-9');
-        expect(groupShell?.className).toContain('rounded-lg');
+        const groupTrigger = getByRole('combobox', { name: 'Group' });
+        expect(groupTrigger.className).toContain('h-9');
+        expect(groupTrigger.className).toContain('rounded-lg');
         expect(getByText('Group')).toBeInTheDocument();
 
         const buttons = [...container.querySelectorAll('button')];

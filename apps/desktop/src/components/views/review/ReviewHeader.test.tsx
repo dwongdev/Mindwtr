@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ReviewListControls } from './ReviewHeader';
+import { openToolbarSelect } from '../../../test/toolbar-select';
 
 const translations: Record<string, string> = {
     'list.details': 'Details',
@@ -13,6 +14,7 @@ const translations: Record<string, string> = {
     'projects.noTags': 'No tags',
     'sort.default': 'Default',
     'sort.label': 'Sort',
+    'sort.title': 'Title',
     'taskEdit.statusLabel': 'Status',
     'taskEdit.tab.view': 'View',
     'taskEdit.tagsLabel': 'Tags',
@@ -21,6 +23,7 @@ const translations: Record<string, string> = {
 describe('ReviewListControls', () => {
     it('keeps selection separate while placing display settings in an accessible popover', () => {
         const onChangeSortBy = vi.fn();
+        const onChangeGroupBy = vi.fn();
         const onToggleDetails = vi.fn();
 
         render(
@@ -30,7 +33,7 @@ describe('ReviewListControls', () => {
                 sortBy="default"
                 onChangeSortBy={onChangeSortBy}
                 groupBy="none"
-                onChangeGroupBy={vi.fn()}
+                onChangeGroupBy={onChangeGroupBy}
                 showListDetails={false}
                 onToggleDetails={onToggleDetails}
                 disableStatusGrouping
@@ -47,12 +50,24 @@ describe('ReviewListControls', () => {
         fireEvent.click(viewButton);
 
         expect(screen.getByRole('dialog', { name: 'View' })).toBeInTheDocument();
-        const sortSelect = screen.getByRole('combobox', { name: 'Sort' });
-        const groupSelect = screen.getByRole('combobox', { name: 'Group' });
-        expect(within(groupSelect).getByRole('option', { name: 'Status' })).toBeDisabled();
 
-        fireEvent.change(sortSelect, { target: { value: 'title' } });
+        // Status grouping is disabled while a single-status filter is active:
+        // the option is inert and clicking it must not change the axis.
+        openToolbarSelect('Group');
+        const statusOption = screen.getByRole('option', { name: 'Status' });
+        expect(statusOption).toHaveAttribute('aria-disabled', 'true');
+        fireEvent.click(statusOption);
+        expect(onChangeGroupBy).not.toHaveBeenCalled();
+
+        // The listbox portals outside the View panel; a mousedown inside it must
+        // not read as an outside click and close the panel.
+        openToolbarSelect('Sort');
+        const titleOption = screen.getByRole('option', { name: 'Title' });
+        fireEvent.mouseDown(titleOption);
+        expect(screen.getByRole('dialog', { name: 'View' })).toBeInTheDocument();
+        fireEvent.click(titleOption);
         expect(onChangeSortBy).toHaveBeenCalledWith('title');
+        expect(screen.getByRole('dialog', { name: 'View' })).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Details' }));
         expect(onToggleDetails).toHaveBeenCalledOnce();

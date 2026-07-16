@@ -5,6 +5,7 @@ import { LanguageProvider } from '../../contexts/language-context';
 import { AgendaView } from './AgendaView';
 import { useUiStore } from '../../store/ui-store';
 import { MINDWTR_NAVIGATE_EVENT } from '../../lib/navigation-events';
+import { selectToolbarOption } from '../../test/toolbar-select';
 
 // Capture the focus-drag handler so tests can drive a drop without a real
 // pointer gesture; dnd-kit contexts render as passthroughs (see BoardView.test).
@@ -777,9 +778,8 @@ describe('AgendaView', () => {
             highlightTaskId: null,
         });
 
-        const { getByLabelText, getByText } = renderAgenda();
-        const groupSelect = getByLabelText(/^Group$/i) as HTMLSelectElement;
-        fireEvent.change(groupSelect, { target: { value: 'context' } });
+        const { getByText } = renderAgenda();
+        selectToolbarOption('Group', 'Context');
 
         expect(getByText('@work')).toBeInTheDocument();
         expect(getByText('@home')).toBeInTheDocument();
@@ -829,9 +829,8 @@ describe('AgendaView', () => {
             highlightTaskId: null,
         });
 
-        const { getByLabelText, getByText } = renderAgenda();
-        const groupSelect = getByLabelText(/^Group$/i) as HTMLSelectElement;
-        fireEvent.change(groupSelect, { target: { value: 'project' } });
+        const { getByText } = renderAgenda();
+        selectToolbarOption('Group', 'Project');
 
         expect(getByText('Alpha project')).toBeInTheDocument();
         expect(getByText('No Project')).toBeInTheDocument();
@@ -881,9 +880,8 @@ describe('AgendaView', () => {
             highlightTaskId: null,
         });
 
-        const { getByLabelText, getByText } = renderAgenda();
-        const groupSelect = getByLabelText(/^Group$/i) as HTMLSelectElement;
-        fireEvent.change(groupSelect, { target: { value: 'priority' } });
+        const { getByText } = renderAgenda();
+        selectToolbarOption('Group', 'Priority');
 
         expect(getByText('Urgent')).toBeInTheDocument();
         expect(getByText('Low')).toBeInTheDocument();
@@ -1484,7 +1482,7 @@ describe('AgendaView', () => {
 
         fireEvent.click(getByRole('button', { name: /^Filters$/i }));
         fireEvent.click(getByRole('button', { name: 'Start date' }));
-        fireEvent.change(getByRole('combobox', { name: /^Group$/i }), { target: { value: 'project' } });
+        selectToolbarOption('Group', 'Project', { getByRole });
         fireEvent.click(getByRole('button', { name: /^Save$/i }));
         fireEvent.change(getByDisplayValue('Focus filter'), { target: { value: 'Start by project' } });
         const saveButtons = getAllByRole('button', { name: /^Save$/i });
@@ -1666,9 +1664,8 @@ describe('AgendaView', () => {
             highlightTaskId: null,
         });
 
-        const { getByLabelText, getByText } = renderAgenda();
-        const groupSelect = getByLabelText(/^Group$/i) as HTMLSelectElement;
-        fireEvent.change(groupSelect, { target: { value: 'context' } });
+        const { getByText } = renderAgenda();
+        selectToolbarOption('Group', 'Context');
 
         expect(getByText(/no context/i)).toBeInTheDocument();
         expect(getByText('Next task 30')).toBeInTheDocument();
@@ -1717,8 +1714,7 @@ describe('AgendaView', () => {
         });
 
         const firstRender = renderAgenda();
-        const groupSelect = firstRender.getByLabelText(/^Group$/i) as HTMLSelectElement;
-        fireEvent.change(groupSelect, { target: { value: 'context' } });
+        selectToolbarOption('Group', 'Context', firstRender);
 
         const workContextGroup = firstRender.getByRole('button', { name: /@work\s*1/i });
         fireEvent.click(workContextGroup);
@@ -1733,12 +1729,12 @@ describe('AgendaView', () => {
         expect(persisted.collapsedGroups?.context).toEqual(['context:@work']);
         expect(persisted.collapsedGroups?.project ?? []).toEqual([]);
 
-        fireEvent.change(groupSelect, { target: { value: 'project' } });
+        selectToolbarOption('Group', 'Project', firstRender);
 
         expect(firstRender.getByRole('button', { name: /@work\s*1/i })).toHaveAttribute('aria-expanded', 'true');
         expect(firstRender.getByText('Work task')).toBeInTheDocument();
 
-        fireEvent.change(groupSelect, { target: { value: 'context' } });
+        selectToolbarOption('Group', 'Context', firstRender);
         firstRender.unmount();
 
         const secondRender = renderAgenda();

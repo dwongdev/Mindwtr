@@ -100,7 +100,11 @@ export function ReviewListControls({
         if (!viewOptionsOpen) return;
 
         const handleMouseDown = (event: MouseEvent) => {
-            if (!rootRef.current?.contains(event.target as Node)) {
+            const target = event.target as Element;
+            // The Sort/Group listboxes portal outside rootRef; a click inside one
+            // must not read as "outside" and slam the whole View panel shut.
+            if (target.closest?.('[data-selector-dropdown="true"]')) return;
+            if (!rootRef.current?.contains(target as Node)) {
                 setViewOptionsOpen(false);
             }
         };

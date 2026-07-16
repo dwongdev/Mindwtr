@@ -30,9 +30,11 @@ describe('ReviewFiltersBar', () => {
         expect(activeFilterStyle).toContain('border-color: hsl(var(--primary));');
         expect(activeFilterStyle).toContain('color: hsl(var(--primary-foreground));');
         expect(within(inactiveFilter).getByText('(1)')).toHaveClass('text-muted-foreground');
-        expect(within(compactSelector).getByRole('option', { name: 'Open tasks (2)' })).toBeInTheDocument();
 
-        fireEvent.change(compactSelector, { target: { value: 'next' } });
+        // The compact selector exposes the same scopes as the pills, with counts.
+        fireEvent.click(compactSelector);
+        expect(screen.getByRole('option', { name: 'Open tasks (2)' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('option', { name: 'Next (1)' }));
         expect(onSelect).toHaveBeenCalledWith('next');
     });
 });
