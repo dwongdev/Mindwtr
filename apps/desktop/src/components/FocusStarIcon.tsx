@@ -11,7 +11,7 @@ export function FocusStarIcon({ filled = false, className, ...props }: FocusStar
     return (
         <Star
             {...props}
-            className={cn(className)}
+            className={cn(className, filled && 'text-focus-star')}
             fill={filled ? 'currentColor' : 'none'}
             strokeLinecap="round"
             strokeLinejoin="round"

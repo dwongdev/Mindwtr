@@ -51,6 +51,7 @@
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 32%;
     --warning-foreground: 0 0% 100%;
+    --focus-star: 42 100% 34%;
     --info: 217 91% 45%;
     --info-foreground: 0 0% 100%;
 
@@ -114,6 +115,7 @@
     --success-foreground: 145 80% 10%;
     --warning: 43 90% 62%;
     --warning-foreground: 35 80% 12%;
+    --focus-star: 45 96% 65%;
     --info: 210 90% 65%;
     --info-foreground: 220 50% 12%;
 
@@ -166,6 +168,7 @@
     --success-foreground: 0 0% 100%;
     --warning: 0 0% 0%;
     --warning-foreground: 0 0% 100%;
+    --focus-star: 0 0% 0%;
     --info: 0 0% 0%;
     --info-foreground: 0 0% 100%;
     --border: 0 0% 0%;
@@ -226,6 +229,7 @@
     --success-foreground: 220 16.4% 21.6%;
     --warning: 40 70% 64%;
     --warning-foreground: 220 16.4% 21.6%;
+    --focus-star: 45 90% 68%;
     --info: 193.3 43.4% 67.5%;
     --info-foreground: 220 16.4% 21.6%;
     --border: 220 16.5% 35.7%;
@@ -275,6 +279,7 @@
     --success-foreground: 42.9 56% 95%;
     --warning: 31.9 44.4% 36%;
     --warning-foreground: 42.9 56% 95%;
+    --focus-star: 38 80% 33%;
     --info: 199 60% 35%;
     --info-foreground: 42.9 56% 95%;
     --border: 40 43.7% 79.8%;
