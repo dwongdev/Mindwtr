@@ -6,6 +6,7 @@ import { getGroupAxisLabel, type TaskGroupAxis } from './next-grouping';
 type GroupBySelectProps<Axis extends TaskGroupAxis> = {
     value: Axis;
     axes: readonly Axis[];
+    disabledAxes?: readonly Axis[];
     onChange: (value: Axis) => void;
     t: (key: string) => string;
     className?: string;
@@ -15,6 +16,7 @@ type GroupBySelectProps<Axis extends TaskGroupAxis> = {
 export function GroupBySelect<Axis extends TaskGroupAxis>({
     value,
     axes,
+    disabledAxes = [],
     onChange,
     t,
     className,
@@ -29,7 +31,9 @@ export function GroupBySelect<Axis extends TaskGroupAxis>({
                 className={toolbarSelectClass}
             >
                 {axes.map((axis) => (
-                    <option key={axis} value={axis}>{getGroupAxisLabel(axis, t)}</option>
+                    <option key={axis} value={axis} disabled={disabledAxes.includes(axis)}>
+                        {getGroupAxisLabel(axis, t)}
+                    </option>
                 ))}
             </select>
         </ToolbarSelectShell>

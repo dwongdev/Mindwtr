@@ -508,6 +508,7 @@ export const plOverrides: Record<string, string> = {
         'projects.taskMovedTo': 'Przeniesiono do {{name}}',
         'projects.taskMoveFailed': 'Nie udało się przenieść zadania',
         'review.title': 'Przegląd',
+        'review.openTasks': 'Otwarte zadania',
         'review.intro': 'Złap jasność, bądź na bieżąco i odzyskaj kreatywność.',
         'review.openGuide': 'Przegląd tygodniowy',
         'dailyReview.openGuide': 'Codzienny przegląd',

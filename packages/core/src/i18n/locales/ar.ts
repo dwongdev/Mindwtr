@@ -573,6 +573,7 @@ export const arOverrides: Record<string, string> = {
         'projects.taskMovedTo': 'تم النقل إلى {{name}}',
         'projects.taskMoveFailed': 'تعذر نقل المهمة',
         'review.title': 'مراجعة',
+        'review.openTasks': 'المهام المفتوحة',
         'review.intro': 'كن واضحًا، وكن محدثًا، وكن مبدعًا.',
         'review.openGuide': 'المراجعة الأسبوعية',
         'dailyReview.openGuide': 'المراجعة اليومية',

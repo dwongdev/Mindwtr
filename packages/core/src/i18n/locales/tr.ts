@@ -516,6 +516,7 @@ export const trOverrides: Record<string, string> = {
         'projects.taskMovedTo': '{{name}} konumuna taşındı',
         'projects.taskMoveFailed': 'Görev taşınamadı',
         'review.title': 'Gözden geçirmek',
+        'review.openTasks': 'Açık görevler',
         'review.intro': 'Açık olun, güncel olun ve yaratıcı olun.',
         'review.openGuide': 'Haftalık İnceleme',
         'dailyReview.openGuide': 'Günlük İnceleme',

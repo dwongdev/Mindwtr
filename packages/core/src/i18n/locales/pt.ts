@@ -545,6 +545,7 @@ export const ptOverrides: Record<string, string> = {
         'projects.taskMovedTo': 'Movida para {{name}}',
         'projects.taskMoveFailed': 'Falha ao mover a tarefa',
         'review.title': 'Revisão',
+        'review.openTasks': 'Tarefas em aberto',
         'review.intro': 'Seja claro, atualize-se e seja criativo.',
         'review.openGuide': 'Revisão Semanal',
         'dailyReview.openGuide': 'Revisão Diária',

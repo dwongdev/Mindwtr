@@ -632,6 +632,7 @@ export const frOverrides: Record<string, string> = {
 
         // Review Steps
         'review.title': 'Revue',
+        'review.openTasks': 'Tâches ouvertes',
         'review.intro': 'Soyez clair, restez à jour et faites preuve de créativité.',
         'review.openGuide': 'Revue hebdomadaire',
         'dailyReview.openGuide': 'Revue quotidienne',

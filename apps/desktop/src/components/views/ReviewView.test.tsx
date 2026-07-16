@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { act, render, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, fireEvent, waitFor, within } from '@testing-library/react';
 import { useTaskStore, type Project, type Task } from '@mindwtr/core';
 import { ReviewView } from './ReviewView';
 import { LanguageProvider } from '../../contexts/language-context';
@@ -66,6 +66,7 @@ describe('ReviewView', () => {
     });
 
     beforeEach(() => {
+        window.localStorage.removeItem('mindwtr:view:review:v1');
         useTaskStore.setState(initialTaskState, true);
         useUiStore.setState(initialUiState, true);
         vi.mocked(fetchExternalCalendarEvents).mockClear();
@@ -121,10 +122,33 @@ describe('ReviewView', () => {
 
         expect(queryByText('Desk lamp')).toBeInTheDocument();
 
-        fireEvent.click(getByRole('button', { name: /^details$/i }));
+        fireEvent.click(getByRole('button', { name: /^view$/i }));
+        fireEvent.click(within(getByRole('dialog', { name: /^view$/i })).getByRole('button', { name: /^details$/i }));
 
         expect(queryByText('Desk lamp')).not.toBeInTheDocument();
         expect(useUiStore.getState().listOptions.showDetails).toBe(false);
+    });
+
+    it('labels the aggregate scope as open tasks and filters completed tasks from the compact selector', () => {
+        const openTask = makeTask('open-1', { title: 'Open review task', status: 'next' });
+        const doneTask = makeTask('done-1', { title: 'Completed review task', status: 'done' });
+        useTaskStore.setState({
+            tasks: [openTask, doneTask],
+            _allTasks: [openTask, doneTask],
+            lastDataChangeAt: 1,
+        });
+
+        const { getByRole, getByText, queryByText } = renderWithProviders(<ReviewView />);
+        const statusSelect = getByRole('combobox', { name: 'Status' });
+
+        expect(within(statusSelect).getByRole('option', { name: 'Open tasks (1)' })).toBeInTheDocument();
+        expect(getByText('Open review task')).toBeInTheDocument();
+        expect(queryByText('Completed review task')).not.toBeInTheDocument();
+
+        fireEvent.change(statusSelect, { target: { value: 'done' } });
+
+        expect(getByText('Completed review task')).toBeInTheDocument();
+        expect(queryByText('Open review task')).not.toBeInTheDocument();
     });
 
     it('selects and clears all visible review tasks', () => {

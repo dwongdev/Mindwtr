@@ -509,6 +509,7 @@ export const ruOverrides: Record<string, string> = {
         'projects.taskMovedTo': 'Перемещено в {{name}}',
         'projects.taskMoveFailed': 'Не удалось переместить задачу',
         'review.title': 'Обзор',
+        'review.openTasks': 'Открытые задачи',
         'review.intro': 'Будьте ясны, будьте в курсе событий и проявите творческий подход.',
         'review.openGuide': 'Еженедельный обзор',
         'dailyReview.openGuide': 'Ежедневный обзор',

@@ -645,6 +645,7 @@ export const viOverrides: Record<string, string> = {
 
         // Review Steps
         'review.title': 'Xem lại',
+        'review.openTasks': 'Công việc đang mở',
         'review.intro': 'Làm rõ, cập nhật và sáng tạo.',
         'review.openGuide': 'Xem lại hàng tuần',
         'dailyReview.openGuide': 'Xem lại hàng ngày',

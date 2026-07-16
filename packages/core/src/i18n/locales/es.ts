@@ -482,6 +482,7 @@ export const esOverrides: Record<string, string> = {
         'projects.taskMovedTo': 'Movida a {{name}}',
         'projects.taskMoveFailed': 'No se pudo mover la tarea',
         'review.title': 'Revisión',
+        'review.openTasks': 'Tareas abiertas',
         'review.intro': 'Aclárate, pon tu sistema al día, y deja espacio a la creatividad.',
         'review.openGuide': 'Revisión semanal',
         'dailyReview.openGuide': 'Revisión diaria',

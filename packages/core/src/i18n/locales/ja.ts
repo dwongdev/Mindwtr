@@ -509,6 +509,7 @@ export const jaOverrides: Record<string, string> = {
         'projects.taskMovedTo': '{{name}} に移動しました',
         'projects.taskMoveFailed': 'タスクを移動できませんでした',
         'review.title': 'レビュー',
+        'review.openTasks': '未完了のタスク',
         'review.intro': '明確にして、最新の情報を取得し、創造的になりましょう。',
         'review.openGuide': '週次レビュー',
         'dailyReview.openGuide': '毎日のレビュー',

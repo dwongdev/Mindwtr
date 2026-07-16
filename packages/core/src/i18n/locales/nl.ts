@@ -450,6 +450,7 @@ export const nlOverrides: Record<string, string> = {
         'process.removeAction': 'Actie verwijderen',
         'recurrence.onLabel': 'On',
         'review.of': 'of',
+        'review.openTasks': 'Open taken',
         'review.staleStep': 'Stilgevallen items',
         'review.staleStepDesc': 'Geen recente activiteit. Werk bij, rond af of laat los.',
         'review.staleDaysInactive': '{{days}} dagen inactief',

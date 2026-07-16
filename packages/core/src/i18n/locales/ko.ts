@@ -503,6 +503,7 @@ export const koOverrides: Record<string, string> = {
         'projects.taskMovedTo': '{{name}}(으)로 이동했습니다',
         'projects.taskMoveFailed': '작업을 이동하지 못했습니다',
         'review.title': '검토',
+        'review.openTasks': '미완료 작업',
         'review.intro': '명확하게, 최신 정보를 얻고 창의력을 발휘하세요.',
         'review.openGuide': '주간 검토',
         'dailyReview.openGuide': '일일 검토',

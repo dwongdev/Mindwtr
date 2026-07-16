@@ -549,6 +549,7 @@ export const deOverrides: Record<string, string> = {
        
         // Review Steps
         'review.title': 'Revision',
+        'review.openTasks': 'Offene Aufgaben',
         'review.intro': 'Klarheit bringen, Aktuelles anzeigen und kreativ werden.',
         'review.openGuide': 'Wöchentliche Revision',
         'dailyReview.openGuide': 'Tägliche Revision',

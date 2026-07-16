@@ -1,51 +1,55 @@
-import type { ReactNode } from 'react';
-import { CheckSquare, List } from 'lucide-react';
-import type { TaskSortBy } from '@mindwtr/core';
+import { useEffect, useId, useRef, useState } from 'react';
+import { CheckSquare, ChevronDown, List, SlidersHorizontal } from 'lucide-react';
+import { tFallback, type TaskSortBy } from '@mindwtr/core';
+import { cn } from '../../../lib/utils';
 import type { ContextsGroupBy } from '../list/next-grouping';
 import { GroupBySelect } from '../list/GroupBySelect';
-import { SortBySelect, ToolbarButton } from '../list/list-toolbar';
+import {
+    SortBySelect,
+    ToolbarButton,
+    TOOLBAR_CONTROL_ACTIVE,
+    TOOLBAR_CONTROL_BASE,
+    TOOLBAR_CONTROL_MUTED,
+} from '../list/list-toolbar';
 
 type ReviewHeaderProps = {
     title: string;
     taskCountLabel: string;
     onShowDailyGuide: () => void;
     onShowGuide: () => void;
-    /** Status chips, promoted into the header's middle gap. */
-    filters?: ReactNode;
     labels: {
         dailyReview: string;
         weeklyReview: string;
     };
 };
 
-// The header carries only the review actions themselves; list utilities
-// (sort/group/select/details) live in ReviewListControls beside the status
-// chips, next to the list they operate on.
+// The header carries only the review workflows. Filtering, display options,
+// and selection live in the toolbar immediately above the task list.
 export function ReviewHeader({
     title,
     taskCountLabel,
     onShowDailyGuide,
     onShowGuide,
-    filters,
     labels,
 }: ReviewHeaderProps) {
     return (
-        <header className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
                 <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
                 <p className="text-sm text-muted-foreground">{taskCountLabel}</p>
             </div>
-            {filters && <div className="order-3 min-w-0 basis-full xl:order-none xl:flex-1">{filters}</div>}
-            <div className="flex w-full flex-wrap items-center gap-3 sm:ml-auto sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                 <button
+                    type="button"
                     onClick={onShowDailyGuide}
-                    className="whitespace-nowrap rounded-lg bg-muted/50 px-4 py-2 text-foreground transition-colors hover:bg-muted"
+                    className="h-10 whitespace-nowrap rounded-lg bg-muted/50 px-4 text-foreground transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                     {labels.dailyReview}
                 </button>
                 <button
+                    type="button"
                     onClick={onShowGuide}
-                    className="whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
+                    className="h-10 whitespace-nowrap rounded-lg bg-primary px-4 text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                     {labels.weeklyReview}
                 </button>
@@ -63,6 +67,7 @@ type ReviewListControlsProps = {
     onChangeGroupBy: (value: ContextsGroupBy) => void;
     showListDetails: boolean;
     onToggleDetails: () => void;
+    disableStatusGrouping: boolean;
     t: (key: string) => string;
     labels: {
         select: string;
@@ -79,18 +84,113 @@ export function ReviewListControls({
     onChangeGroupBy,
     showListDetails,
     onToggleDetails,
+    disableStatusGrouping,
     t,
     labels,
 }: ReviewListControlsProps) {
+    const [viewOptionsOpen, setViewOptionsOpen] = useState(false);
+    const rootRef = useRef<HTMLDivElement | null>(null);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
+    const panelId = useId();
+    const viewLabel = tFallback(t, 'taskEdit.tab.view', 'View');
+    const detailsLabel = tFallback(t, 'list.details', 'Details');
+    const viewOptionsActive = sortBy !== 'default' || groupBy !== 'none' || showListDetails;
+
+    useEffect(() => {
+        if (!viewOptionsOpen) return;
+
+        const handleMouseDown = (event: MouseEvent) => {
+            if (!rootRef.current?.contains(event.target as Node)) {
+                setViewOptionsOpen(false);
+            }
+        };
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            setViewOptionsOpen(false);
+            triggerRef.current?.focus();
+        };
+
+        window.addEventListener('mousedown', handleMouseDown);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('mousedown', handleMouseDown);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [viewOptionsOpen]);
+
     return (
-        <div className="flex flex-wrap items-center gap-2">
-            <SortBySelect value={sortBy} onChange={onChangeSortBy} t={t} />
-            <GroupBySelect
-                value={groupBy}
-                axes={['none', 'status', 'tag', 'context', 'area', 'project'] as const}
-                onChange={onChangeGroupBy}
-                t={t}
-            />
+        <div className="flex shrink-0 items-center gap-2">
+            <div ref={rootRef} className={cn('relative', viewOptionsOpen && 'z-50')}>
+                <button
+                    ref={triggerRef}
+                    type="button"
+                    onClick={() => setViewOptionsOpen((current) => !current)}
+                    aria-haspopup="dialog"
+                    aria-expanded={viewOptionsOpen}
+                    aria-controls={panelId}
+                    className={cn(
+                        TOOLBAR_CONTROL_BASE,
+                        'inline-flex items-center gap-1.5 rounded-lg px-3',
+                        viewOptionsActive || viewOptionsOpen ? TOOLBAR_CONTROL_ACTIVE : TOOLBAR_CONTROL_MUTED,
+                    )}
+                >
+                    <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+                    {viewLabel}
+                    <ChevronDown
+                        className={cn('h-3.5 w-3.5 transition-transform', viewOptionsOpen && 'rotate-180')}
+                        aria-hidden="true"
+                    />
+                </button>
+
+                {viewOptionsOpen && (
+                    <div
+                        id={panelId}
+                        role="dialog"
+                        aria-label={viewLabel}
+                        className="absolute right-0 top-full mt-2 w-[min(18rem,calc(100vw-2rem))] space-y-2 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg"
+                    >
+                        <SortBySelect
+                            value={sortBy}
+                            onChange={onChangeSortBy}
+                            t={t}
+                            className="w-full min-w-0"
+                        />
+                        <GroupBySelect
+                            value={groupBy}
+                            axes={['none', 'status', 'tag', 'context', 'area', 'project'] as const}
+                            disabledAxes={disableStatusGrouping ? ['status'] : []}
+                            onChange={onChangeGroupBy}
+                            t={t}
+                            className="w-full min-w-0"
+                        />
+                        <button
+                            type="button"
+                            onClick={onToggleDetails}
+                            aria-pressed={showListDetails}
+                            className="flex h-9 w-full items-center justify-between rounded-lg border border-border bg-card px-3 text-xs text-foreground transition-colors hover:bg-muted/70 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        >
+                            <span className="flex items-center gap-2">
+                                <List className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                                {detailsLabel}
+                            </span>
+                            <span
+                                className={cn(
+                                    'relative h-5 w-9 rounded-full transition-colors',
+                                    showListDetails ? 'bg-primary' : 'bg-muted',
+                                )}
+                                aria-hidden="true"
+                            >
+                                <span
+                                    className={cn(
+                                        'absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                                        showListDetails && 'translate-x-4',
+                                    )}
+                                />
+                            </span>
+                        </button>
+                    </div>
+                )}
+            </div>
             <ToolbarButton
                 active={selectionMode}
                 onClick={onToggleSelection}
@@ -98,15 +198,6 @@ export function ReviewListControls({
                 icon={<CheckSquare className="h-3.5 w-3.5" aria-hidden="true" />}
             >
                 {selectionMode ? labels.exitSelect : labels.select}
-            </ToolbarButton>
-            <ToolbarButton
-                active={showListDetails}
-                onClick={onToggleDetails}
-                aria-pressed={showListDetails}
-                title={showListDetails ? (t('list.details') || 'Details on') : (t('list.detailsOff') || 'Details off')}
-                icon={<List className="h-3.5 w-3.5" aria-hidden="true" />}
-            >
-                {showListDetails ? (t('list.details') || 'Details') : (t('list.detailsOff') || 'Details off')}
             </ToolbarButton>
         </div>
     );

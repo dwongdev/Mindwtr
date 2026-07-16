@@ -626,6 +626,7 @@ export const csOverrides: Record<string, string> = {
         'projects.nextActionPromptAddButton': 'Přidat další krok',
         'projects.nextActionPromptComplete': 'Dokončit projekt',
         'review.title': 'Revize',
+        'review.openTasks': 'Otevřené úkoly',
         'review.intro': 'Získejte jasno, aktuálnost a kreativitu.',
         'review.openGuide': 'Týdenní revize',
         'dailyReview.openGuide': 'Denní revize',

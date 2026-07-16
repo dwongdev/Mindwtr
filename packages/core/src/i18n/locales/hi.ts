@@ -506,6 +506,7 @@ export const hiOverrides: Record<string, string> = {
         'projects.taskMovedTo': '{{name}} में ले जाया गया',
         'projects.taskMoveFailed': 'कार्य स्थानांतरित नहीं हो सका',
         'review.title': 'समीक्षा',
+        'review.openTasks': 'खुले कार्य',
         'review.intro': 'स्पष्ट बनें, वर्तमान बनें और रचनात्मक बनें।',
         'review.openGuide': 'साप्ताहिक समीक्षा',
         'dailyReview.openGuide': 'दैनिक समीक्षा',

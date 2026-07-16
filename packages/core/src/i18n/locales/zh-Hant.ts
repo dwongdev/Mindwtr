@@ -577,6 +577,7 @@ export const zhHant: Record<string, string> = {
         'projects.nextActionPromptAddButton': '添加下一步行動',
         'projects.nextActionPromptComplete': '完成項目',
         'review.title': '回顧',
+        'review.openTasks': '未完成任務',
         'review.intro': '保持清晰、保持當前、保持創意。',
         'review.openGuide': '每週回顧',
         'dailyReview.openGuide': '每日回顧',

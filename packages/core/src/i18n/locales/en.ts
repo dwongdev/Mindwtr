@@ -651,6 +651,7 @@ export const en: Record<string, string> = {
 
         // Review Steps
         'review.title': 'Review',
+        'review.openTasks': 'Open tasks',
         'review.intro': 'Get clear, get current, and get creative.',
         'review.openGuide': 'Weekly Review',
         'dailyReview.openGuide': 'Daily Review',

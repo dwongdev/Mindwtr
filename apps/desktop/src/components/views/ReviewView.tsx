@@ -40,13 +40,15 @@ function sanitizeReviewViewState(value: unknown, fallback: ReviewPersistedViewSt
     const parsed = value && typeof value === 'object' && !Array.isArray(value)
         ? value as Partial<ReviewPersistedViewState>
         : {};
+    const filterStatus = parsed.filterStatus === 'all' || STATUS_OPTIONS.includes(parsed.filterStatus as TaskStatus)
+        ? parsed.filterStatus as TaskStatus | 'all'
+        : fallback.filterStatus;
+    const candidateGroupBy = REVIEW_GROUP_BY_VALUES.includes(parsed.groupBy as ContextsGroupBy)
+        ? parsed.groupBy as ContextsGroupBy
+        : fallback.groupBy;
     return {
-        filterStatus: parsed.filterStatus === 'all' || STATUS_OPTIONS.includes(parsed.filterStatus as TaskStatus)
-            ? parsed.filterStatus as TaskStatus | 'all'
-            : fallback.filterStatus,
-        groupBy: REVIEW_GROUP_BY_VALUES.includes(parsed.groupBy as ContextsGroupBy)
-            ? parsed.groupBy as ContextsGroupBy
-            : fallback.groupBy,
+        filterStatus,
+        groupBy: filterStatus !== 'all' && candidateGroupBy === 'status' ? 'none' : candidateGroupBy,
     };
 }
 
@@ -77,6 +79,7 @@ export function ReviewView() {
         setPersistedViewState((current) => ({
             ...current,
             filterStatus: value,
+            groupBy: value !== 'all' && current.groupBy === 'status' ? 'none' : current.groupBy,
         }));
     }, [setPersistedViewState]);
     const groupBy = persistedViewState.groupBy;
@@ -274,27 +277,18 @@ export function ReviewView() {
 
     return (
         <ErrorBoundary>
-            <div className="space-y-6">
+            <div className="space-y-5">
                 <ReviewHeader
                     title={t('review.title')}
                     taskCountLabel={`${filteredTasks.length} ${t('common.tasks')}`}
                     onShowDailyGuide={() => setShowDailyGuide(true)}
                     onShowGuide={() => setShowGuide(true)}
-                    filters={(
-                        <ReviewFiltersBar
-                            filterStatus={filterStatus}
-                            statusOptions={statusOptions}
-                            statusCounts={statusCounts}
-                            onSelect={setFilterStatus}
-                            t={t}
-                        />
-                    )}
                     labels={{
                         dailyReview: t('dailyReview.title'),
                         weeklyReview: t('review.openGuide'),
                     }}
                 />
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="review-toolbar relative z-10 flex flex-wrap items-center gap-2">
                     <input
                         type="text"
                         data-view-filter-input
@@ -302,7 +296,14 @@ export function ReviewView() {
                         aria-label={t('common.search')}
                         value={searchQuery}
                         onChange={(event) => setSearchQuery(event.target.value)}
-                        className="h-9 min-w-[200px] flex-1 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        className="h-9 min-w-[220px] flex-1 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <ReviewFiltersBar
+                        filterStatus={filterStatus}
+                        statusOptions={statusOptions}
+                        statusCounts={statusCounts}
+                        onSelect={setFilterStatus}
+                        t={t}
                     />
                     <ReviewListControls
                         selectionMode={selectionMode}
@@ -316,6 +317,7 @@ export function ReviewView() {
                         onChangeGroupBy={setGroupBy}
                         showListDetails={showListDetails}
                         onToggleDetails={handleToggleDetails}
+                        disableStatusGrouping={filterStatus !== 'all'}
                         t={t}
                         labels={{
                             select: t('bulk.select'),
