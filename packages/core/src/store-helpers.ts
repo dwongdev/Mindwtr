@@ -1,17 +1,19 @@
-import { createNextRecurringTask } from './recurrence';
+import { createNextRecurringTask, normalizeRecurrenceForLoad } from './recurrence';
 import { getTaskDateCoherenceIssues } from './task-date-coherence';
 import {
     collectTaskTokenUsage,
     getUsedTaskTokensFromUsage,
 } from './task-token-usage';
 import { resolveRelativeStartUpdates } from './task-relative-start';
-import { compareTasksByProjectOrder, rescheduleTask } from './task-utils';
+import { compareTasksByProjectOrder, isTaskFutureStart, rescheduleTask } from './task-utils';
 import { safeParseDate } from './date';
 import { filterNotDeleted } from './sync-helpers';
 import { nextRevision, normalizeRevision } from './sync-revision';
 import type { AiSettings, AppData, Area, Person, Project, Section, Task, TaskStatus } from './types';
 import { generateUUID as uuidv4 } from './uuid';
 import type { DerivedState, SaveBaseState } from './store-types';
+
+const hasOwnField = (value: object, field: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(value, field);
 
 export { MAX_SYNC_REVISION, normalizeRevision, nextRevision } from './sync-revision';
 
@@ -71,6 +73,15 @@ export function applyTaskUpdates(oldTask: Task, updates: Partial<Task>, now: str
         ? updates.completedAt
         : undefined;
 
+    // A manual Focus position only means something while the task is in Today's
+    // Focus (types.ts: focusOrder is "cleared when the task leaves Today's
+    // Focus"). Completing or archiving unstars the task below, so focusOrder
+    // must go with it too, unless the same patch sets focusOrder itself
+    // (mirrors the guard in normalizeTaskUpdate).
+    const clearsFocusOrder = oldTask.focusOrder !== undefined && !hasOwnField(updates, 'focusOrder')
+        ? { focusOrder: undefined }
+        : {};
+
     if (statusChanged && incomingStatus === 'done') {
         const completedAt = explicitCompletedAt ?? now;
         finalUpdates = {
@@ -78,6 +89,7 @@ export function applyTaskUpdates(oldTask: Task, updates: Partial<Task>, now: str
             status: incomingStatus,
             completedAt,
             isFocusedToday: false,
+            ...clearsFocusOrder,
         };
         nextRecurringTask = createNextRecurringTask(oldTask, completedAt, oldTask.status);
     } else if (statusChanged && incomingStatus === 'archived') {
@@ -86,6 +98,7 @@ export function applyTaskUpdates(oldTask: Task, updates: Partial<Task>, now: str
             status: incomingStatus,
             completedAt: explicitCompletedAt ?? (oldTask.completedAt || now),
             isFocusedToday: false,
+            ...clearsFocusOrder,
         };
     } else if (statusChanged && isCompleteStatus(oldTask.status) && !isCompleteStatus(incomingStatus)) {
         finalUpdates = {
@@ -121,6 +134,139 @@ export function applyTaskUpdates(oldTask: Task, updates: Partial<Task>, now: str
         nextRecurringTask,
     };
 }
+
+/**
+ * Applies the store's task-update invariants (schedule-edit unstar, star/status
+ * promotion and demotion, boardOrder reset on status change, focusOrder clear on
+ * unstar) to a raw patch before it reaches {@link applyTaskUpdates}. Pure and
+ * side-effect free so both the desktop/mobile store and the cloud REST API can
+ * share the exact same write-path rules (P9, single write path).
+ */
+export const normalizeTaskUpdate = (task: Task, updates: Partial<Task>): Partial<Task> => {
+    let adjustedUpdates = updates;
+    if (hasOwnField(updates, 'recurrence')) {
+        adjustedUpdates = {
+            ...adjustedUpdates,
+            recurrence: normalizeRecurrenceForLoad(updates.recurrence),
+        };
+    }
+    const hasOrder = hasOwnField(updates, 'order');
+    const hasOrderNum = hasOwnField(updates, 'orderNum');
+    if (hasOrder || hasOrderNum) {
+        const normalizedOrder = getTaskOrder(updates);
+        adjustedUpdates = {
+            ...adjustedUpdates,
+            order: normalizedOrder,
+            orderNum: normalizedOrder,
+        };
+    }
+    // A schedule edit that defers the task (future start, or a recurring task
+    // hidden until its due/review date, #843) drops the Today star with it:
+    // the row leaves Focus either way, and a star surviving invisibly would
+    // resurface unasked when the deferral ends. Evaluated on the merged task so
+    // e.g. clearing the start of a recurring due-later task also unstars.
+    const editsSchedule = hasOwnField(updates, 'startTime')
+        || hasOwnField(updates, 'dueDate')
+        || hasOwnField(updates, 'reviewAt')
+        || hasOwnField(updates, 'recurrence');
+    if (editsSchedule && isTaskFutureStart({ ...task, ...adjustedUpdates })) {
+        adjustedUpdates = {
+            ...adjustedUpdates,
+            isFocusedToday: false,
+        };
+    }
+    // Star ↔ status invariant: starring an unprocessed inbox task promotes it
+    // to next (committing to do it today is a clarify decision), and demoting a
+    // starred task to inbox takes the star with it. When one patch does both,
+    // the star (the more deliberate action) wins. Review-due waiting/someday
+    // tasks deliberately KEEP their status when starred — "chase this today"
+    // does not stop the task being waiting-for. Creation-side promotion lives
+    // in resolveCaptureStatusForStart, where focus eligibility is evaluated
+    // before the star commits.
+    // Setting a start date on an Inbox task is itself a clarify decision ("I
+    // decided when I can act on this") and promotes it to next, mirroring the
+    // star promotion below. An Inbox task with a start date is invisible in
+    // Focus/Next and reads as a bug. Unlike the star, an explicit status in the
+    // SAME patch always wins (a start date is a weaker signal than a star), so
+    // this only fires when the patch carries no status of its own; a same-value
+    // re-save or a clear (undefined/null/'') never promotes; Someday/Waiting
+    // keep their status (a dated someday is a tickler, a dated waiting a
+    // follow-up reminder — only Inbox means "unclarified").
+    const startPromotingInbox = hasOwnField(updates, 'startTime')
+        && !hasOwnField(updates, 'status')
+        && updates.startTime != null
+        && updates.startTime !== ''
+        && updates.startTime !== task.startTime
+        && task.status === 'inbox';
+    const starTurningOn = adjustedUpdates.isFocusedToday === true && task.isFocusedToday !== true;
+    const statusBecomingInbox = hasOwnField(updates, 'status') && updates.status === 'inbox' && task.status !== 'inbox';
+    if (statusBecomingInbox && !starTurningOn) {
+        if ((hasOwnField(adjustedUpdates, 'isFocusedToday') ? adjustedUpdates.isFocusedToday : task.isFocusedToday) === true) {
+            adjustedUpdates = {
+                ...adjustedUpdates,
+                isFocusedToday: false,
+            };
+        }
+    } else if (
+        (starTurningOn && (hasOwnField(updates, 'status') ? updates.status : task.status) === 'inbox')
+        || startPromotingInbox
+    ) {
+        adjustedUpdates = {
+            ...adjustedUpdates,
+            status: 'next',
+        };
+    }
+    if (
+        hasOwnField(adjustedUpdates, 'status')
+        && adjustedUpdates.status !== task.status
+        && !hasOwnField(updates, 'boardOrder')
+    ) {
+        adjustedUpdates = {
+            ...adjustedUpdates,
+            boardOrder: undefined,
+        };
+    }
+    // A manual Focus position only means something while the task is in
+    // Today's Focus: any path that turns isFocusedToday off — explicit unstar
+    // or one of the auto-unstars above (future-start defer, demotion to
+    // inbox) — drops focusOrder with it, unless the same patch sets
+    // focusOrder itself.
+    const resolvedIsFocusedToday = hasOwnField(adjustedUpdates, 'isFocusedToday')
+        ? adjustedUpdates.isFocusedToday
+        : task.isFocusedToday;
+    if (
+        task.isFocusedToday === true
+        && resolvedIsFocusedToday !== true
+        && !hasOwnField(updates, 'focusOrder')
+    ) {
+        adjustedUpdates = {
+            ...adjustedUpdates,
+            focusOrder: undefined,
+        };
+    }
+    return adjustedUpdates;
+};
+
+/**
+ * A start date at capture is a clarify decision, so a task created with a
+ * start date and no explicit status enters as Next rather than Inbox (mirrors
+ * the update-path promotion in {@link normalizeTaskUpdate}). An explicit
+ * status always wins — importers and API writers that state status
+ * deliberately are honoured, including an explicit 'inbox'. Unlike the star
+ * creation path there is no focus cap or eligibility gate: nothing is being
+ * starred. Shared by the store's addTasks and the cloud REST API's task
+ * creation handler so the rule cannot drift between them.
+ */
+export const resolveCaptureStatusForStart = (
+    initialProps: Partial<Task>,
+    resolvedStatus: TaskStatus,
+): TaskStatus => {
+    const startPromotesToNext = !hasOwnField(initialProps, 'status')
+        && resolvedStatus === 'inbox'
+        && initialProps.startTime != null
+        && initialProps.startTime !== '';
+    return startPromotesToNext ? 'next' : resolvedStatus;
+};
 
 export type TaskVisibilityOptions = {
     includeArchived?: boolean;

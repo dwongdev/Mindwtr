@@ -8,8 +8,10 @@ import {
     filterNotDeleted,
     generateUUID,
     mergeAppDataWithStats,
+    normalizeTaskUpdate,
     parseQuickAdd,
     repairMergedSyncReferences,
+    resolveCaptureStatusForStart,
     searchAll,
     validateAttachmentForUpload,
     type Area,
@@ -1094,7 +1096,11 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
                             if (rawStatus !== undefined && parsedStatus === null) {
                                 return errorResponse('Invalid task status', 400);
                             }
-                            const status = parsedStatus || 'inbox';
+                            // Mirrors the store's create-side promotion (addTasks): a
+                            // start date at capture is a clarify decision, so a task
+                            // created with a start date and no explicit status enters
+                            // as Next rather than Inbox.
+                            const status = resolveCaptureStatusForStart(props, parsedStatus || 'inbox');
                             const tags = Array.isArray(props.tags) ? props.tags : [];
                             const contexts = Array.isArray(props.contexts) ? props.contexts : [];
                             const {
@@ -1209,10 +1215,16 @@ export async function startCloudServer(options: CloudServerOptions = {}): Promis
 
                                 const nowIso = new Date().toISOString();
                                 const existing = data.tasks[idx];
+                                // Applies the same store invariants the apps get (inbox
+                                // start-date promotion, star/status promotion+demotion,
+                                // boardOrder/focusOrder clearing) before the shared core
+                                // completion/recurrence logic in applyTaskUpdates runs, so
+                                // REST writes obey the same rules as the desktop/mobile store.
+                                const normalizedUpdates = normalizeTaskUpdate(existing, updates);
                                 const { updatedTask, nextRecurringTask } = applyTaskUpdates(
                                     existing,
                                     {
-                                        ...updates,
+                                        ...normalizedUpdates,
                                         rev: normalizeRevision(existing.rev) + 1,
                                         revBy: CLOUD_API_REV_BY,
                                     },

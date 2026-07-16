@@ -694,4 +694,36 @@ describe('completion timestamp updates', () => {
         expect(updatedTask.status).toBe('done');
         expect(nextRecurringTask).toBeNull();
     });
+
+    it('clears focusOrder when completing a focused task', () => {
+        const task = createTask('t8', undefined, 0, {
+            status: 'next',
+            isFocusedToday: true,
+            focusOrder: 2,
+        });
+        const { updatedTask } = applyTaskUpdates(task, { status: 'done' }, now);
+        expect(updatedTask.isFocusedToday).toBe(false);
+        expect(updatedTask.focusOrder).toBeUndefined();
+    });
+
+    it('clears focusOrder when archiving a focused task', () => {
+        const task = createTask('t9', undefined, 0, {
+            status: 'next',
+            isFocusedToday: true,
+            focusOrder: 1,
+        });
+        const { updatedTask } = applyTaskUpdates(task, { status: 'archived' }, now);
+        expect(updatedTask.isFocusedToday).toBe(false);
+        expect(updatedTask.focusOrder).toBeUndefined();
+    });
+
+    it('preserves an explicit focusOrder supplied in the same completion update', () => {
+        const task = createTask('t10', undefined, 0, {
+            status: 'next',
+            isFocusedToday: true,
+            focusOrder: 3,
+        });
+        const { updatedTask } = applyTaskUpdates(task, { status: 'done', focusOrder: 7 }, now);
+        expect(updatedTask.focusOrder).toBe(7);
+    });
 });

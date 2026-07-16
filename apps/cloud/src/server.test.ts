@@ -1489,6 +1489,170 @@ describe('cloud server api', () => {
         expect(archiveDeleted.status).toBe(404);
     });
 
+    test('promotes an inbox task to next on PATCH startTime with no explicit status', async () => {
+        const createResponse = await fetch(`${baseUrl}/v1/tasks`, {
+            method: 'POST',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Inbox task', props: { status: 'inbox' } }),
+        });
+        const taskId = (await createResponse.json()).task.id as string;
+
+        const patchResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
+            method: 'PATCH',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ startTime: '2026-08-01' }),
+        });
+        expect(patchResponse.status).toBe(200);
+        const patchJson = await patchResponse.json();
+        expect(patchJson.task.status).toBe('next');
+        expect(patchJson.task.startTime).toBe('2026-08-01');
+    });
+
+    test('promotes an inbox task to next on PATCH isFocusedToday (star promotion)', async () => {
+        const createResponse = await fetch(`${baseUrl}/v1/tasks`, {
+            method: 'POST',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Inbox task', props: { status: 'inbox' } }),
+        });
+        const taskId = (await createResponse.json()).task.id as string;
+
+        const patchResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
+            method: 'PATCH',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ isFocusedToday: true }),
+        });
+        expect(patchResponse.status).toBe(200);
+        const patchJson = await patchResponse.json();
+        expect(patchJson.task.status).toBe('next');
+        expect(patchJson.task.isFocusedToday).toBe(true);
+    });
+
+    test('unstars and clears focusOrder on PATCH demoting a starred task to inbox', async () => {
+        const createResponse = await fetch(`${baseUrl}/v1/tasks`, {
+            method: 'POST',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Next task', props: { status: 'next' } }),
+        });
+        const taskId = (await createResponse.json()).task.id as string;
+
+        const starResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
+            method: 'PATCH',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ isFocusedToday: true, focusOrder: 2 }),
+        });
+        expect((await starResponse.json()).task.focusOrder).toBe(2);
+
+        const demoteResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
+            method: 'PATCH',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ status: 'inbox' }),
+        });
+        expect(demoteResponse.status).toBe(200);
+        const demoteJson = await demoteResponse.json();
+        expect(demoteJson.task.status).toBe('inbox');
+        expect(demoteJson.task.isFocusedToday).toBe(false);
+        expect(demoteJson.task.focusOrder).toBeUndefined();
+    });
+
+    test('completing a starred task sets completedAt and clears isFocusedToday/focusOrder', async () => {
+        const createResponse = await fetch(`${baseUrl}/v1/tasks`, {
+            method: 'POST',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Next task', props: { status: 'next' } }),
+        });
+        const taskId = (await createResponse.json()).task.id as string;
+
+        await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
+            method: 'PATCH',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ isFocusedToday: true, focusOrder: 5 }),
+        });
+
+        const doneResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
+            method: 'PATCH',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ status: 'done' }),
+        });
+        expect(doneResponse.status).toBe(200);
+        const doneJson = await doneResponse.json();
+        expect(doneJson.task.status).toBe('done');
+        expect(doneJson.task.completedAt).toBeTruthy();
+        expect(doneJson.task.isFocusedToday).toBe(false);
+        expect(doneJson.task.focusOrder).toBeUndefined();
+    });
+
+    test('clears boardOrder on PATCH status change that does not itself set boardOrder', async () => {
+        const createResponse = await fetch(`${baseUrl}/v1/tasks`, {
+            method: 'POST',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Next task', props: { status: 'next' } }),
+        });
+        const taskId = (await createResponse.json()).task.id as string;
+
+        const boardResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
+            method: 'PATCH',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ boardOrder: 3 }),
+        });
+        expect((await boardResponse.json()).task.boardOrder).toBe(3);
+
+        const statusResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
+            method: 'PATCH',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ status: 'waiting' }),
+        });
+        expect(statusResponse.status).toBe(200);
+        const statusJson = await statusResponse.json();
+        expect(statusJson.task.status).toBe('waiting');
+        expect(statusJson.task.boardOrder).toBeUndefined();
+    });
+
+    test('an explicit status in the same PATCH body as startTime wins over promotion', async () => {
+        const createResponse = await fetch(`${baseUrl}/v1/tasks`, {
+            method: 'POST',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Inbox task', props: { status: 'inbox' } }),
+        });
+        const taskId = (await createResponse.json()).task.id as string;
+
+        const patchResponse = await fetch(`${baseUrl}/v1/tasks/${encodeURIComponent(taskId)}`, {
+            method: 'PATCH',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ startTime: '2026-08-01', status: 'inbox' }),
+        });
+        expect(patchResponse.status).toBe(200);
+        const patchJson = await patchResponse.json();
+        expect(patchJson.task.status).toBe('inbox');
+        expect(patchJson.task.startTime).toBe('2026-08-01');
+    });
+
+    test('POST /v1/tasks promotes to next on a start date with no explicit status', async () => {
+        const createResponse = await fetch(`${baseUrl}/v1/tasks`, {
+            method: 'POST',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Captured with start', props: { startTime: '2026-08-01' } }),
+        });
+        expect(createResponse.status).toBe(201);
+        const createdJson = await createResponse.json();
+        expect(createdJson.task.status).toBe('next');
+        expect(createdJson.task.startTime).toBe('2026-08-01');
+    });
+
+    test('POST /v1/tasks honours an explicit inbox status alongside a start date', async () => {
+        const createResponse = await fetch(`${baseUrl}/v1/tasks`, {
+            method: 'POST',
+            headers: { ...authHeaders, 'content-type': 'application/json' },
+            body: JSON.stringify({
+                title: 'Captured with explicit inbox',
+                props: { startTime: '2026-08-01', status: 'inbox' },
+            }),
+        });
+        expect(createResponse.status).toBe(201);
+        const createdJson = await createResponse.json();
+        expect(createdJson.task.status).toBe('inbox');
+        expect(createdJson.task.startTime).toBe('2026-08-01');
+    });
+
     test('finalizes task REST writes before storing data', async () => {
         const createResponse = await fetch(`${baseUrl}/v1/tasks`, {
             method: 'POST',

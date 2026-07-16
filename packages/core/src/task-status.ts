@@ -115,11 +115,18 @@ export function normalizeTaskForLoad(task: Task, nowIso: string = new Date().toI
         ...(hasValidPushCount ? {} : { pushCount: 0 }),
     };
 
+    // focusOrder only means something while a task is in Today's Focus
+    // (types.ts: "cleared when the task leaves Today's Focus"). Both branches
+    // below force isFocusedToday false, so focusOrder must be cleared with it
+    // — this runs on every load/merge without a rev bump (the established
+    // pattern for isFocusedToday here), so it must stay idempotent.
     if (normalizedStatus === 'done' || normalizedStatus === 'archived') {
         next.completedAt = task.completedAt || task.updatedAt || nowIso;
         next.isFocusedToday = false;
+        next.focusOrder = undefined;
     } else if (next.isFocusedToday && isFutureStart(next, new Date(nowIso))) {
         next.isFocusedToday = false;
+        next.focusOrder = undefined;
     } else if (task.completedAt) {
         next.completedAt = undefined;
     }

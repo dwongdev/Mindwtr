@@ -7,6 +7,8 @@ import {
     TASK_SYNC_FIELD_SCHEMA,
     TASK_SYNC_SCHEMA_FIXTURE,
 } from '../packages/core/src/task-sync-schema';
+import { normalizeTaskForContentComparison } from '../packages/core/src/sync-signatures';
+import { CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS } from '../apps/cloud/src/server-config';
 
 type Entity = 'task' | 'project' | 'section';
 type Surface = 'cloud' | 'sqlite';
@@ -53,6 +55,7 @@ const PATHS = {
     coreTypes: 'packages/core/src/types.ts',
     coreSqliteAdapter: 'packages/core/src/sqlite-adapter.ts',
     coreSqliteSchema: 'packages/core/src/sqlite-schema.ts',
+    coreSyncSignatures: 'packages/core/src/sync-signatures.ts',
     desktopRustSchema: 'apps/desktop/src-tauri/src/lib.rs',
     desktopRustStorage: 'apps/desktop/src-tauri/src/storage.rs',
     swiftMapper: 'apps/mobile/modules/cloudkit-sync/ios/CloudKitRecordMapper.swift',
@@ -207,6 +210,24 @@ const parseObjcFields = (source: string, entity: Entity): string[] => {
     const match = source.match(new RegExp(`static const MWFieldSpec ${name}\\[\\] = \\{([\\s\\S]*?)\\n\\};`));
     if (!match) throw new Error(`Could not find ObjC ${name}.`);
     return unique(Array.from(match[1].matchAll(/\{"([^"]+)"/g), (entry) => entry[1]), `ObjC ${name}`);
+};
+
+// TaskContentComparisonExcludedKey is a type (compile-time only), so it can't
+// be imported as a value — regex-parsing its source is the only option, unlike
+// normalizeTaskForContentComparison below which is called directly.
+const parseTaskContentComparisonExcludedKeys = (source: string): string[] => {
+    const match = source.match(/type TaskContentComparisonExcludedKey =([\s\S]*?);/);
+    if (!match) throw new Error('Could not find TaskContentComparisonExcludedKey.');
+    return unique(
+        Array.from(match[1].matchAll(/'([^']+)'/g), (entry) => entry[1]),
+        'TaskContentComparisonExcludedKey',
+    );
+};
+
+const assertSuperset = (label: string, actual: Iterable<string>, required: string[]): string[] => {
+    const actualSet = new Set(actual);
+    const missing = required.filter((field) => !actualSet.has(field));
+    return missing.length > 0 ? [`${label} missing: ${missing.join(', ')}`] : [];
 };
 
 const compareSet = (label: string, actual: string[], expected: string[]): string[] => {
@@ -431,6 +452,7 @@ const failures: string[] = [];
 const coreTypes = read(PATHS.coreTypes);
 const coreSqliteAdapter = read(PATHS.coreSqliteAdapter);
 const coreSqliteSchema = read(PATHS.coreSqliteSchema);
+const coreSyncSignatures = read(PATHS.coreSyncSignatures);
 const desktopRustSchema = read(PATHS.desktopRustSchema);
 const desktopRustStorage = read(PATHS.desktopRustStorage);
 const swiftMapper = read(PATHS.swiftMapper);
@@ -439,6 +461,58 @@ const swiftTaskFieldSpecs = parseSwiftTaskFieldSpecs(swiftMapper);
 const objcTaskFieldSpecs = parseObjcTaskFieldSpecs(objcMapper);
 
 failures.push(...compareTaskInterface(coreTypes));
+
+// Check: every Task field the schema knows about must be tracked in
+// sync-signatures.ts, either as a content-comparable key (returned by
+// normalizeTaskForContentComparison) or as one of the deliberately-excluded
+// keys (TaskContentComparisonExcludedKey). A new Task field that lands in
+// neither list would silently never take part in conflict-signature
+// comparison — this must fail loudly instead.
+const syncSignatureComparableKeys = Object.keys(
+    normalizeTaskForContentComparison(TASK_SYNC_SCHEMA_FIXTURE),
+);
+const syncSignatureExcludedKeys = parseTaskContentComparisonExcludedKeys(coreSyncSignatures);
+const syncSignatureTaskFieldUnion = Array.from(new Set([
+    ...syncSignatureComparableKeys,
+    ...syncSignatureExcludedKeys,
+]));
+// Fields the schema declares but that sync-signatures.ts is deliberately not
+// expected to track. Empty today — every schema field is tracked either as a
+// comparable key or in TaskContentComparisonExcludedKey. Add an entry here
+// (with a one-line reason) only once a real, defensible gap is found; do not
+// use this to silence an actual drift.
+const SYNC_SIGNATURE_FIELD_UNION_EXCEPTIONS: string[] = [];
+failures.push(...compareSet(
+    'sync-signatures.ts task field union',
+    syncSignatureTaskFieldUnion,
+    TASK_SYNC_FIELD_SCHEMA
+        .map((field) => field.name)
+        .filter((name) => !SYNC_SIGNATURE_FIELD_UNION_EXCEPTIONS.includes(name)),
+));
+
+// Check: CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS must be a superset of the fields
+// the schema marks as writable via a cloud API patch (cloudWrite
+// 'create-patch' or 'patch'), so a future schema field promoted to
+// client-writable can't be forgotten on the server allowlist.
+//
+// `boardOrder` is added manually below: cloud-invariants-20260716-01 (Fix C)
+// deliberately makes it patchable via the API to match its order-semantic
+// siblings order/orderNum/focusOrder, but the schema fixture's cloudWrite tag
+// for boardOrder still says 'managed' (stale — task-sync-schema.fixture.json
+// is out of scope for this change; a follow-up should correct the tag there,
+// at which point this override can be removed).
+const PATCH_ALLOWLIST_SCHEMA_OVERRIDES = ['boardOrder'];
+const requiredCloudTaskPatchFields = Array.from(new Set([
+    ...TASK_SYNC_FIELD_SCHEMA
+        .filter((field) => field.cloudWrite === 'create-patch' || field.cloudWrite === 'patch')
+        .map((field) => field.name),
+    ...PATCH_ALLOWLIST_SCHEMA_OVERRIDES,
+]));
+failures.push(...assertSuperset(
+    'cloud CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS',
+    CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS as Iterable<string>,
+    requiredCloudTaskPatchFields,
+));
 failures.push(...compareSet('core TASK_SQLITE_COLUMNS', parseCoreTaskColumns(coreSqliteAdapter), EXPECTED.task.sqlite));
 failures.push(...compareSet(
     'core TASK_UPSERT_UPDATE_CLAUSE',

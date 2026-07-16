@@ -196,6 +196,8 @@ export type {
 } from './store-types';
 
 export {
+    normalizeTaskUpdate,
+    resolveCaptureStatusForStart,
     withTimeout,
 } from './store-helpers';
 
