@@ -179,11 +179,11 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
     }, [lastSyncStatus, showToast, syncConflictNotice, syncConflictToastKey]);
 
     const syncFreshnessDotClass = syncStatus.inFlight
-        ? 'bg-success'
+        ? 'bg-info'
         : !isOnline
-        ? 'bg-destructive'
+        ? 'bg-muted-foreground'
         : lastSyncStatus === 'error'
-            ? 'bg-warning'
+            ? 'bg-destructive'
             : lastSyncStatus === 'conflict'
                 ? 'bg-warning'
             : syncFreshness === 'none'
@@ -216,13 +216,7 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
                             : syncFreshness === 'fresh'
                                 ? tFallback(t, 'settings.syncStatusFresh', 'Fresh')
                                 : tFallback(t, 'settings.syncStatusNever', 'Not synced');
-    const syncStatusLabelClass = syncStatus.inFlight
-        ? 'text-muted-foreground'
-        : !isOnline || lastSyncStatus === 'error' || syncFreshness === 'old'
-        ? 'text-destructive'
-        : lastSyncStatus === 'conflict' || syncFreshness === 'stale'
-            ? 'text-warning'
-            : 'text-muted-foreground';
+    const syncStatusDescription = `${syncStatusLabel}. ${syncTooltip}`;
     const syncNowLabel = tFallback(t, 'settings.syncNow', 'Sync now');
     const manualSyncBusy = syncStatus.inFlight || isManualSyncing;
     const formatCompactSyncTime = useCallback((iso: string) => {
@@ -707,8 +701,8 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
                     </nav>
                 </div>
 
-                <div className="mt-auto border-t border-border/60 px-2 pb-2 pt-2">
-                    <div className={cn("pb-2", isCollapsed && "flex justify-center")}>
+                <div className="mt-auto border-t border-border/60 px-2 py-1.5" data-sidebar-footer>
+                    <div className={cn("pb-1.5", isCollapsed && "flex justify-center")}>
                         <SidebarAreaFilter
                             areas={sortedAreas}
                             value={resolvedAreaFilter}
@@ -719,14 +713,14 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
                             collapsed={isCollapsed}
                         />
                     </div>
-                    <div className={cn(!isCollapsed && "border-t border-border/50 pt-2")}>
-                        <div className={cn("flex gap-1.5", isCollapsed ? "flex-col items-center" : "items-stretch")}>
+                    <div className={cn(!isCollapsed && "border-t border-border/50 pt-1.5")}>
+                        <div className={cn("flex gap-1.5", isCollapsed ? "flex-col items-center" : "items-center")}>
                             <button
                                 type="button"
                                 onClick={() => onViewChange('settings')}
                                 className={cn(
                                     "group relative w-full rounded-md text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset",
-                                    isCollapsed ? "flex h-10 items-center justify-center px-0" : "min-w-0 flex-1 px-2 py-2",
+                                    isCollapsed ? "flex h-10 items-center justify-center px-0" : "h-9 min-w-0 flex-1 px-2",
                                     currentView === 'settings'
                                         ? "bg-primary/5 text-primary"
                                         : "text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground"
@@ -751,6 +745,30 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
                                     />
                                 )}
                             </button>
+                            {!isCollapsed && (
+                                <button
+                                    type="button"
+                                    onClick={onOpenSyncSettings ?? (() => onViewChange('settings'))}
+                                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md px-2 text-left text-[11px] text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset"
+                                    title={syncStatusDescription}
+                                    aria-label={syncStatusDescription}
+                                    data-sidebar-sync-status
+                                >
+                                    <span
+                                        className={cn(
+                                            "h-2 w-2 shrink-0 rounded-full",
+                                            syncFreshnessDotClass,
+                                            syncStatus.inFlight && "animate-pulse"
+                                        )}
+                                        data-sidebar-sync-dot
+                                        aria-hidden="true"
+                                    />
+                                    <span className="sr-only" role="status" aria-live="polite">
+                                        {syncStatusLabel}
+                                    </span>
+                                    <span className="shrink-0 tabular-nums text-muted-foreground">{compactSyncTimeLabel}</span>
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 onClick={handleManualSyncNow}
@@ -758,7 +776,7 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
                                 className={cn(
                                     "inline-flex shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60",
                                     "hover:bg-accent/70 hover:text-accent-foreground",
-                                    isCollapsed ? "h-10 w-10" : "w-10"
+                                    isCollapsed ? "h-10 w-10" : "h-9 w-9"
                                 )}
                                 title={`${syncNowLabel}. ${syncTooltip}`}
                                 aria-label={`${syncNowLabel}. ${syncTooltip}`}
@@ -766,29 +784,6 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
                                 <RefreshCw className={cn("h-4 w-4", manualSyncBusy && "animate-spin")} aria-hidden="true" />
                             </button>
                         </div>
-                        {!isCollapsed && (
-                            <button
-                                type="button"
-                                onClick={onOpenSyncSettings ?? (() => onViewChange('settings'))}
-                                className="mt-1.5 inline-flex w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[11px] leading-none text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset"
-                                title={syncTooltip}
-                                aria-label={syncTooltip}
-                            >
-                                <span
-                                    className={cn(
-                                        "h-1.5 w-1.5 shrink-0 rounded-full",
-                                        syncFreshnessDotClass,
-                                        syncStatus.inFlight && "animate-pulse"
-                                    )}
-                                    aria-hidden="true"
-                                />
-                                <span className={cn("min-w-0 truncate", syncStatusLabelClass)} role="status" aria-live="polite">
-                                    {syncStatusLabel}
-                                </span>
-                                <span className="shrink-0 text-muted-foreground" aria-hidden="true">·</span>
-                                <span className="shrink-0 tabular-nums text-muted-foreground">{compactSyncTimeLabel}</span>
-                            </button>
-                        )}
                     </div>
                 </div>
                 </aside>

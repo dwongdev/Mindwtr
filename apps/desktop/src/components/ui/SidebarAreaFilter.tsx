@@ -101,7 +101,7 @@ export function SidebarAreaFilter({
                     'flex items-center text-[13px] bg-muted/40 border-none rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40',
                     collapsed
                         ? 'h-10 w-10 justify-center hover:bg-accent hover:text-accent-foreground'
-                        : 'w-full justify-between px-3 py-2',
+                        : 'h-9 w-full justify-between px-3',
                 )}
                 aria-haspopup="listbox"
                 aria-expanded={open}

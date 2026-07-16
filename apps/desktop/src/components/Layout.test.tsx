@@ -205,7 +205,23 @@ describe('Layout Obsidian nav visibility', () => {
 });
 
 describe('Layout sync conflict surface', () => {
-    it('shows sync freshness as visible text', () => {
+    it('keeps Settings, sync status, and manual sync on one compact footer row', () => {
+        const { container, getByRole } = renderLayout();
+
+        const footer = container.querySelector('[data-sidebar-footer]');
+        const settingsButton = getByRole('button', { name: 'Settings' });
+        const syncStatusButton = container.querySelector('[data-sidebar-sync-status]');
+        const syncButton = getByRole('button', { name: /Sync now/i });
+
+        expect(footer).toHaveClass('py-1.5');
+        expect(settingsButton).toHaveClass('h-9');
+        expect(syncStatusButton).toHaveClass('h-9');
+        expect(syncButton).toHaveClass('h-9');
+        expect(settingsButton.parentElement).toBe(syncStatusButton?.parentElement);
+        expect(syncButton.parentElement).toBe(syncStatusButton?.parentElement);
+    });
+
+    it('uses a colored dot for sync freshness without squeezing status text into the footer', () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-04-22T12:10:00.000Z'));
         act(() => {
@@ -219,9 +235,13 @@ describe('Layout sync conflict surface', () => {
             }));
         });
 
-        const { getByText } = renderLayout();
+        const { container, getByRole, getByText } = renderLayout();
+        const syncStatusButton = getByRole('button', { name: /Synced\..*Last sync/i });
+        const syncStatusDot = container.querySelector('[data-sidebar-sync-dot]');
 
-        expect(getByText('Synced')).toBeInTheDocument();
+        expect(syncStatusButton).toBeInTheDocument();
+        expect(syncStatusDot).toHaveClass('bg-success');
+        expect(getByText('Synced')).toHaveClass('sr-only');
     });
 
     it('runs manual sync from the sidebar sync button', async () => {
