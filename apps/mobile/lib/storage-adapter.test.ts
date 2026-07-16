@@ -559,6 +559,155 @@ describe('mobile storage adapter', () => {
     expect(executedStatements[executedStatements.length - 2]?.args).toEqual(['task-1']);
   }, 10_000);
 
+  it('reconciles rc.1 JSON-only writes into SQLite without reviving older live data', async () => {
+    const makeTask = (
+      id: string,
+      title: string,
+      rev: number,
+      revBy: string,
+      deletedAt?: string,
+    ): Task => ({
+      id,
+      title,
+      status: 'next',
+      tags: [],
+      contexts: [],
+      createdAt: '2026-07-16T00:00:00.000Z',
+      updatedAt: `2026-07-16T00:00:0${rev}.000Z`,
+      rev,
+      revBy,
+      ...(deletedAt ? { deletedAt } : {}),
+    });
+    const sqliteData: AppData = {
+      tasks: [
+        makeTask('edited-on-rc1', 'Old SQLite title', 1, 'sqlite-device'),
+        makeTask('sqlite-only', 'SQLite only', 1, 'sqlite-device'),
+        makeTask('deleted-before-rc1', 'Deleted', 3, 'sqlite-device', '2026-07-16T00:00:03.000Z'),
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      people: [],
+      settings: {},
+    };
+    const backupData: AppData = {
+      tasks: [
+        makeTask('edited-on-rc1', 'Edited while rc.1 used JSON', 2, 'rc1-device'),
+        makeTask('backup-only', 'Created while rc.1 used JSON', 1, 'rc1-device'),
+        makeTask('deleted-before-rc1', 'Stale live copy', 2, 'rc1-device'),
+      ],
+      projects: [],
+      sections: [],
+      areas: [],
+      people: [],
+      settings: {},
+    };
+    const stored = new Map<string, string>([
+      ['mindwtr-data', JSON.stringify(backupData)],
+      ['mindwtr-data:startup-backup-version', '2'],
+    ]);
+    asyncStorageMock.getItem.mockImplementation(async (key: string) => stored.get(key) ?? null);
+    asyncStorageMock.setItem.mockImplementation(async (key: string, value: string) => {
+      stored.set(key, value);
+    });
+    const getData = vi.fn().mockResolvedValue(sqliteData);
+    const saveData = vi.fn().mockResolvedValue(undefined);
+
+    const { __mobileStorageTestUtils } = await import('./storage-adapter');
+    await __mobileStorageTestUtils.reconcileJsonBackupIntoSqliteForTests({
+      getData,
+      saveData,
+    } as never);
+
+    expect(saveData).toHaveBeenCalledTimes(1);
+    const merged = saveData.mock.calls[0]?.[0] as AppData;
+    expect(merged.tasks.find((task) => task.id === 'edited-on-rc1')?.title)
+      .toBe('Edited while rc.1 used JSON');
+    expect(merged.tasks.some((task) => task.id === 'sqlite-only')).toBe(true);
+    expect(merged.tasks.some((task) => task.id === 'backup-only')).toBe(true);
+    expect(merged.tasks.find((task) => task.id === 'deleted-before-rc1')?.deletedAt)
+      .toBe('2026-07-16T00:00:03.000Z');
+    expect(stored.get('mindwtr-data:sqlite-json-reconcile-v1')).toBe('1');
+
+    await __mobileStorageTestUtils.reconcileJsonBackupIntoSqliteForTests({
+      getData,
+      saveData,
+    } as never);
+    expect(getData).toHaveBeenCalledTimes(1);
+    expect(saveData).toHaveBeenCalledTimes(1);
+  }, 10_000);
+
+  it('does not mark JSON reconciliation complete until the merged SQLite save succeeds', async () => {
+    const stored = new Map<string, string>([
+      ['mindwtr-data', JSON.stringify({
+        tasks: [],
+        projects: [],
+        sections: [],
+        areas: [],
+        people: [],
+        settings: {},
+      } satisfies AppData)],
+      ['mindwtr-data:startup-backup-version', '2'],
+    ]);
+    asyncStorageMock.getItem.mockImplementation(async (key: string) => stored.get(key) ?? null);
+    asyncStorageMock.setItem.mockImplementation(async (key: string, value: string) => {
+      stored.set(key, value);
+    });
+    const saveData = vi.fn().mockRejectedValue(new Error('disk I/O error'));
+
+    const { __mobileStorageTestUtils } = await import('./storage-adapter');
+    await expect(__mobileStorageTestUtils.reconcileJsonBackupIntoSqliteForTests({
+      getData: vi.fn().mockResolvedValue({
+        tasks: [],
+        projects: [],
+        sections: [],
+        areas: [],
+        people: [],
+        settings: {},
+      }),
+      saveData,
+    } as never)).rejects.toThrow('disk I/O error');
+
+    expect(stored.has('mindwtr-data:sqlite-json-reconcile-v1')).toBe(false);
+  }, 10_000);
+
+  it('does not merge an unmarked legacy JSON snapshot into an existing SQLite store', async () => {
+    const stored = new Map<string, string>([
+      ['mindwtr-data', JSON.stringify({
+        tasks: [{
+          id: 'stale-task',
+          title: 'Stale legacy task',
+          status: 'next',
+          tags: [],
+          contexts: [],
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        }],
+        projects: [],
+        sections: [],
+        areas: [],
+        people: [],
+        settings: {},
+      } satisfies AppData)],
+    ]);
+    asyncStorageMock.getItem.mockImplementation(async (key: string) => stored.get(key) ?? null);
+    asyncStorageMock.setItem.mockImplementation(async (key: string, value: string) => {
+      stored.set(key, value);
+    });
+    const getData = vi.fn();
+    const saveData = vi.fn();
+
+    const { __mobileStorageTestUtils } = await import('./storage-adapter');
+    await __mobileStorageTestUtils.reconcileJsonBackupIntoSqliteForTests({
+      getData,
+      saveData,
+    } as never);
+
+    expect(getData).not.toHaveBeenCalled();
+    expect(saveData).not.toHaveBeenCalled();
+    expect(stored.get('mindwtr-data:sqlite-json-reconcile-v1')).toBe('1');
+  }, 10_000);
+
   it('maps op-sqlite rows and binds undefined params as null', async () => {
     const executedStatements: Array<{ sql: string; args: unknown[] }> = [];
     const execute = vi.fn(async (sql: string, args: unknown[]) => {

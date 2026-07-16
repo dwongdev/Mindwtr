@@ -1,4 +1,4 @@
-import { AppData, SqliteAdapter, searchAll, type SqliteClient, type CalendarSyncEntry, StorageAdapter, type Task } from '@mindwtr/core';
+import { AppData, mergeAppDataWithStats, SqliteAdapter, searchAll, splitSqlStatements, type SqliteClient, type CalendarSyncEntry, StorageAdapter, type Task } from '@mindwtr/core';
 import { NativeModules, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -167,13 +167,11 @@ const createOpSqliteClient = (db: any): SqliteClient => {
     // schema strings are split and run one by one on the shared connection. Each
     // statement executes directly (no wrapper transaction), so connection pragmas
     // (journal_mode) apply for real and the adapter's explicit BEGIN IMMEDIATE…COMMIT
-    // stays intact instead of committing per statement (#766).
+    // stays intact instead of committing per statement (#766). Splitting must be
+    // trigger-aware: a naive split on ';' cuts CREATE TRIGGER bodies apart and
+    // every statement fails with "incomplete input" (1.1.5-rc.1 regression).
     const exec = async (sql: string) => {
-        const statements = sql
-            .split(';')
-            .map((statement) => statement.trim())
-            .filter(Boolean);
-        for (const statement of statements) {
+        for (const statement of splitSqlStatements(sql)) {
             await execSql(statement);
         }
     };
@@ -456,6 +454,56 @@ export const getMobileStartupSnapshotFromBackup = async (): Promise<AppData | nu
     }
 };
 
+// 1.1.5-rc.1 shipped with a broken exec splitter, so SQLite init failed and every
+// save on that build landed only in the AsyncStorage JSON backup. Once SQLite works
+// again it holds pre-rc.1 data and the normal "migrate only into an empty DB" path
+// would silently drop everything written on rc.1. Recover by merging the backup into
+// SQLite once, through the same revision-aware merge sync uses (idempotent, LWW,
+// tombstone-safe). Never blocks startup: any failure is logged and retried next launch.
+const SQLITE_JSON_RECONCILE_KEY = `${DATA_KEY}:sqlite-json-reconcile-v1`;
+
+const reconcileJsonBackupIntoSqlite = async (adapter: SqliteAdapter): Promise<void> => {
+    if (await AsyncStorage.getItem(SQLITE_JSON_RECONCILE_KEY) != null) return;
+    const backupVersion = await AsyncStorage.getItem(STARTUP_BACKUP_VERSION_KEY);
+    if (backupVersion !== STARTUP_BACKUP_VERSION) {
+        // Only merge a backup maintained by the current SQLite bridge. An old,
+        // unmarked legacy snapshot may be stale and must not reintroduce entities
+        // after SQLite has already become the primary store.
+        await AsyncStorage.setItem(SQLITE_JSON_RECONCILE_KEY, '1');
+        return;
+    }
+    let jsonValue: string | null = null;
+    try {
+        jsonValue = await getLegacyJson(AsyncStorage);
+    } catch (error) {
+        // Oversized backups (> Android's 2MB CursorWindow) are unreadable; there is
+        // nothing to recover from them, so don't fail init and don't mark done.
+        logStorageWarn('[Storage] Skipped JSON backup reconcile; backup unreadable', error);
+        return;
+    }
+    if (jsonValue != null) {
+        let backup: AppData;
+        try {
+            backup = parseStoredAppDataJson(jsonValue);
+        } catch (error) {
+            // A corrupt backup has nothing to recover; don't re-parse it every launch.
+            logStorageWarn('[Storage] Skipped JSON backup reconcile; backup did not parse', error);
+            await AsyncStorage.setItem(SQLITE_JSON_RECONCILE_KEY, '1');
+            return;
+        }
+        const current = await adapter.getData();
+        const { data: merged, stats } = mergeAppDataWithStats(current, backup);
+        await adapter.saveData(merged);
+        logStorageInfo('[Storage] Reconciled JSON backup into SQLite', {
+            backupTasks: String(backup.tasks.length),
+            sqliteTasks: String(current.tasks.length),
+            mergedTasks: String(merged.tasks.length),
+            tasksFromBackup: String((stats.tasks?.incomingOnly ?? 0) + (stats.tasks?.resolvedUsingIncoming ?? 0)),
+        });
+    }
+    await AsyncStorage.setItem(SQLITE_JSON_RECONCILE_KEY, '1');
+};
+
 const initSqliteState = async (): Promise<SqliteState> => {
     markStartupPhase('mobile.storage.sqlite_init.start');
     const client = await measureStartupPhase('mobile.storage.sqlite_init.create_client', async () => createSqliteClient());
@@ -496,9 +544,19 @@ const initSqliteState = async (): Promise<SqliteState> => {
                 // Ensure JSON backup is updated before SQLite migration so fallback stays consistent.
                 await saveStartupJsonBackup(AsyncStorage, data, 'mobile.storage.sqlite_init.migrate');
                 await measureStartupPhase('mobile.storage.sqlite_init.migrate_json_to_sqlite', async () => adapter.saveData(data));
+                // A full migration already lands the whole backup in SQLite.
+                await AsyncStorage.setItem(SQLITE_JSON_RECONCILE_KEY, '1');
             } catch (error) {
                 logStorageWarn('[Storage] Failed to migrate JSON data to SQLite', error);
             }
+        }
+    } else {
+        try {
+            await measureStartupPhase('mobile.storage.sqlite_init.reconcile_json_backup', async () =>
+                reconcileJsonBackupIntoSqlite(adapter)
+            );
+        } catch (error) {
+            logStorageWarn('[Storage] Failed to reconcile JSON backup into SQLite', error);
         }
     }
     markStartupPhase('mobile.storage.sqlite_init.end');
@@ -870,6 +928,7 @@ export const mobileStorage = createStorage();
 export const __mobileStorageTestUtils = {
     createOpSqliteClientForTests: createOpSqliteClient,
     flushPendingStartupJsonBackup,
+    reconcileJsonBackupIntoSqliteForTests: reconcileJsonBackupIntoSqlite,
     reset: () => {
         saveQueue = Promise.resolve();
         sqliteStatePromise = null;

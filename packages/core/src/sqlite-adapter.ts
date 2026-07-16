@@ -24,6 +24,82 @@ export interface SqliteClient {
     exec?(sql: string): Promise<void>;
 }
 
+const SQL_WORD_CHAR = /[A-Za-z0-9_]/;
+
+// Splits a multi-statement SQL script for engines whose execute() prepares a
+// single statement at a time (op-sqlite). A naive split on ';' breaks
+// CREATE TRIGGER bodies apart ("incomplete input"), so track quoted strings,
+// comments, and BEGIN/CASE...END blocks and only split at top-level ';'.
+export const splitSqlStatements = (sql: string): string[] => {
+    const statements: string[] = [];
+    let current = '';
+    let blockDepth = 0;
+    let i = 0;
+    while (i < sql.length) {
+        const ch = sql[i];
+        const next = sql[i + 1];
+        if (ch === "'" || ch === '"') {
+            let j = i + 1;
+            while (j < sql.length) {
+                if (sql[j] === ch) {
+                    if (sql[j + 1] === ch) {
+                        j += 2;
+                        continue;
+                    }
+                    j += 1;
+                    break;
+                }
+                j += 1;
+            }
+            current += sql.slice(i, j);
+            i = j;
+            continue;
+        }
+        if (ch === '-' && next === '-') {
+            let j = sql.indexOf('\n', i);
+            if (j === -1) j = sql.length;
+            current += sql.slice(i, j);
+            i = j;
+            continue;
+        }
+        if (ch === '/' && next === '*') {
+            let j = sql.indexOf('*/', i + 2);
+            j = j === -1 ? sql.length : j + 2;
+            current += sql.slice(i, j);
+            i = j;
+            continue;
+        }
+        if (SQL_WORD_CHAR.test(ch)) {
+            let j = i + 1;
+            while (j < sql.length && SQL_WORD_CHAR.test(sql[j])) j += 1;
+            const word = sql.slice(i, j).toUpperCase();
+            // A statement-leading BEGIN is transaction control and terminates at
+            // its own ';'. Mid-statement BEGIN (trigger body) opens a block.
+            if (word === 'CASE' || (word === 'BEGIN' && current.trim() !== '')) {
+                blockDepth += 1;
+            } else if (word === 'END') {
+                blockDepth = Math.max(0, blockDepth - 1);
+            }
+            current += sql.slice(i, j);
+            i = j;
+            continue;
+        }
+        if (ch === ';' && blockDepth === 0) {
+            const statement = current.trim();
+            if (statement) statements.push(statement);
+            current = '';
+            blockDepth = 0;
+            i += 1;
+            continue;
+        }
+        current += ch;
+        i += 1;
+    }
+    const tail = current.trim();
+    if (tail) statements.push(tail);
+    return statements;
+};
+
 const toJson = (value: unknown) => (value === undefined ? null : JSON.stringify(value));
 const fromJson = <T>(value: unknown, fallback: T): T => {
     if (value === null || value === undefined || value === '') return fallback;

@@ -1121,6 +1121,7 @@ export {
 
 export {
     mapSqliteTaskRow,
+    splitSqlStatements,
     SqliteAdapter,
     TASK_SQLITE_COLUMNS,
     taskToSqliteRow,
