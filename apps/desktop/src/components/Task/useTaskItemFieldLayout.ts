@@ -180,6 +180,27 @@ export function useTaskItemFieldLayout({
         ).filter(isFieldVisible),
         [isFieldVisible, orderFields, sectionAssignments, taskEditorOrder]
     );
+    const organizerFields = useMemo(() => {
+        const visible: TaskEditorFieldId[] = [];
+        if (showAreaField) visible.push('area');
+        if (showProjectField) visible.push('project');
+        if (showSectionField) visible.push('section');
+        return orderFields(visible);
+    }, [orderFields, showAreaField, showProjectField, showSectionField]);
+    // Split the ordered basic fields around the area/project/section selector row so
+    // the row lands where those fields sit in the configured order (#880).
+    const { basicFieldsBeforeOrganizers, basicFieldsAfterOrganizers } = useMemo(() => {
+        if (organizerFields.length === 0) {
+            return { basicFieldsBeforeOrganizers: basicFields, basicFieldsAfterOrganizers: [] as TaskEditorFieldId[] };
+        }
+        const organizerAnchor = Math.min(
+            ...organizerFields.map((fieldId) => taskEditorOrder.indexOf(fieldId))
+        );
+        return {
+            basicFieldsBeforeOrganizers: basicFields.filter((fieldId) => taskEditorOrder.indexOf(fieldId) < organizerAnchor),
+            basicFieldsAfterOrganizers: basicFields.filter((fieldId) => taskEditorOrder.indexOf(fieldId) >= organizerAnchor),
+        };
+    }, [basicFields, organizerFields, taskEditorOrder]);
     const schedulingFields = useMemo(
         () => orderFields(taskEditorOrder.filter((fieldId) => sectionAssignments[fieldId] === 'scheduling')).filter(isFieldVisible),
         [isFieldVisible, orderFields, sectionAssignments, taskEditorOrder]
@@ -205,7 +226,10 @@ export function useTaskItemFieldLayout({
         showProjectField,
         showAreaField,
         showSectionField,
+        organizerFields,
         basicFields,
+        basicFieldsBeforeOrganizers,
+        basicFieldsAfterOrganizers,
         schedulingFields,
         organizationFields,
         detailsFields,

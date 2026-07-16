@@ -524,10 +524,10 @@ export const TaskItem = memo(function TaskItem({
     const wasEditingRef = useRef(false);
 
     const {
-        showProjectField,
-        showAreaField,
-        showSectionField,
+        organizerFields,
         basicFields,
+        basicFieldsBeforeOrganizers,
+        basicFieldsAfterOrganizers,
         schedulingFields,
         organizationFields,
         detailsFields,
@@ -1223,10 +1223,9 @@ export const TaskItem = memo(function TaskItem({
             onCreateProject={handleCreateProject}
             onCreateArea={handleCreateArea}
             onCreateSection={handleCreateSection}
-            showProjectField={showProjectField}
-            showAreaField={showAreaField}
-            showSectionField={showSectionField}
-            basicFields={basicFields}
+            organizerFields={organizerFields}
+            basicFieldsBeforeOrganizers={basicFieldsBeforeOrganizers}
+            basicFieldsAfterOrganizers={basicFieldsAfterOrganizers}
             schedulingFields={schedulingFields}
             organizationFields={organizationFields}
             detailsFields={detailsFields}

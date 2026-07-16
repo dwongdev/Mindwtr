@@ -161,6 +161,52 @@ describe('useTaskItemFieldLayout', () => {
         expect(result.current.detailsFields).toContain('checklist');
     });
 
+    it('splits basic fields around the organizer row following the configured order', () => {
+        const { result } = renderHook(() => useTaskItemFieldLayout(buildParams({
+            settings: {
+                gtd: {
+                    taskEditor: {
+                        order: ['contexts', 'dueDate', 'area', 'project', 'section', 'status'],
+                    },
+                },
+            },
+        })));
+
+        expect(result.current.basicFieldsBeforeOrganizers).toEqual(['contexts', 'dueDate']);
+        expect(result.current.organizerFields).toEqual(['area', 'project']);
+        expect(result.current.basicFieldsAfterOrganizers).toEqual(['status']);
+    });
+
+    it('keeps status above the organizer row with the default order', () => {
+        const { result } = renderHook(() => useTaskItemFieldLayout(buildParams()));
+
+        expect(result.current.basicFieldsBeforeOrganizers).toEqual(['status']);
+        expect(result.current.organizerFields).toEqual(['project', 'area']);
+        expect(result.current.basicFieldsAfterOrganizers).toEqual(expect.arrayContaining(['contexts', 'dueDate']));
+        expect(result.current.basicFields).toEqual([
+            ...result.current.basicFieldsBeforeOrganizers,
+            ...result.current.basicFieldsAfterOrganizers,
+        ]);
+    });
+
+    it('places every basic field before an empty organizer row', () => {
+        const { result } = renderHook(() => useTaskItemFieldLayout(buildParams({
+            settings: {
+                gtd: {
+                    taskEditor: {
+                        hidden: ['project', 'area', 'section'],
+                    },
+                },
+            },
+            draft: { projectId: '', sectionId: '', areaId: '' },
+            task: baseTask,
+        })));
+
+        expect(result.current.organizerFields).toEqual([]);
+        expect(result.current.basicFieldsAfterOrganizers).toEqual([]);
+        expect(result.current.basicFieldsBeforeOrganizers).toEqual(result.current.basicFields);
+    });
+
     it('moves due date into scheduling when configured and preserves section open defaults', () => {
         const { result } = renderHook(() => useTaskItemFieldLayout(buildParams({
             settings: {

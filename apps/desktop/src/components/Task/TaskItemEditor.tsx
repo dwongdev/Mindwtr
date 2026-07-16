@@ -53,10 +53,9 @@ interface TaskItemEditorProps {
     onCreateProject: (title: string, areaId?: string) => Promise<string | null>;
     onCreateArea?: (name: string) => Promise<string | null>;
     onCreateSection?: (title: string) => Promise<string | null>;
-    showProjectField: boolean;
-    showAreaField: boolean;
-    showSectionField: boolean;
-    basicFields: TaskEditorFieldId[];
+    organizerFields: TaskEditorFieldId[];
+    basicFieldsBeforeOrganizers: TaskEditorFieldId[];
+    basicFieldsAfterOrganizers: TaskEditorFieldId[];
     schedulingFields: TaskEditorFieldId[];
     organizationFields: TaskEditorFieldId[];
     detailsFields: TaskEditorFieldId[];
@@ -133,10 +132,9 @@ export function TaskItemEditor({
     onCreateProject,
     onCreateArea,
     onCreateSection,
-    showProjectField,
-    showAreaField,
-    showSectionField,
-    basicFields,
+    organizerFields,
+    basicFieldsBeforeOrganizers,
+    basicFieldsAfterOrganizers,
     schedulingFields,
     organizationFields,
     detailsFields,
@@ -467,64 +465,82 @@ export function TaskItemEditor({
                     </div>
                 </div>
             )}
-            <div className="flex flex-wrap gap-4">
-                {showAreaField && (
-                    <div className="flex flex-col gap-1 flex-1 min-w-0">
-                        <label className={taskEditorLabelClassName}>{t('taskEdit.areaLabel')}</label>
-                        <AreaSelector
-                            areas={sortedAreas}
-                            value={editAreaId}
-                            onChange={setEditAreaId}
-                            onCreateArea={onCreateArea}
-                            placeholder={t('taskEdit.noAreaOption')}
-                            noAreaLabel={t('taskEdit.noAreaOption')}
-                            searchPlaceholder={t('areas.search')}
-                            noMatchesLabel={t('common.noMatches')}
-                            createAreaLabel={t('areas.create')}
-                            className="w-full"
-                        />
-                    </div>
-                )}
-                {showProjectField && (
-                    <div className="flex flex-col gap-1 flex-1 min-w-0">
-                        <label className={taskEditorLabelClassName}>{t('projects.title')}</label>
-                        <ProjectSelector
-                            projects={filteredProjects}
-                            allProjects={sortedProjects}
-                            value={editProjectId}
-                            onChange={setEditProjectId}
-                            onCreateProject={(title) => onCreateProject(title, projectFilterAreaId)}
-                            placeholder={t('taskEdit.noProjectOption')}
-                            noProjectLabel={t('taskEdit.noProjectOption')}
-                            searchPlaceholder={t('projects.search')}
-                            noMatchesLabel={t('common.noMatches')}
-                            emptyLabel={projectFilterAreaId ? t('projects.noProjectsInArea') : undefined}
-                            createProjectLabel={t('projects.create')}
-                            className="w-full"
-                        />
-                    </div>
-                )}
-                {showSectionField && (
-                    <div className="flex flex-col gap-1 flex-1 min-w-0">
-                        <label className={taskEditorLabelClassName}>{t('taskEdit.sectionLabel')}</label>
-                        <SectionSelector
-                            sections={sections}
-                            value={editSectionId}
-                            onChange={setEditSectionId}
-                            onCreateSection={onCreateSection}
-                            placeholder={t('taskEdit.noSectionOption')}
-                            noSectionLabel={t('taskEdit.noSectionOption')}
-                            searchPlaceholder={t('sections.search')}
-                            noMatchesLabel={t('common.noMatches')}
-                            createSectionLabel={t('projects.addSection')}
-                            className="w-full"
-                        />
-                    </div>
-                )}
-            </div>
-            {basicFields.length > 0 && (
+            {basicFieldsBeforeOrganizers.length > 0 && (
                 <div className="space-y-3">
-                    {basicFields.map((fieldId) => (
+                    {basicFieldsBeforeOrganizers.map((fieldId) => (
+                        <div key={fieldId}>{renderField(fieldId)}</div>
+                    ))}
+                </div>
+            )}
+            {organizerFields.length > 0 && (
+                <div className="flex flex-wrap gap-4">
+                    {organizerFields.map((fieldId) => {
+                        if (fieldId === 'area') {
+                            return (
+                                <div key={fieldId} className="flex flex-col gap-1 flex-1 min-w-0">
+                                    <label className={taskEditorLabelClassName}>{t('taskEdit.areaLabel')}</label>
+                                    <AreaSelector
+                                        areas={sortedAreas}
+                                        value={editAreaId}
+                                        onChange={setEditAreaId}
+                                        onCreateArea={onCreateArea}
+                                        placeholder={t('taskEdit.noAreaOption')}
+                                        noAreaLabel={t('taskEdit.noAreaOption')}
+                                        searchPlaceholder={t('areas.search')}
+                                        noMatchesLabel={t('common.noMatches')}
+                                        createAreaLabel={t('areas.create')}
+                                        className="w-full"
+                                    />
+                                </div>
+                            );
+                        }
+                        if (fieldId === 'project') {
+                            return (
+                                <div key={fieldId} className="flex flex-col gap-1 flex-1 min-w-0">
+                                    <label className={taskEditorLabelClassName}>{t('projects.title')}</label>
+                                    <ProjectSelector
+                                        projects={filteredProjects}
+                                        allProjects={sortedProjects}
+                                        value={editProjectId}
+                                        onChange={setEditProjectId}
+                                        onCreateProject={(title) => onCreateProject(title, projectFilterAreaId)}
+                                        placeholder={t('taskEdit.noProjectOption')}
+                                        noProjectLabel={t('taskEdit.noProjectOption')}
+                                        searchPlaceholder={t('projects.search')}
+                                        noMatchesLabel={t('common.noMatches')}
+                                        emptyLabel={projectFilterAreaId ? t('projects.noProjectsInArea') : undefined}
+                                        createProjectLabel={t('projects.create')}
+                                        className="w-full"
+                                    />
+                                </div>
+                            );
+                        }
+                        if (fieldId === 'section') {
+                            return (
+                                <div key={fieldId} className="flex flex-col gap-1 flex-1 min-w-0">
+                                    <label className={taskEditorLabelClassName}>{t('taskEdit.sectionLabel')}</label>
+                                    <SectionSelector
+                                        sections={sections}
+                                        value={editSectionId}
+                                        onChange={setEditSectionId}
+                                        onCreateSection={onCreateSection}
+                                        placeholder={t('taskEdit.noSectionOption')}
+                                        noSectionLabel={t('taskEdit.noSectionOption')}
+                                        searchPlaceholder={t('sections.search')}
+                                        noMatchesLabel={t('common.noMatches')}
+                                        createSectionLabel={t('projects.addSection')}
+                                        className="w-full"
+                                    />
+                                </div>
+                            );
+                        }
+                        return null;
+                    })}
+                </div>
+            )}
+            {basicFieldsAfterOrganizers.length > 0 && (
+                <div className="space-y-3">
+                    {basicFieldsAfterOrganizers.map((fieldId) => (
                         <div key={fieldId}>{renderField(fieldId)}</div>
                     ))}
                 </div>

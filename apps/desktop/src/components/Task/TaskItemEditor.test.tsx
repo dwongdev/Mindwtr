@@ -82,10 +82,9 @@ const baseProps: Parameters<typeof TaskItemEditor>[0] = {
     onCreateProject: vi.fn().mockResolvedValue(null),
     onCreateArea: vi.fn().mockResolvedValue(null),
     onCreateSection: vi.fn().mockResolvedValue(null),
-    showProjectField: false,
-    showAreaField: false,
-    showSectionField: false,
-    basicFields: [],
+    organizerFields: [],
+    basicFieldsBeforeOrganizers: [],
+    basicFieldsAfterOrganizers: [],
     schedulingFields: ['recurrence'],
     organizationFields: ['contexts'],
     detailsFields: ['description'],
@@ -210,9 +209,7 @@ describe('TaskItemEditor', () => {
         const { getByText } = render(
             <TaskItemEditor
                 {...baseProps}
-                showAreaField
-                showProjectField
-                showSectionField
+                organizerFields={['area', 'project', 'section']}
             />
         );
 
