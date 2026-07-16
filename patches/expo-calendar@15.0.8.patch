@@ -1,0 +1,17 @@
+diff --git a/android/src/main/java/expo/modules/calendar/CalendarModule.kt b/android/src/main/java/expo/modules/calendar/CalendarModule.kt
+index 55797275ad434acf0e4dc66e311520d89842a26f..9b35f509c25e37ca159f7061ce12446348b82002 100644
+--- a/android/src/main/java/expo/modules/calendar/CalendarModule.kt
++++ b/android/src/main/java/expo/modules/calendar/CalendarModule.kt
+@@ -140,11 +140,7 @@ class CalendarModule : Module() {
+           try {
+             val eventID = saveEvent(details)
+             promise.resolve(eventID.toString())
+-          } catch (e: ParseException) {
+-            promise.reject("E_EVENT_NOT_SAVED", "Event could not be saved", e)
+-          } catch (e: EventNotSavedException) {
+-            promise.reject("E_EVENT_NOT_SAVED", "Event could not be saved", e)
+-          } catch (e: InvalidArgumentException) {
++          } catch (e: Exception) {
+             promise.reject("E_EVENT_NOT_SAVED", "Event could not be saved", e)
+           }
+         }
