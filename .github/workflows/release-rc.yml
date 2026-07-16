@@ -155,6 +155,19 @@ jobs:
           console.log(`Verified app/store versions use stable base ${base}.`);
           NODE
 
+      - name: Verify committed FOSS release version matches the RC tag
+        env:
+          RC_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          COMMITTED=$(node -p "require('./apps/mobile/release-version.json').releaseVersion")
+          if [ "v$COMMITTED" != "$RC_TAG" ] && [ "$COMMITTED" != "$RC_TAG" ]; then
+            echo "apps/mobile/release-version.json says '$COMMITTED' but the RC tag is '$RC_TAG'." >&2
+            echo "Run ./scripts/bump-version.sh \"$RC_TAG\" so env-free FOSS builds self-report the full RC version." >&2
+            exit 1
+          fi
+          echo "Verified committed FOSS release version $COMMITTED."
+
       - name: Verify RC tag points at this commit
         run: |
           set -euo pipefail

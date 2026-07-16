@@ -24,3 +24,19 @@ test("RC Android Play and FOSS builds share a parallel versionCode preflight", (
   expect(workflow.jobs["android-foss"].needs).toEqual(["validate", "android-version-code"]);
   expect(workflow.jobs["android-foss"].with.version_code).toBe("${{ needs['android-version-code'].outputs.version_code }}");
 });
+
+test("RC validation checks the committed FOSS version before platform builds start", () => {
+  const workflow = parse(readFileSync(".github/workflows/release-rc.yml", "utf8"));
+  const steps = workflow.jobs.validate.steps;
+  const versionCheckIndex = steps.findIndex(
+    (step) => step.name === "Verify committed FOSS release version matches the RC tag"
+  );
+  const tagCommitCheckIndex = steps.findIndex(
+    (step) => step.name === "Verify RC tag points at this commit"
+  );
+
+  expect(versionCheckIndex).toBeGreaterThan(-1);
+  expect(steps[versionCheckIndex].run).toContain("apps/mobile/release-version.json");
+  expect(steps[versionCheckIndex].run).toContain("./scripts/bump-version.sh");
+  expect(versionCheckIndex).toBeLessThan(tagCommitCheckIndex);
+});
