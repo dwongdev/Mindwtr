@@ -68,6 +68,9 @@ jobs:
             metadata \
             /tmp/mindwtr-play-listing-metadata.json
 
+      - name: Store changelog length check
+        run: node scripts/ci/check-changelog-length.js
+
       - name: App Store listing metadata check
         run: |
           python3 scripts/ci/validate-fastlane-metadata.test.py
