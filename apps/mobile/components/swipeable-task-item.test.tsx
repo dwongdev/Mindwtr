@@ -266,6 +266,7 @@ vi.mock('lucide-react-native', () => ({
   ArrowRight: (props: any) => React.createElement('ArrowRight', props),
   Check: (props: any) => React.createElement('Check', props),
   CircleDot: (props: any) => React.createElement('CircleDot', props),
+  ListChecks: (props: any) => React.createElement('ListChecks', props),
   Repeat: (props: any) => React.createElement('Repeat', props),
   RotateCcw: (props: any) => React.createElement('RotateCcw', props),
   Star: (props: any) => React.createElement('Star', props),

@@ -2013,7 +2013,7 @@ export default function FocusScreen() {
                 {section.expanded ? '▾' : '▸'}
               </Text>
               <CompactText
-                style={[styles.sectionTitle, { color: tc.tint }]}
+                style={[styles.sectionTitle, { color: tc.secondaryText }]}
                 numberOfLines={2}
               >
                 {section.title}
@@ -2023,7 +2023,6 @@ export default function FocusScreen() {
               >
                 ({section.totalCount})
               </CompactText>
-              <View style={[styles.sectionLine, { backgroundColor: tc.border }]} />
             </Pressable>
             {section.type === 'focus' && canReorderFocus ? (
               <TouchableOpacity
@@ -2754,12 +2753,6 @@ const styles = StyleSheet.create({
   sectionCount: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  sectionLine: {
-    flex: 1,
-    minWidth: 24,
-    height: 1,
-    borderRadius: 1,
   },
   contextGroupHeader: {
     flexDirection: 'row',

@@ -4,10 +4,10 @@ export const styles = StyleSheet.create({
     taskItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 14,
+        paddingVertical: 10,
         paddingHorizontal: 16,
         borderRadius: 14,
-        marginBottom: 8,
+        marginBottom: 6,
         position: 'relative',
     },
     selectionIndicator: {
@@ -59,7 +59,7 @@ export const styles = StyleSheet.create({
         flexWrap: 'wrap',
         alignItems: 'center',
         gap: 4,
-        marginTop: 4,
+        marginTop: 2,
     },
     inlineMetaItem: {
         flexDirection: 'row',
@@ -108,26 +108,6 @@ export const styles = StyleSheet.create({
         fontSize: 11,
         marginTop: 4,
     },
-    checklistRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginTop: 8,
-    },
-    checklistText: {
-        fontSize: 11,
-        fontWeight: '600',
-    },
-    checklistBar: {
-        flex: 1,
-        height: 4,
-        borderRadius: 2,
-        overflow: 'hidden',
-    },
-    checklistBarFill: {
-        height: '100%',
-        backgroundColor: '#3B82F6',
-    },
     checklistItems: {
         marginTop: 6,
         gap: 4,
@@ -169,7 +149,7 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         width: 90,
         borderRadius: 14,
-        marginBottom: 8,
+        marginBottom: 6,
         marginRight: 8,
         gap: 4,
     },
@@ -179,7 +159,7 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         width: 90,
         borderRadius: 14,
-        marginBottom: 8,
+        marginBottom: 6,
         marginLeft: 8,
         gap: 4,
     },

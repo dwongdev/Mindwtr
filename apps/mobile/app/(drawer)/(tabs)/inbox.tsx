@@ -10,6 +10,7 @@ import { ErrorBoundary } from '../../../components/ErrorBoundary';
 
 import { useLanguage } from '../../../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useThemeTokens } from '@/hooks/use-theme-tokens';
 import { useFilledButtonColors } from '@/hooks/use-filled-button-colors';
 import { CompactText } from '@/components/compact-text';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
@@ -24,7 +25,18 @@ export default function InboxScreen() {
   }), shallow);
   const { t } = useLanguage();
   const tc = useThemeColors();
+  const tokens = useThemeTokens();
   const filledButton = useFilledButtonColors();
+
+  // Mid-emphasis, not filled: the capture FAB owns this screen's single
+  // high-emphasis fill, so the process row sits one step below — tint wash +
+  // tint border on classic themes, primaryContainer on M3. The label stays
+  // `text` because tint-on-wash fails 4.5:1 contrast on the light and sepia
+  // presets; the tint border and icon carry the call-to-action identity.
+  const processButtonBg = tokens.isMaterial ? filledButton.backgroundColor : `${tc.tint}29`;
+  const processButtonBorder = tokens.isMaterial ? 'transparent' : tc.tint;
+  const processLabelColor = tokens.isMaterial ? (filledButton.textColor ?? tc.onTint) : tc.text;
+  const processIconColor = tokens.isMaterial ? (filledButton.textColor ?? tc.onTint) : tc.tint;
   const { openQuickCapture } = useQuickCapture();
   const router = useRouter();
   const [showProcessing, setShowProcessing] = useState(false);
@@ -54,18 +66,19 @@ export default function InboxScreen() {
   const processCount = inboxTasks.length > 99 ? '99+' : `${inboxTasks.length}`;
 
   // Mind Sweep (secondary, labeled) rides on the sort/filter row's empty right
-  // side when there are tasks to process; when the inbox is empty it is promoted
-  // to the full-width primary slot below.
+  // side when there are tasks to process; deliberately neutral like the
+  // sort/filter controls so the Process row below is the only accented action.
+  // When the inbox is empty it is promoted to the full-width primary slot.
   const mindSweepPill = (
     <TouchableOpacity
-      style={[styles.mindSweepPill, { borderColor: tc.tint, backgroundColor: tc.filterBg }]}
+      style={[styles.mindSweepPill, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
       onPress={() => router.push('/mind-sweep-modal')}
       accessibilityRole="button"
       accessibilityLabel={t('mindSweep.launchButton')}
     >
-      <Brain size={18} color={tc.tint} strokeWidth={2.2} />
+      <Brain size={18} color={tc.secondaryText} strokeWidth={2} />
       <CompactText
-        style={[styles.mindSweepLabel, { color: tc.tint }]}
+        style={[styles.mindSweepLabel, { color: tc.secondaryText }]}
         numberOfLines={2}
       >
         {t('mindSweep.launchButton')}
@@ -79,14 +92,14 @@ export default function InboxScreen() {
     <View style={styles.actionRow}>
       {hasInboxTasks ? (
         <TouchableOpacity
-          style={[styles.processButton, { backgroundColor: filledButton.backgroundColor }]}
+          style={[styles.processButton, { backgroundColor: processButtonBg, borderColor: processButtonBorder }]}
           onPress={() => setShowProcessing(true)}
           accessibilityRole="button"
           accessibilityLabel={`${t('inbox.processButton')} (${inboxTasks.length})`}
         >
-          <ListChecks size={18} color={filledButton.textColor ?? tc.onTint} strokeWidth={2.2} />
+          <ListChecks size={18} color={processIconColor} strokeWidth={2.2} />
           <CompactText
-            style={[styles.actionLabel, { color: filledButton.textColor ?? tc.onTint }]}
+            style={[styles.actionLabel, { color: processLabelColor }]}
             numberOfLines={2}
           >
             {t('inbox.processButton')} ({processCount})
@@ -94,14 +107,14 @@ export default function InboxScreen() {
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
-          style={[styles.processButton, { backgroundColor: filledButton.backgroundColor }]}
+          style={[styles.processButton, { backgroundColor: processButtonBg, borderColor: processButtonBorder }]}
           onPress={() => router.push('/mind-sweep-modal')}
           accessibilityRole="button"
           accessibilityLabel={t('mindSweep.launchButton')}
         >
-          <Brain size={18} color={filledButton.textColor ?? tc.onTint} strokeWidth={2.2} />
+          <Brain size={18} color={processIconColor} strokeWidth={2.2} />
           <CompactText
-            style={[styles.actionLabel, { color: filledButton.textColor ?? tc.onTint }]}
+            style={[styles.actionLabel, { color: processLabelColor }]}
             numberOfLines={2}
           >
             {t('mindSweep.launchButton')}
@@ -148,7 +161,10 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     gap: 8,
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    // The toolbar row above ends at 6dp of padding; 6 more here separates the
+    // process action from the list controls without orphaning it (#grouping).
+    paddingTop: 6,
+    paddingBottom: 10,
   },
   processButton: {
     flex: 1,
@@ -159,6 +175,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: 16,
     borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth * 2,
   },
   actionLabel: {
     flexShrink: 1,

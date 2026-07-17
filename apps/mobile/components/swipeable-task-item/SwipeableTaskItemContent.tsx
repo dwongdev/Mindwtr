@@ -1,6 +1,6 @@
 import React, { type ReactNode, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { CircleDot, Repeat } from 'lucide-react-native';
+import { CircleDot, ListChecks, Repeat } from 'lucide-react-native';
 import { useThemeTokens } from '../../hooks/use-theme-tokens';
 import { useStatusColors } from '../../hooks/use-status-colors';
 import {
@@ -390,6 +390,27 @@ export function SwipeableTaskItemContent({
         );
     }
 
+    if (!hideChecklistProgress && checklistProgress) {
+        addMetaPart(
+            <Pressable
+                key="checklist"
+                onPress={onToggleChecklist}
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel={t('checklist.progress')}
+                style={styles.inlineMetaButton}
+            >
+                <View style={styles.inlineMetaItem}>
+                    <ListChecks size={13} color={tc.secondaryText} strokeWidth={2} />
+                    <Text style={[styles.metaText, { color: tc.secondaryText }]}>
+                        {checklistProgress.completed}/{checklistProgress.total}
+                    </Text>
+                </View>
+            </Pressable>,
+            'checklist'
+        );
+    }
+
     const { isMaterial, shape } = useThemeTokens();
 
     return (
@@ -484,26 +505,6 @@ export function SwipeableTaskItemContent({
                     </View>
                 )}
                 {footerContent}
-                {!hideChecklistProgress && checklistProgress && (
-                    <Pressable
-                        onPress={onToggleChecklist}
-                        style={styles.checklistRow}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('checklist.progress')}
-                    >
-                        <Text style={[styles.checklistText, { color: tc.secondaryText }]}>
-                            {checklistProgress.completed}/{checklistProgress.total}
-                        </Text>
-                        <View style={[styles.checklistBar, { backgroundColor: tc.border }]}>
-                            <View
-                                style={[
-                                    styles.checklistBarFill,
-                                    { width: `${Math.round(checklistProgress.percent * 100)}%`, backgroundColor: tc.tint },
-                                ]}
-                            />
-                        </View>
-                    </Pressable>
-                )}
                 {showChecklist && (localChecklist || []).length > 0 && (
                     <View style={styles.checklistItems}>
                         {(localChecklist || []).map((item, index) => (
