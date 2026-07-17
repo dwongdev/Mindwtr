@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppData, Task } from '@mindwtr/core';
 
 const {
@@ -77,6 +77,16 @@ describe('mobile storage adapter', () => {
       configurable: true,
       value: { localStorage: localStorageMock },
     });
+  });
+
+  afterEach(async () => {
+    // beforeEach's resetModules orphans this test's module instance, but any
+    // coalesced-backup timer it armed keeps running and would write the backup
+    // (and its version marker) through the SHARED AsyncStorage mock into a
+    // LATER test's stored map — the load-dependent cross-test failure seen in
+    // CI. Reset the instance while it is still importable to disarm the timer.
+    const { __mobileStorageTestUtils } = await import('./storage-adapter');
+    __mobileStorageTestUtils.reset();
   });
 
   it('uses the JSON fallback without loading op-sqlite when the native module is absent', async () => {
