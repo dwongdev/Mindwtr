@@ -17,6 +17,7 @@ const {
   applyAlarmCompleteUtilPatchToSource,
   applyAlarmCompleteReceiverPatchToSource,
   applyAlarmIosCompleteActionPatchToSource,
+  applyAlarmIosUniqueIdentifierPatchToSource,
 } = plugin.__testables;
 
 describe('patch-alarm-notification-gradle', () => {
@@ -360,6 +361,38 @@ API_AVAILABLE(ios(10.0)) {
     expect(output).toContain('actionWithIdentifier:@"COMPLETE_ACTION"');
     expect(output).toContain('cachePendingNotificationOpenPayload(formattedNotification)');
     expect(output).toContain('@"has_complete_action": details[@"has_complete_action"]');
+  });
+
+  it('makes iOS notification identifiers unique instead of epoch-second shared', () => {
+    const input = `#import "RnAlarmNotification.h"
+
+static id _sharedInstance = nil;
+
+@implementation RnAlarmNotification
+
+- (void)snoozeDemo {
+            NSString *alarmId = [NSString stringWithFormat: @"%ld", (long) NSDate.date.timeIntervalSince1970];
+}
+
+- (void)scheduleDemo {
+            NSString *alarmId = [NSString stringWithFormat: @"%ld", (long) NSDate.date.timeIntervalSince1970];
+}
+
+- (void)sendDemo {
+            NSString *alarmId = [NSString stringWithFormat: @"%ld", (long) NSDate.date.timeIntervalSince1970];
+}
+
+@end`;
+
+    const output = applyAlarmIosUniqueIdentifierPatchToSource(input);
+
+    expect(output).toContain('static int64_t mindwtrAlarmIdCounter = 0;');
+    expect(output).not.toContain('@"%ld", (long) NSDate.date.timeIntervalSince1970');
+    const rewrittenSites = output.match(/mindwtrAlarmIdCounter = \(mindwtrAlarmIdCounter \+ 1\) % 1000;/g) ?? [];
+    expect(rewrittenSites).toHaveLength(3);
+    expect(output).toContain('((int64_t)(NSDate.date.timeIntervalSince1970 * 1000.0)) * 1000 + mindwtrAlarmIdCounter');
+    // Idempotent: a second pass leaves the patched source untouched.
+    expect(applyAlarmIosUniqueIdentifierPatchToSource(output)).toBe(output);
   });
 
   it('keeps the Gradle compatibility rewrite in place', () => {

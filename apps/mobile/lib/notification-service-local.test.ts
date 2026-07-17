@@ -657,6 +657,42 @@ describe('notification-service-local', () => {
     );
   });
 
+  it('cancels the superseded pomodoro alarm only after its replacement is scheduled', async () => {
+    mockAsyncStorageGetItem.mockImplementation(async (key: string) => (
+      key === 'mindwtr:local:pomodoro-alarm:v1'
+        ? JSON.stringify({ id: 41, fireAtMs: Date.now() + 60_000 })
+        : null
+    ));
+    const fireAt = new Date('2099-05-22T12:30:00.000Z');
+
+    await scheduleLocalPomodoroCompletionNotification('Pomodoro Focus', 'Take a break.', fireAt);
+
+    expect(mockAlarmScheduleAlarm).toHaveBeenCalledTimes(1);
+    expect(mockAlarmDeleteAlarm).toHaveBeenCalledWith(41);
+    const scheduleOrder = mockAlarmScheduleAlarm.mock.invocationCallOrder[0];
+    const deleteOrder = mockAlarmDeleteAlarm.mock.invocationCallOrder[0];
+    expect(scheduleOrder).toBeLessThan(deleteOrder);
+    expect(mockAsyncStorageSetItem).toHaveBeenCalledWith(
+      'mindwtr:local:pomodoro-alarm:v1',
+      JSON.stringify({ id: 99, fireAtMs: fireAt.getTime() })
+    );
+  });
+
+  it('keeps the fresh pomodoro alarm when the module reuses the previous identifier', async () => {
+    mockAsyncStorageGetItem.mockImplementation(async (key: string) => (
+      key === 'mindwtr:local:pomodoro-alarm:v1'
+        ? JSON.stringify({ id: 99, fireAtMs: Date.now() + 60_000 })
+        : null
+    ));
+    const fireAt = new Date('2099-05-22T12:30:00.000Z');
+
+    await scheduleLocalPomodoroCompletionNotification('Pomodoro Focus', 'Take a break.', fireAt);
+
+    expect(mockAlarmScheduleAlarm).toHaveBeenCalledTimes(1);
+    expect(mockAlarmDeleteAlarm).not.toHaveBeenCalled();
+    expect(mockAlarmDeleteRepeatingAlarm).not.toHaveBeenCalled();
+  });
+
   it('cancels a pending pomodoro completion alarm', async () => {
     mockAsyncStorageGetItem.mockImplementation(async (key: string) => (
       key === 'mindwtr:local:pomodoro-alarm:v1'

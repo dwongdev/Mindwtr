@@ -153,6 +153,58 @@ describe('PomodoroPanel', () => {
     });
   });
 
+  it('never cancels the completion alarm before the stored session hydrates', async () => {
+    const { cancelMobilePomodoroCompletionNotification, scheduleMobilePomodoroCompletionNotification } =
+      await import('../lib/notification-service');
+    vi.mocked(cancelMobilePomodoroCompletionNotification).mockClear();
+    vi.mocked(scheduleMobilePomodoroCompletionNotification).mockClear();
+    storeState.settings = { notificationsEnabled: true, gtd: { pomodoro: {} } };
+
+    let releaseHydration!: (value: string) => void;
+    vi.mocked(AsyncStorage.getItem).mockImplementationOnce(
+      () => new Promise<string | null>((resolve) => {
+        releaseHydration = resolve;
+      })
+    );
+
+    let tree!: renderer.ReactTestRenderer;
+    act(() => {
+      tree = renderer.create(<PomodoroPanel tasks={[]} onMarkDone={vi.fn()} />);
+    });
+
+    // A running timer's alarm must survive the pre-hydration render, where the
+    // default state still reads as "not running" (#888).
+    expect(cancelMobilePomodoroCompletionNotification).not.toHaveBeenCalled();
+
+    const phaseEndsAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    await act(async () => {
+      releaseHydration(JSON.stringify({
+        durations: { focusMinutes: 25, breakMinutes: 5 },
+        timerState: {
+          phase: 'focus',
+          remainingSeconds: 600,
+          isRunning: true,
+          completedFocusSessions: 0,
+        },
+        phaseEndsAt,
+        sessionHistory: {
+          totalCompletedFocusSessions: 0,
+          completedFocusSessionsByTaskId: {},
+        },
+      }));
+    });
+
+    expect(cancelMobilePomodoroCompletionNotification).not.toHaveBeenCalled();
+    expect(scheduleMobilePomodoroCompletionNotification).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      new Date(phaseEndsAt),
+      { phase: 'focus-complete' },
+    );
+
+    tree.unmount();
+  });
+
   it('renders the phase as read-only status and names the next switch action', async () => {
     const tree = await renderPanel();
 

@@ -681,6 +681,38 @@ API_AVAILABLE(ios(10.0)) {
 
 const applyAlarmIosCompleteActionPatch = (filePath) => patchFile(filePath, applyAlarmIosCompleteActionPatchToSource);
 
+// The stock iOS module derives every notification identifier from the epoch
+// SECOND it was created in (`timeIntervalSince1970` cast to long), and
+// UNUserNotificationCenter replaces a pending request when a new one reuses
+// its identifier. Any two alarms scheduled within the same wall-clock second
+// therefore silently cancel each other — a batch reschedule eats its own
+// task reminders, and a pomodoro completion alert scheduled in the same
+// second as a task alarm never fires (#888). Replace the id with
+// milliseconds plus a rotating counter so identifiers are unique.
+const applyAlarmIosUniqueIdentifierPatchToSource = (original) => {
+  let next = original;
+
+  if (!next.includes('mindwtrAlarmIdCounter')) {
+    next = next.replace(
+      'static id _sharedInstance = nil;\n',
+      'static id _sharedInstance = nil;\nstatic int64_t mindwtrAlarmIdCounter = 0;\n'
+    );
+  }
+
+  next = next.replace(
+    /NSString \*alarmId = \[NSString stringWithFormat: @"%ld", \(long\) NSDate\.date\.timeIntervalSince1970\];/g,
+    `NSString *alarmId;
+            @synchronized([RnAlarmNotification class]) {
+                mindwtrAlarmIdCounter = (mindwtrAlarmIdCounter + 1) % 1000;
+                alarmId = [NSString stringWithFormat: @"%lld", ((int64_t)(NSDate.date.timeIntervalSince1970 * 1000.0)) * 1000 + mindwtrAlarmIdCounter];
+            }`
+  );
+
+  return next;
+};
+
+const applyAlarmIosUniqueIdentifierPatch = (filePath) => patchFile(filePath, applyAlarmIosUniqueIdentifierPatchToSource);
+
 const logPatchedCandidate = (label, candidate) => {
   console.log(`[${label}] patched ${candidate}`);
 };
@@ -883,6 +915,12 @@ function withAlarmNotificationGradlePatch(config) {
           break;
         }
       }
+      for (const candidate of getIosSourceCandidates(projectRoot)) {
+        if (applyAlarmIosUniqueIdentifierPatch(candidate)) {
+          logPatchedCandidate('alarm-ios-unique-identifier-patch', candidate);
+          break;
+        }
+      }
       return cfg;
     },
   ]);
@@ -904,4 +942,5 @@ module.exports.__testables = {
   applyAlarmCompleteUtilPatchToSource,
   applyAlarmCompleteReceiverPatchToSource,
   applyAlarmIosCompleteActionPatchToSource,
+  applyAlarmIosUniqueIdentifierPatchToSource,
 };

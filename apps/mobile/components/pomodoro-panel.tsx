@@ -244,6 +244,10 @@ export function PomodoroPanel({
   const timerPhase = timerState.phase;
 
   useEffect(() => {
+    // Before the stored session hydrates, the default state reads as "not
+    // running" — cancelling then would kill the pending completion alarm of a
+    // timer that is in fact still running (#888). Wait for the real state.
+    if (isHydratingSession) return;
     if (!notificationsEnabled || !timerIsRunning || !phaseEndsAt) {
       void cancelMobilePomodoroCompletionNotification();
       return;
@@ -253,7 +257,7 @@ export function PomodoroPanel({
     void scheduleMobilePomodoroCompletionNotification(cardTitle, message, fireAt, {
       phase: timerPhase === 'focus' ? 'focus-complete' : 'break-complete',
     });
-  }, [breakDoneLabel, cardTitle, focusDoneLabel, notificationsEnabled, phaseEndsAt, timerIsRunning, timerPhase]);
+  }, [breakDoneLabel, cardTitle, focusDoneLabel, isHydratingSession, notificationsEnabled, phaseEndsAt, timerIsRunning, timerPhase]);
 
   const handleApplyPreset = (focusMinutes: number, breakMinutes: number) => {
     const nextDurations = { focusMinutes, breakMinutes };

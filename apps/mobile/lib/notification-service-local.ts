@@ -1041,12 +1041,13 @@ export async function scheduleLocalPomodoroCompletionNotification(
   const permission = await requestLocalNotificationPermission();
   if (!permission.granted) return;
 
-  await cancelLocalPomodoroCompletionNotification(api);
-
   if (fireAtMs <= Date.now() + 1000) {
+    await cancelLocalPomodoroCompletionNotification(api);
     await sendLocalMobileNotification(trimmedTitle, message, data);
     return;
   }
+
+  const previousEntry = await loadPomodoroAlarmEntry();
 
   try {
     const result = await api.scheduleAlarm({
@@ -1073,7 +1074,28 @@ export async function scheduleLocalPomodoroCompletionNotification(
       logNotificationError('Pomodoro alarm returned invalid id');
       return;
     }
-    await savePomodoroAlarmEntry({ id: Math.floor(id), fireAtMs });
+    const scheduledId = Math.floor(id);
+    await savePomodoroAlarmEntry({ id: scheduledId, fireAtMs });
+    logNotificationInfo('Pomodoro alarm scheduled', {
+      alarmId: scheduledId,
+      fireAt: new Date(fireAtMs).toISOString(),
+    });
+    // Cancel the superseded alarm only after its replacement exists, so an app
+    // suspension mid-flight never leaves a running phase with no pending alert.
+    // Skip when the ids match: the iOS module keys requests by creation second,
+    // so a same-second reschedule already replaced the old request natively and
+    // deleting the shared id would remove the alarm we just scheduled (#888).
+    if (previousEntry && previousEntry.id !== scheduledId) {
+      try {
+        api.deleteAlarm(previousEntry.id);
+        api.deleteRepeatingAlarm(previousEntry.id);
+        if (!previousEntry.fireAtMs || previousEntry.fireAtMs > Date.now()) {
+          api.removeFiredNotification(previousEntry.id);
+        }
+      } catch (error) {
+        logNotificationError('Failed to cancel superseded pomodoro alarm', error);
+      }
+    }
   } catch (error) {
     logNotificationError('Failed to schedule pomodoro alarm', error);
   }
