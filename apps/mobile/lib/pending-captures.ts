@@ -115,48 +115,56 @@ async function assembleCaptureTask(
     capture: PendingCapture,
     { addProject, projects, areas, settings }: Omit<IngestDeps, 'addTask'>,
 ): Promise<{ title: string; props: Partial<Task> } | null> {
-    // Relative dates (`/due:friday`, "tomorrow") resolve against the moment
-    // the Shortcut ran, not the later drain — a capture queued Monday night
-    // means that Monday's "tomorrow" even if the app first opens on Wednesday.
-    const capturedAt = capture.createdAt ? new Date(capture.createdAt) : null;
-    const now = capturedAt && !Number.isNaN(capturedAt.getTime()) ? capturedAt : new Date();
-    const parsed = parseQuickAdd(capture.title, projects, now, areas, {
-        defaultScheduleTime: normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || undefined,
-        preserveText: settings.quickAddAutoClean !== true,
-        naturalLanguageDates: isNaturalLanguageDatesEnabled(settings),
-    });
+    try {
+        // Relative dates (`/due:friday`, "tomorrow") resolve against the moment
+        // the Shortcut ran, not the later drain — a capture queued Monday night
+        // means that Monday's "tomorrow" even if the app first opens on Wednesday.
+        const capturedAt = capture.createdAt ? new Date(capture.createdAt) : null;
+        const now = capturedAt && !Number.isNaN(capturedAt.getTime()) ? capturedAt : new Date();
+        const parsed = parseQuickAdd(capture.title, projects, now, areas, {
+            defaultScheduleTime: normalizeClockTimeInput(settings.gtd?.defaultScheduleTime) || undefined,
+            preserveText: settings.quickAddAutoClean !== true,
+            naturalLanguageDates: isNaturalLanguageDatesEnabled(settings),
+        });
 
-    const input: CaptureAssemblyInput = {
-        parsed,
-        rawInput: capture.title,
-        fallbackTitle: capture.title,
-        projects,
-        initialProps: {
-            status: 'inbox',
-            ...(capture.note ? { description: capture.note } : {}),
-        },
-        suppressDetectedDate: false,
-    };
+        const input: CaptureAssemblyInput = {
+            parsed,
+            rawInput: capture.title,
+            fallbackTitle: capture.title,
+            projects,
+            initialProps: {
+                status: 'inbox',
+                ...(capture.note ? { description: capture.note } : {}),
+            },
+            suppressDetectedDate: false,
+        };
 
-    const prepared = await prepareCaptureTask(input, { addProject }, {
-        transformProps: (props) => {
-            const taskProps = { ...props };
-            const structuredProjectId = resolveStructuredProjectId(capture, projects);
-            if (structuredProjectId) taskProps.projectId = structuredProjectId;
+        const prepared = await prepareCaptureTask(input, { addProject }, {
+            transformProps: (props) => {
+                const taskProps = { ...props };
+                const structuredProjectId = resolveStructuredProjectId(capture, projects);
+                if (structuredProjectId) taskProps.projectId = structuredProjectId;
 
-            const structuredTags = normalizeShortcutTags(capture.tags);
-            if (structuredTags.length > 0) {
-                taskProps.tags = Array.from(new Set([...(taskProps.tags ?? []), ...structuredTags]));
-            }
-            return taskProps;
-        },
-    });
+                const structuredTags = normalizeShortcutTags(capture.tags);
+                if (structuredTags.length > 0) {
+                    taskProps.tags = Array.from(new Set([...(taskProps.tags ?? []), ...structuredTags]));
+                }
+                return taskProps;
+            },
+        });
 
-    // Never drop a capture: any parse/prepare failure (invalid date command,
-    // empty title, project-create failure) falls back to the legacy verbatim
-    // behavior. Background has no UI to surface parse errors.
-    if (!prepared.success) return null;
-    return { title: prepared.title, props: prepared.props };
+        // Never drop a capture: any parse/prepare failure (invalid date command,
+        // empty title, project-create failure) falls back to the legacy verbatim
+        // behavior. Background has no UI to surface parse errors.
+        if (!prepared.success) return null;
+        return { title: prepared.title, props: prepared.props };
+    } catch (error) {
+        // A throw anywhere above must not abort the drain loop for the captures
+        // behind this one — fall back to the verbatim capture, same as a parse
+        // failure.
+        void logError(error, { scope: 'shortcuts', extra: { message: 'Failed to assemble pending capture' } });
+        return null;
+    }
 }
 
 export async function ingestPendingCaptures({ addTask, addProject, projects, areas, settings }: IngestDeps): Promise<number> {

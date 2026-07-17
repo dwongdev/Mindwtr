@@ -243,4 +243,45 @@ describe('ingestPendingCaptures', () => {
         expect(addTask).toHaveBeenCalledWith('Buy milk /due:2026-04-31', { status: 'inbox' });
         expect(fileSystemMocks.deleteAsync).toHaveBeenCalledTimes(1);
     });
+
+    it('falls back to the verbatim capture when project creation fails, and keeps draining the queue', async () => {
+        fileSystemMocks.readDirectoryAsync.mockResolvedValue(['a.json', 'b.json']);
+        fileSystemMocks.readAsStringAsync.mockImplementation(async (uri: string) => JSON.stringify(
+            uri.includes('a.json')
+                ? { id: 'a', title: 'Buy milk +NewProject' }
+                : { id: 'b', title: 'Water plants' },
+        ));
+        addProject.mockRejectedValue(new Error('store unavailable'));
+        const addTask = addTaskMock();
+
+        const ingested = await ingestPendingCaptures({ addTask, addProject, projects: [], areas: [], settings: emptySettings });
+
+        expect(ingested).toBe(2);
+        expect(addTask).toHaveBeenNthCalledWith(1, 'Buy milk +NewProject', { status: 'inbox' });
+        expect(addTask).toHaveBeenNthCalledWith(2, 'Water plants', { status: 'inbox' });
+        expect(fileSystemMocks.deleteAsync).toHaveBeenCalledTimes(2);
+    });
+
+    it('falls back to the verbatim capture when assembly throws, and keeps draining the queue', async () => {
+        fileSystemMocks.readDirectoryAsync.mockResolvedValue(['a.json', 'b.json']);
+        fileSystemMocks.readAsStringAsync.mockImplementation(async (uri: string) => JSON.stringify(
+            uri.includes('a.json')
+                ? { id: 'a', title: 'First' }
+                : { id: 'b', title: 'Second' },
+        ));
+        // Assembly reads settings.gtd while building parse options; a throw
+        // there stands in for any unexpected error inside assembly, which must
+        // degrade to the verbatim capture instead of aborting the drain.
+        const poisonedSettings = Object.defineProperty({}, 'gtd', {
+            get() { throw new Error('boom'); },
+        }) as AppData['settings'];
+        const addTask = addTaskMock();
+
+        const ingested = await ingestPendingCaptures({ addTask, addProject, projects: [], areas: [], settings: poisonedSettings });
+
+        expect(ingested).toBe(2);
+        expect(addTask).toHaveBeenNthCalledWith(1, 'First', { status: 'inbox' });
+        expect(addTask).toHaveBeenNthCalledWith(2, 'Second', { status: 'inbox' });
+        expect(fileSystemMocks.deleteAsync).toHaveBeenCalledTimes(2);
+    });
 });
