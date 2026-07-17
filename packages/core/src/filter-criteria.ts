@@ -19,6 +19,8 @@ import type {
 export type FilterSelections = {
     /** Mixed @context / #tag tokens, as shown in one token picker. */
     tokens: string[];
+    /** Mixed @context / #tag tokens whose presence excludes a task. */
+    excludedTokens: string[];
     projects: string[];
     locations: string[];
     priorities: TaskPriority[];
@@ -32,6 +34,9 @@ export function criteriaFromSelections(selections: Partial<FilterSelections>): F
     const tokens = selections.tokens ?? [];
     const contexts = tokens.filter((token) => token.trim().startsWith('@'));
     const tags = tokens.filter((token) => token.trim().startsWith('#'));
+    const excludedTokens = selections.excludedTokens ?? [];
+    const excludedContexts = excludedTokens.filter((token) => token.trim().startsWith('@'));
+    const excludedTags = excludedTokens.filter((token) => token.trim().startsWith('#'));
     const projects = selections.projects ?? [];
     const locations = selections.locations ?? [];
     const priorities = selections.priorities ?? [];
@@ -48,6 +53,8 @@ export function criteriaFromSelections(selections: Partial<FilterSelections>): F
         ...(tags.length > 1 && selections.tagMatchMode
             ? { tagMatchMode: selections.tagMatchMode }
             : {}),
+        ...(excludedContexts.length > 0 ? { excludedContexts } : {}),
+        ...(excludedTags.length > 0 ? { excludedTags } : {}),
         ...(projects.length > 0 ? { projects } : {}),
         ...(locations.length > 0 ? { locations } : {}),
         ...(priorities.length > 0 ? { priority: priorities } : {}),
@@ -67,6 +74,7 @@ export function selectionsFromCriteria(criteria: FilterCriteria | undefined): Fi
     const normalized = normalizeFilterCriteria(criteria ?? {});
     return {
         tokens: [...(normalized.contexts ?? []), ...(normalized.tags ?? [])],
+        excludedTokens: [...(normalized.excludedContexts ?? []), ...(normalized.excludedTags ?? [])],
         projects: normalized.projects ?? [],
         locations: normalized.locations ?? [],
         priorities: (normalized.priority ?? []).filter((priority): priority is TaskPriority => priority !== 'none'),
@@ -84,6 +92,8 @@ export function countActiveFilterCriteria(criteria: FilterCriteria | undefined):
     return (
         (normalized.contexts?.length ?? 0)
         + (normalized.tags?.length ?? 0)
+        + (normalized.excludedContexts?.length ?? 0)
+        + (normalized.excludedTags?.length ?? 0)
         + (normalized.projects?.length ?? 0)
         + (normalized.areas?.length ?? 0)
         + (normalized.priority?.length ?? 0)

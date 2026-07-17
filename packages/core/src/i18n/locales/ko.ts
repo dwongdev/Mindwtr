@@ -380,6 +380,7 @@ export const koOverrides: Record<string, string> = {
         'filters.contextMatchMode': '컨텍스트 일치',
         'filters.matchAny': '하나 이상',
         'filters.tagMatchMode': '태그 일치',
+        'filters.excluded': '제외됨',
         'filters.contexts': '컨텍스트 및 태그',
         'filters.priority': '우선 사항',
         'filters.timeEstimate': '예상 시간',

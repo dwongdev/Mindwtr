@@ -391,6 +391,7 @@ export const arOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'مطابقة السياقات',
         'filters.matchAny': 'أي',
         'filters.tagMatchMode': 'مطابقة العلامات',
+        'filters.excluded': 'مستبعد',
         'filters.contexts': 'السياقات والعلامات',
         'filters.priority': 'أولوية',
         'filters.timeEstimate': 'تقدير الوقت',

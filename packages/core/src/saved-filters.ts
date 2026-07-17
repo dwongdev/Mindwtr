@@ -86,6 +86,16 @@ const normalizeStringArray = (value: unknown, options?: { lowercase?: boolean; p
     return next.length > 0 ? next : undefined;
 };
 
+// Drop from `tokens` any entry that also appears (case-insensitively) in
+// `remove`. Used so an exclude token never coexists with the same include.
+const subtractTokens = (tokens: string[] | undefined, remove: string[] | undefined): string[] | undefined => {
+    if (!tokens) return undefined;
+    if (!remove || remove.length === 0) return tokens;
+    const removeKeys = new Set(remove.map((token) => token.toLowerCase()));
+    const next = tokens.filter((token) => !removeKeys.has(token.toLowerCase()));
+    return next.length > 0 ? next : undefined;
+};
+
 const normalizeEnumArray = <T extends string>(value: unknown, allowed: Set<T>): T[] | undefined => {
     if (!Array.isArray(value)) return undefined;
     const seen = new Set<T>();
@@ -125,6 +135,11 @@ export function normalizeFilterCriteria(value: unknown): FilterCriteria {
     const areas = normalizeStringArray(value.areas);
     const projects = normalizeStringArray(value.projects);
     const tags = normalizeStringArray(value.tags, { prefix: '#' });
+    // Exclude lists never override an include of the same token: a token on
+    // both sides would filter every task out, so include wins and the token
+    // drops from the exclude side.
+    const excludedContexts = subtractTokens(normalizeStringArray(value.excludedContexts, { prefix: '@' }), contexts);
+    const excludedTags = subtractTokens(normalizeStringArray(value.excludedTags, { prefix: '#' }), tags);
     const energy = normalizeEnumArray(value.energy, TASK_ENERGY_VALUES);
     const priority = normalizeEnumArray(value.priority, FILTER_PRIORITY_VALUES);
     const statuses = normalizeEnumArray(value.statuses, TASK_STATUS_VALUES);
@@ -135,11 +150,13 @@ export function normalizeFilterCriteria(value: unknown): FilterCriteria {
     if (contexts) criteria.contexts = contexts;
     const contextMatchMode = normalizeMultiValueFilterMatchMode(value.contextMatchMode);
     if (contexts && contextMatchMode) criteria.contextMatchMode = contextMatchMode;
+    if (excludedContexts) criteria.excludedContexts = excludedContexts;
     if (areas) criteria.areas = areas;
     if (projects) criteria.projects = projects;
     if (tags) criteria.tags = tags;
     const tagMatchMode = normalizeMultiValueFilterMatchMode(value.tagMatchMode);
     if (tags && tagMatchMode) criteria.tagMatchMode = tagMatchMode;
+    if (excludedTags) criteria.excludedTags = excludedTags;
     if (energy) criteria.energy = energy;
     if (priority) criteria.priority = priority;
     if (statuses) criteria.statuses = statuses;
@@ -175,9 +192,11 @@ export function hasActiveFilterCriteria(criteria: FilterCriteria | undefined): b
     const normalized = normalizeFilterCriteria(criteria);
     return Boolean(
         normalized.contexts?.length
+        || normalized.excludedContexts?.length
         || normalized.areas?.length
         || normalized.projects?.length
         || normalized.tags?.length
+        || normalized.excludedTags?.length
         || normalized.energy?.length
         || normalized.priority?.length
         || normalized.dueDateRange
@@ -342,6 +361,10 @@ const taskMatchesPreparedFilterCriteria = (
     if (normalized.statuses?.length && !normalized.statuses.includes(task.status)) return false;
     if (!matchesTokens(normalized.contexts, task.contexts, contextMatchMode)) return false;
     if (!matchesTokens(normalized.tags, task.tags, tagMatchMode)) return false;
+    // Excluded tokens always subtract: a task carrying ANY excluded context/tag
+    // (hierarchical) is filtered out, independent of the include match modes.
+    if (normalized.excludedContexts?.length && matchesAnyToken(normalized.excludedContexts, task.contexts)) return false;
+    if (normalized.excludedTags?.length && matchesAnyToken(normalized.excludedTags, task.tags)) return false;
 
     if (normalized.areas?.length) {
         const projectAreaId = task.projectId ? projectById?.get(task.projectId)?.areaId : undefined;

@@ -48,6 +48,7 @@ describe('filter-criteria', () => {
     it('round-trips selections through criteria', () => {
         const selections = {
             tokens: ['@office', '@phone', '#deep', '#quick'],
+            excludedTokens: ['@home', '#waiting'],
             projects: ['p1'],
             locations: ['Office'],
             priorities: ['high' as const],
@@ -57,6 +58,23 @@ describe('filter-criteria', () => {
             tagMatchMode: 'any' as const,
         };
         expect(selectionsFromCriteria(criteriaFromSelections(selections))).toEqual(selections);
+    });
+
+    it('splits excluded tokens into excludedContexts and excludedTags', () => {
+        expect(criteriaFromSelections({ excludedTokens: ['@home', '#waiting', '@errands'] })).toEqual({
+            excludedContexts: ['@home', '@errands'],
+            excludedTags: ['#waiting'],
+        });
+    });
+
+    it('drops an excluded token that is also included (include wins)', () => {
+        // criteriaFromSelections keeps both sides verbatim; normalization (used
+        // when the criteria is read back) is where include wins.
+        const criteria = criteriaFromSelections({ tokens: ['@office'], excludedTokens: ['@office'] });
+        expect(selectionsFromCriteria(criteria)).toMatchObject({
+            tokens: ['@office'],
+            excludedTokens: [],
+        });
     });
 
     it('validates saved criteria when deriving selections', () => {
@@ -81,6 +99,7 @@ describe('filter-criteria', () => {
     it('handles absent criteria', () => {
         expect(selectionsFromCriteria(undefined)).toEqual({
             tokens: [],
+            excludedTokens: [],
             projects: [],
             locations: [],
             priorities: [],
@@ -107,5 +126,13 @@ describe('filter-criteria', () => {
             hasDescription: true,
             isStarred: false,
         })).toBe(12);
+    });
+
+    it('counts excluded tokens as active criteria', () => {
+        expect(countActiveFilterCriteria({
+            contexts: ['@office'],
+            excludedContexts: ['@home'],
+            excludedTags: ['#waiting', '#blocked'],
+        })).toBe(4);
     });
 });

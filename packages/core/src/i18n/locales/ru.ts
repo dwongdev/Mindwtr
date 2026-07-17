@@ -384,6 +384,7 @@ export const ruOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Совпадение контекстов',
         'filters.matchAny': 'Любой',
         'filters.tagMatchMode': 'Совпадение тегов',
+        'filters.excluded': 'Исключено',
         'filters.contexts': 'Контексты и теги',
         'filters.priority': 'Приоритет',
         'filters.timeEstimate': 'Оценка времени',

@@ -391,6 +391,7 @@ export const trOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Bağlam eşleşmesi',
         'filters.matchAny': 'Herhangi biri',
         'filters.tagMatchMode': 'Etiket eşleşmesi',
+        'filters.excluded': 'Hariç',
         'filters.contexts': 'Bağlamlar ve etiketler',
         'filters.priority': 'Öncelik',
         'filters.timeEstimate': 'Zaman tahmini',

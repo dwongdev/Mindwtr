@@ -15,6 +15,8 @@ export type AgendaActiveFilterChip = {
     label: string;
     dotColor?: string;
     isAdvanced?: boolean;
+    /** Excluded (subtracting) token — rendered struck through, not selected. */
+    excluded?: boolean;
     onRemove?: () => void;
 };
 
@@ -67,6 +69,8 @@ type AgendaFiltersPanelProps = {
     selectedPriorities: TaskPriority[];
     selectedTimeEstimates: TimeEstimate[];
     selectedTokens: string[];
+    excludedTokens: string[];
+    excludedStateLabel: string;
     showNoProjectOption: boolean;
     showFiltersPanel: boolean;
     t: (key: string) => string;
@@ -113,6 +117,8 @@ export function AgendaFiltersPanel({
     selectedPriorities,
     selectedTimeEstimates,
     selectedTokens,
+    excludedTokens,
+    excludedStateLabel,
     showNoProjectOption,
     showFiltersPanel,
     t,
@@ -178,9 +184,11 @@ export function AgendaFiltersPanel({
                             key={chip.id}
                             className={cn(
                                 'inline-flex min-h-8 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium',
-                                chip.isAdvanced
-                                    ? 'border border-dashed border-primary/50 bg-muted/40 text-primary'
-                                    : 'bg-muted text-muted-foreground',
+                                chip.excluded
+                                    ? 'border border-destructive bg-destructive/10 text-destructive line-through'
+                                    : chip.isAdvanced
+                                        ? 'border border-dashed border-primary/50 bg-muted/40 text-primary'
+                                        : 'bg-muted text-muted-foreground',
                             )}
                         >
                             {chip.dotColor && (
@@ -189,6 +197,9 @@ export function AgendaFiltersPanel({
                                     style={{ backgroundColor: chip.dotColor }}
                                     aria-hidden="true"
                                 />
+                            )}
+                            {chip.excluded && (
+                                <span className="sr-only">{excludedStateLabel}: </span>
                             )}
                             {chip.label}
                             {chip.onRemove && (
@@ -288,18 +299,23 @@ export function AgendaFiltersPanel({
                         )}
                         <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">
                             {allTokens.map((token) => {
-                                const isActive = selectedTokens.includes(token);
+                                const isIncluded = selectedTokens.includes(token);
+                                const isExcluded = excludedTokens.includes(token);
                                 return (
                                     <button
                                         key={token}
                                         type="button"
                                         onClick={() => onToggleToken(token)}
-                                        aria-pressed={isActive}
+                                        // Three states can't ride a boolean: 'mixed' marks excluded.
+                                        aria-pressed={isExcluded ? 'mixed' : isIncluded}
+                                        aria-label={isExcluded ? `${token} (${excludedStateLabel})` : undefined}
                                         className={cn(
                                             'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                                            isActive
-                                                ? 'bg-primary text-primary-foreground'
-                                                : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                                            isExcluded
+                                                ? 'border border-destructive bg-destructive/10 text-destructive line-through'
+                                                : isIncluded
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80',
                                         )}
                                     >
                                         {token}

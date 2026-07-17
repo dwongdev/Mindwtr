@@ -295,6 +295,7 @@ function TaskListComponent({
   const [taskSearchQuery, setTaskSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+  const [excludedTokens, setExcludedTokens] = useState<string[]>([]);
   const [contextMatchMode, setContextMatchMode] = useState<MultiValueFilterMatchMode>('all');
   const [tagMatchMode, setTagMatchMode] = useState<MultiValueFilterMatchMode>('all');
   const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
@@ -537,12 +538,19 @@ function TaskListComponent({
     ));
   }, []);
   const toggleTokenFilter = useCallback((token: string) => {
-    setSelectedTokens((prev) => (
-      prev.includes(token)
-        ? prev.filter((value) => value !== token)
-        : [...prev, token]
-    ));
-  }, []);
+    // Tri-state cycle: neutral → included → excluded → neutral. A token lives
+    // on only one side, so each transition clears the other.
+    const isIncluded = selectedTokens.includes(token);
+    const isExcluded = excludedTokens.includes(token);
+    if (isIncluded) {
+      setSelectedTokens((prev) => prev.filter((value) => value !== token));
+      setExcludedTokens((prev) => (prev.includes(token) ? prev : [...prev, token]));
+    } else if (isExcluded) {
+      setExcludedTokens((prev) => prev.filter((value) => value !== token));
+    } else {
+      setSelectedTokens((prev) => [...prev, token]);
+    }
+  }, [selectedTokens, excludedTokens]);
   const togglePriorityFilter = useCallback((priority: TaskPriority) => {
     setSelectedPriorities((prev) => (
       prev.includes(priority)
@@ -561,6 +569,7 @@ function TaskListComponent({
     setTaskSearchQuery('');
     setLocationFilter('');
     setSelectedTokens([]);
+    setExcludedTokens([]);
     setContextMatchMode('all');
     setTagMatchMode('all');
     setSelectedPriorities([]);
@@ -584,9 +593,9 @@ function TaskListComponent({
     });
   }, [areaById, includeDone, projectById, projectId, resolvedAreaFilter, statusFilter, tasks]);
   const tokenFilterOptions = useMemo(() => {
-    if (!filtersVisible) return selectedTokens;
+    if (!filtersVisible) return Array.from(new Set([...selectedTokens, ...excludedTokens]));
     return getUsedTaskTokens(filterableTasks, (task) => [...(task.contexts ?? []), ...(task.tags ?? [])]);
-  }, [filterableTasks, filtersVisible, selectedTokens]);
+  }, [filterableTasks, filtersVisible, selectedTokens, excludedTokens]);
   const metadataFilterVisibility = useMemo(() => getTaskMetadataFilterVisibility(filterableTasks, {
     prioritiesEnabled,
     timeEstimatesEnabled: timeEstimateFiltersEnabled,
@@ -626,6 +635,7 @@ function TaskListComponent({
     searchQuery: taskSearchQuery,
     timeEstimates: showTimeEstimateFilters ? selectedTimeEstimates : [],
     tokens: selectedTokens,
+    excludedTokens,
     contextMatchMode,
     tagMatchMode,
   }), [
@@ -639,6 +649,7 @@ function TaskListComponent({
     selectedPriorities,
     selectedTimeEstimates,
     selectedTokens,
+    excludedTokens,
     showTimeEstimateFilters,
     taskSearchQuery,
   ]);
@@ -663,6 +674,14 @@ function TaskListComponent({
       chips.push({
         id: `token:${token}`,
         label: token,
+        onPress: () => toggleTokenFilter(token),
+      });
+    });
+    excludedTokens.forEach((token) => {
+      chips.push({
+        id: `excluded-token:${token}`,
+        label: token,
+        excluded: true,
         onPress: () => toggleTokenFilter(token),
       });
     });
@@ -711,6 +730,7 @@ function TaskListComponent({
     selectedPriorities,
     selectedTimeEstimates,
     selectedTokens,
+    excludedTokens,
     showTimeEstimateFilters,
     t,
     taskSearchQuery,
@@ -1801,6 +1821,8 @@ function TaskListComponent({
         selectedPriorities={selectedPriorities}
         selectedTimeEstimates={selectedTimeEstimates}
         selectedTokens={selectedTokens}
+        excludedTokens={excludedTokens}
+        excludedStateLabel={tFallback(t, 'filters.excluded', 'Excluded')}
         contextMatchMode={contextMatchMode}
         contextMatchModeLabels={{
           title: tFallback(t, 'filters.contextMatchMode', 'Context match'),

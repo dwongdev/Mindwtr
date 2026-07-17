@@ -403,6 +403,7 @@ export const ptOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Correspondência de contextos',
         'filters.matchAny': 'Qualquer',
         'filters.tagMatchMode': 'Correspondência de tags',
+        'filters.excluded': 'Excluído',
         'filters.contexts': 'Contextos e tags',
         'filters.priority': 'Prioridade',
         'filters.timeEstimate': 'Estimativa de tempo',

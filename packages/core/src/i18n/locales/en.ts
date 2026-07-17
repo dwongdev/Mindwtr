@@ -444,6 +444,7 @@ export const en: Record<string, string> = {
         'filters.contextMatchMode': 'Context match',
         'filters.matchAny': 'Any',
         'filters.tagMatchMode': 'Tag match',
+        'filters.excluded': 'Excluded',
         'filters.contexts': 'Contexts & tags',
         'filters.priority': 'Priority',
         'filters.timeEstimate': 'Time estimate',

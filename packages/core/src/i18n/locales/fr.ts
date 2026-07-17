@@ -425,6 +425,7 @@ export const frOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Correspondance des contextes',
         'filters.matchAny': 'Au moins un',
         'filters.tagMatchMode': 'Correspondance des tags',
+        'filters.excluded': 'Exclu',
         'filters.contexts': 'Contextes et tags',
         'filters.priority': 'Priorité',
         'filters.timeEstimate': 'Estimation du temps',

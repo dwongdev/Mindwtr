@@ -427,6 +427,7 @@ export const csOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Shoda kontextů',
         'filters.matchAny': 'Kterýkoli',
         'filters.tagMatchMode': 'Shoda štítků',
+        'filters.excluded': 'Vyloučeno',
         'filters.contexts': 'Kontexty a štítky',
         'filters.priority': 'Priorita',
         'filters.timeEstimate': 'Odhad času',

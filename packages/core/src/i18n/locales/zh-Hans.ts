@@ -383,6 +383,7 @@ export const zhHans: Record<string, string> = {
         'filters.contextMatchMode': '情境匹配',
         'filters.matchAny': '任一',
         'filters.tagMatchMode': '标签匹配',
+        'filters.excluded': '已排除',
         'filters.contexts': '情境与标签',
         'filters.priority': '优先级',
         'filters.timeEstimate': '时间预估',

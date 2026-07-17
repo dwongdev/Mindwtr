@@ -5,6 +5,7 @@ import {
     createTaskFilterPredicate,
     hasActiveFilterCriteria,
     markSavedFilterDeleted,
+    normalizeFilterCriteria,
     normalizeSavedFilters,
     SAVED_FILTER_NO_PROJECT_ID,
 } from './saved-filters';
@@ -110,6 +111,65 @@ describe('saved filters', () => {
         }, { tokenMatchMode: 'any' });
 
         expect(filtered.map((item) => item.id)).toEqual(['both']);
+    });
+
+    it('subtracts tasks carrying an excluded tag even when they match every include', () => {
+        const tasks = [
+            task({ id: 'keep', contexts: ['@desk'], tags: ['#urgent'] }),
+            task({ id: 'drop', contexts: ['@desk'], tags: ['#urgent', '#waiting'] }),
+        ];
+
+        const filtered = applyFilter(tasks, {
+            contexts: ['@desk'],
+            tags: ['#urgent'],
+            excludedTags: ['#waiting'],
+        }, { tokenMatchMode: 'all' });
+
+        expect(filtered.map((item) => item.id)).toEqual(['keep']);
+    });
+
+    it('excludes hierarchically: a parent excluded token drops child tokens', () => {
+        const tasks = [
+            task({ id: 'chores', tags: ['#home/chores'] }),
+            task({ id: 'garden', tags: ['#home/garden'] }),
+            task({ id: 'work', tags: ['#work'] }),
+        ];
+
+        const filtered = applyFilter(tasks, { excludedTags: ['#home'] });
+
+        expect(filtered.map((item) => item.id)).toEqual(['work']);
+    });
+
+    it('excludes with ANY semantics regardless of the tag match mode', () => {
+        const tasks = [
+            task({ id: 'keep', contexts: ['@desk'] }),
+            task({ id: 'drop-home', contexts: ['@desk', '@home'] }),
+            task({ id: 'drop-car', contexts: ['@desk', '@car'] }),
+        ];
+
+        const filtered = applyFilter(tasks, {
+            contexts: ['@desk'],
+            excludedContexts: ['@home', '@car'],
+            contextMatchMode: 'all',
+        }, { tokenMatchMode: 'all' });
+
+        expect(filtered.map((item) => item.id)).toEqual(['keep']);
+    });
+
+    it('normalization drops an excluded token that is also included (include wins)', () => {
+        const normalized = normalizeFilterCriteria({
+            contexts: ['@desk', '@phone'],
+            excludedContexts: ['@phone', '@home'],
+            tags: ['#urgent'],
+            excludedTags: ['#urgent'],
+        });
+
+        expect(normalized.excludedContexts).toEqual(['@home']);
+        expect(normalized.excludedTags).toBeUndefined();
+    });
+
+    it('counts excluded lists as active filter criteria', () => {
+        expect(hasActiveFilterCriteria({ excludedTags: ['#waiting'] })).toBe(true);
     });
 
     it('supports due date presets and no-project filters', () => {

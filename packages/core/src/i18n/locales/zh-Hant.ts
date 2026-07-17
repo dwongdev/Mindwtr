@@ -383,6 +383,7 @@ export const zhHant: Record<string, string> = {
         'filters.contextMatchMode': '情境比對',
         'filters.matchAny': '任一',
         'filters.tagMatchMode': '標籤比對',
+        'filters.excluded': '已排除',
         'filters.contexts': '情境與標籤',
         'filters.priority': '優先級',
         'filters.timeEstimate': '時間預估',

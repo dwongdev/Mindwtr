@@ -7,6 +7,7 @@ import { styles } from './task-list.styles';
 type ThemeColors = {
   border: string;
   cardBg: string;
+  danger: string;
   filterBg: string;
   onTint: string;
   secondaryText: string;
@@ -17,6 +18,8 @@ type ThemeColors = {
 export type TaskListActiveFilterChip = {
   id: string;
   label: string;
+  /** Excluded (subtracting) token — struck through and danger-colored. */
+  excluded?: boolean;
   onPress: () => void;
 };
 
@@ -63,6 +66,7 @@ export function TaskListHeader({
   const groupLabel = t('list.groupBy') === 'list.groupBy' ? 'Group' : t('list.groupBy');
   const clearLabel = t('filters.clear') === 'filters.clear' ? t('common.clear') : t('filters.clear');
   const removeFilterLabel = t('filters.remove') === 'filters.remove' ? 'Remove filter' : t('filters.remove');
+  const excludedStateLabel = t('filters.excluded') === 'filters.excluded' ? 'Excluded' : t('filters.excluded');
   const sortControl = showSort ? (
     <TouchableOpacity
       onPress={onOpenSort}
@@ -152,24 +156,37 @@ export function TaskListHeader({
       {activeFilterChips.length > 0 ? (
         <View style={[styles.filterSection, { borderBottomColor: themeColors.border, backgroundColor: themeColors.cardBg }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChips}>
-            {activeFilterChips.map((chip) => (
-              <TouchableOpacity
-                key={chip.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${removeFilterLabel}: ${chip.label}`}
-                onPress={chip.onPress}
-                style={[
-                  styles.filterChip,
-                  {
-                    borderColor: themeColors.tint,
-                    backgroundColor: themeColors.filterBg,
-                  },
-                ]}
-              >
-                <Text style={[styles.filterChipText, { color: themeColors.tint }]}>{chip.label}</Text>
-                <X size={14} color={themeColors.tint} />
-              </TouchableOpacity>
-            ))}
+            {activeFilterChips.map((chip) => {
+              const accent = chip.excluded ? themeColors.danger : themeColors.tint;
+              return (
+                <TouchableOpacity
+                  key={chip.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={chip.excluded
+                    ? `${removeFilterLabel}: ${chip.label} (${excludedStateLabel})`
+                    : `${removeFilterLabel}: ${chip.label}`}
+                  onPress={chip.onPress}
+                  style={[
+                    styles.filterChip,
+                    {
+                      borderColor: accent,
+                      backgroundColor: themeColors.filterBg,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      { color: accent },
+                      chip.excluded ? { textDecorationLine: 'line-through' } : null,
+                    ]}
+                  >
+                    {chip.label}
+                  </Text>
+                  <X size={14} color={accent} />
+                </TouchableOpacity>
+              );
+            })}
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel={clearLabel}

@@ -386,6 +386,7 @@ export const plOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Dopasowanie kontekstów',
         'filters.matchAny': 'Dowolny',
         'filters.tagMatchMode': 'Dopasowanie tagów',
+        'filters.excluded': 'Wykluczone',
         'filters.contexts': 'Konteksty i tagi',
         'filters.priority': 'Priorytet',
         'filters.timeEstimate': 'Oszacowanie czasu',

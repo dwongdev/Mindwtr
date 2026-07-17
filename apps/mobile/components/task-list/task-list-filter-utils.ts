@@ -14,6 +14,7 @@ export type MobileTaskListFilterInput = {
   searchQuery: string;
   timeEstimates: TimeEstimate[];
   tokens: string[];
+  excludedTokens: string[];
   contextMatchMode: MultiValueFilterMatchMode;
   tagMatchMode: MultiValueFilterMatchMode;
 };
@@ -24,6 +25,7 @@ export const buildMobileTaskListFilterCriteria = (filters: MobileTaskListFilterI
   const location = filters.locationQuery.trim();
   return criteriaFromSelections({
     tokens: filters.tokens,
+    excludedTokens: filters.excludedTokens,
     priorities: filters.priorities,
     energyLevels: filters.energyLevels,
     timeEstimates: filters.timeEstimates,

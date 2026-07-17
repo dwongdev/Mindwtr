@@ -290,6 +290,7 @@ export function AgendaView() {
         showToast: state.showToast,
     }));
     const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+    const [excludedTokens, setExcludedTokens] = useState<string[]>([]);
     const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
     const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
     const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
@@ -386,6 +387,7 @@ export function AgendaView() {
     const effectiveNextGroupBy = normalizeAgendaGroupBy(activeSavedFilter?.groupBy ?? nextGroupBy);
     const currentFilterCriteria = criteriaFromSelections({
         tokens: selectedTokens,
+        excludedTokens,
         contextMatchMode,
         tagMatchMode,
         projects: selectedProjects,
@@ -439,6 +441,17 @@ export function AgendaView() {
             chips.push({
                 id: `token:${token}`,
                 label: token,
+            });
+        });
+        excludedTokens.forEach((token) => {
+            chips.push({
+                id: `excluded-token:${token}`,
+                label: token,
+                excluded: true,
+                onRemove: () => {
+                    setActiveSavedFilterId(null);
+                    setExcludedTokens((prev) => prev.filter((item) => item !== token));
+                },
             });
         });
         selectedProjects.forEach((projectId) => {
@@ -510,6 +523,7 @@ export function AgendaView() {
         locationFilter,
         selectedProjects,
         selectedTokens,
+        excludedTokens,
         t,
     ]);
     const activeFilterCount = activeFilterChips.length
@@ -571,9 +585,18 @@ export function AgendaView() {
     }, [filtersOpen]);
     const toggleTokenFilter = (token: string) => {
         setActiveSavedFilterId(null);
-        setSelectedTokens((prev) =>
-            prev.includes(token) ? prev.filter((item) => item !== token) : [...prev, token]
-        );
+        // Tri-state cycle: neutral → included → excluded → neutral. A token is
+        // only ever on one side, so each transition clears the other.
+        const isIncluded = selectedTokens.includes(token);
+        const isExcluded = excludedTokens.includes(token);
+        if (isIncluded) {
+            setSelectedTokens((prev) => prev.filter((item) => item !== token));
+            setExcludedTokens((prev) => (prev.includes(token) ? prev : [...prev, token]));
+        } else if (isExcluded) {
+            setExcludedTokens((prev) => prev.filter((item) => item !== token));
+        } else {
+            setSelectedTokens((prev) => [...prev, token]);
+        }
     };
     const togglePriorityFilter = (priority: TaskPriority) => {
         setActiveSavedFilterId(null);
@@ -623,6 +646,7 @@ export function AgendaView() {
         setActiveSavedFilterId(null);
         setFocusSortBy(DEFAULT_FOCUS_SORT_BY);
         setSelectedTokens([]);
+        setExcludedTokens([]);
         setSelectedProjects([]);
         setLocationFilter('');
         setSelectedPriorities([]);
@@ -638,6 +662,7 @@ export function AgendaView() {
     const applySavedFocusFilter = useCallback((filter: SavedFilter) => {
         const selections = selectionsFromCriteria(filter.criteria);
         setSelectedTokens(selections.tokens);
+        setExcludedTokens(selections.excludedTokens);
         setSelectedProjects(selections.projects);
         setLocationFilter(selections.locations[0] ?? '');
         setSelectedPriorities(selections.priorities);
@@ -1154,6 +1179,8 @@ export function AgendaView() {
                     selectedPriorities={selectedPriorities}
                     selectedTimeEstimates={selectedTimeEstimates}
                     selectedTokens={selectedTokens}
+                    excludedTokens={excludedTokens}
+                    excludedStateLabel={resolveText('filters.excluded', 'Excluded')}
                     showNoProjectOption={showNoProjectOption}
                     showFiltersPanel={showFiltersPanel}
                     t={t}

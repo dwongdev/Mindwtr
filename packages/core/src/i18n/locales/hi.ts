@@ -383,6 +383,7 @@ export const hiOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'संदर्भ मेल',
         'filters.matchAny': 'कोई भी',
         'filters.tagMatchMode': 'टैग मेल',
+        'filters.excluded': 'बहिष्कृत',
         'filters.contexts': 'संदर्भ और टैग',
         'filters.priority': 'प्राथमिकता',
         'filters.timeEstimate': 'समय का अनुमान',

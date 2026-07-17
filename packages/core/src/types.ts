@@ -263,10 +263,14 @@ export type DateRange =
 export interface FilterCriteria {
     contexts?: string[];
     contextMatchMode?: MultiValueFilterMatchMode;
+    /** Contexts whose presence excludes a task, regardless of contextMatchMode. */
+    excludedContexts?: string[];
     areas?: string[];
     projects?: string[];
     tags?: string[];
     tagMatchMode?: MultiValueFilterMatchMode;
+    /** Tags whose presence excludes a task, regardless of tagMatchMode. */
+    excludedTags?: string[];
     energy?: TaskEnergyLevel[];
     priority?: FilterPriority[];
     dueDateRange?: DateRange;

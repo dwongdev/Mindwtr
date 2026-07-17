@@ -26,6 +26,7 @@ vi.mock('lucide-react-native', () => ({
 const themeColors = {
   border: '#d1d5db',
   cardBg: '#ffffff',
+  danger: '#ef4444',
   filterBg: '#f3f4f6',
   onTint: '#ffffff',
   secondaryText: '#6b7280',
@@ -95,6 +96,23 @@ describe('TaskListHeader', () => {
     expect(html).toContain('High');
     expect(html).toContain('Clear');
     expect(html).toContain('data-icon="x"');
+  });
+
+  it('renders excluded token chips with a strikethrough label', () => {
+    const html = renderHeader({
+      activeFilterChips: [
+        { id: 'excluded-token:#waiting', label: '#waiting', excluded: true, onPress: vi.fn() },
+      ],
+      filterActiveCount: 1,
+      hasActiveFilters: true,
+    });
+
+    // Screen readers must hear the excluded state, not just see the strikethrough.
+    expect(html).toContain('aria-label="Remove filter: #waiting (Excluded)"');
+    // Excluded chips add a third style layer (the strikethrough) that plain
+    // chips don't carry; the concrete line-through value is asserted where the
+    // renderer keeps real style objects (TaskListFiltersSheet.test).
+    expect(html).toContain('2:[object Object]">#waiting');
   });
 
   it('keeps compact tools left and the primary accessory on the outside edge without Select chrome', () => {

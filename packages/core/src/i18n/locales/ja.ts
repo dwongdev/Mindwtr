@@ -384,6 +384,7 @@ export const jaOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'コンテキストの一致',
         'filters.matchAny': 'いずれか',
         'filters.tagMatchMode': 'タグの一致',
+        'filters.excluded': '除外',
         'filters.contexts': 'コンテキストとタグ',
         'filters.priority': '優先度',
         'filters.timeEstimate': '所要時間の目安',

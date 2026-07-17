@@ -431,6 +431,7 @@ export const nlOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Context-overeenkomst',
         'filters.matchAny': 'Een van beide',
         'filters.tagMatchMode': 'Tag-overeenkomst',
+        'filters.excluded': 'Uitgesloten',
         'filters.after': 'Na',
         'filters.before': 'Voor',
         'filters.hasDescription': 'Met beschrijving',

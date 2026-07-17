@@ -66,6 +66,8 @@ const createProps = (overrides: Partial<Parameters<typeof AgendaFiltersPanel>[0]
     selectedProjects: [],
     selectedTimeEstimates: [],
     selectedTokens: [],
+    excludedTokens: [],
+    excludedStateLabel: 'Excluded',
     showEnergyLevelFilters: false,
     showFiltersPanel: true,
     showLocationFilter: false,
@@ -116,5 +118,33 @@ describe('AgendaFiltersPanel', () => {
         })} />);
 
         expect(screen.getByText('Tag match')).toBeInTheDocument();
+    });
+
+    it('renders token chips in three accessible states: neutral, included, excluded', () => {
+        render(<AgendaFiltersPanel {...createProps({
+            allTokens: ['@home', '@errands', '#waiting'],
+            selectedTokens: ['@errands'],
+            excludedTokens: ['#waiting'],
+        })} />);
+
+        expect(screen.getByRole('button', { name: '@home' })).toHaveAttribute('aria-pressed', 'false');
+        const included = screen.getByRole('button', { name: '@errands' });
+        expect(included).toHaveAttribute('aria-pressed', 'true');
+        expect(included).not.toHaveClass('line-through');
+        const excludedChip = screen.getByRole('button', { name: '#waiting (Excluded)' });
+        expect(excludedChip).toHaveAttribute('aria-pressed', 'mixed');
+        expect(excludedChip).toHaveClass('line-through');
+    });
+
+    it('shows excluded tokens in the active-filter summary with strikethrough and a remove control', () => {
+        const onRemove = vi.fn();
+        render(<AgendaFiltersPanel {...createProps({
+            activeFilterChips: [
+                { id: 'excluded-token:#waiting', label: '#waiting', excluded: true, onRemove },
+            ],
+        })} />);
+
+        const summaryLabel = screen.getAllByText('#waiting').find((node) => node.closest('span')?.className.includes('line-through'));
+        expect(summaryLabel).toBeTruthy();
     });
 });

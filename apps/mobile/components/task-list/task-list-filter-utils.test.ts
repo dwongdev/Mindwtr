@@ -17,6 +17,7 @@ const emptyFilterInput: MobileTaskListFilterInput = {
   searchQuery: '',
   timeEstimates: [],
   tokens: [],
+  excludedTokens: [],
   contextMatchMode: 'all',
   tagMatchMode: 'all',
 };
@@ -128,6 +129,23 @@ describe('task-list-filter-utils', () => {
       tokens: ['#client', '#urgent', '@remote'],
       tagMatchMode: 'any',
     }))).toBe(false);
+  });
+
+  it('subtracts tasks that carry an excluded token and counts exclusions as active', () => {
+    // Matches every include but is filtered out by the excluded tag.
+    expect(taskMatchesMobileTaskFilters(task, makeFilters({
+      tokens: ['@work'],
+      excludedTokens: ['#client'],
+    }))).toBe(false);
+    // Hierarchical exclusion: excluding the parent drops the child tag.
+    expect(taskMatchesMobileTaskFilters(task, makeFilters({ excludedTokens: ['#client'] }))).toBe(false);
+    // An unrelated exclusion leaves the task visible.
+    expect(taskMatchesMobileTaskFilters(task, makeFilters({ excludedTokens: ['#ops'] }))).toBe(true);
+    expect(buildMobileTaskListFilterCriteria({
+      ...emptyFilterInput,
+      excludedTokens: ['@home', '#waiting'],
+    })).toEqual({ excludedContexts: ['@home'], excludedTags: ['#waiting'] });
+    expect(countActiveMobileTaskFilters(makeFilters({ excludedTokens: ['#waiting'] }))).toBe(1);
   });
 
   it('matches priority, energy, time estimate, and location filters', () => {

@@ -358,6 +358,7 @@ export const esOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Coincidencia de contextos',
         'filters.matchAny': 'Cualquiera',
         'filters.tagMatchMode': 'Coincidencia de etiquetas',
+        'filters.excluded': 'Excluido',
         'filters.contexts': 'Contextos y etiquetas',
         'filters.priority': 'Prioridad',
         'filters.timeEstimate': 'Tiempo estimado',

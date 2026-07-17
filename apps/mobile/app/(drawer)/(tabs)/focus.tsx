@@ -156,7 +156,7 @@ type FocusFilterChip = {
   id: string;
   label: string;
   onPress?: () => void;
-  variant?: 'advanced';
+  variant?: 'advanced' | 'excluded';
 };
 
 type FocusSectionType = 'focus' | 'schedule' | 'next' | 'reviewDue' | 'reviewProjects';
@@ -307,6 +307,7 @@ export default function FocusScreen() {
   const [deferPickerTask, setDeferPickerTask] = useState<Task | null>(null);
   const [deferPickerDate, setDeferPickerDate] = useState<Date>(() => getStartDateOffset(1));
   const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+  const [excludedTokens, setExcludedTokens] = useState<string[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
   const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
@@ -398,6 +399,7 @@ export default function FocusScreen() {
   const effectiveFocusGroupBy = normalizeFocusGroupBy(activeSavedFilter?.groupBy ?? focusGroupBy);
   const currentFilterCriteria = useMemo(() => criteriaFromSelections({
     tokens: selectedTokens,
+    excludedTokens,
     projects: selectedProjects,
     locations: showLocationFilter && locationFilter.trim() ? [locationFilter.trim()] : [],
     priorities: showPriorityFilters ? selectedPriorities : [],
@@ -416,6 +418,7 @@ export default function FocusScreen() {
     selectedProjects,
     selectedTimeEstimates,
     selectedTokens,
+    excludedTokens,
     showLocationFilter,
     showTimeEstimateFilters,
   ]);
@@ -656,10 +659,19 @@ export default function FocusScreen() {
   }, [activeSavedFilter, activeSavedFilterId]);
   const toggleToken = useCallback((token: string) => {
     setActiveSavedFilterId(null);
-    setSelectedTokens((current) => (
-      current.includes(token) ? current.filter((item) => item !== token) : [...current, token]
-    ));
-  }, []);
+    // Tri-state cycle: neutral → included → excluded → neutral. A token lives
+    // on only one side, so each transition clears the other.
+    const isIncluded = selectedTokens.includes(token);
+    const isExcluded = excludedTokens.includes(token);
+    if (isIncluded) {
+      setSelectedTokens((current) => current.filter((item) => item !== token));
+      setExcludedTokens((current) => (current.includes(token) ? current : [...current, token]));
+    } else if (isExcluded) {
+      setExcludedTokens((current) => current.filter((item) => item !== token));
+    } else {
+      setSelectedTokens((current) => [...current, token]);
+    }
+  }, [selectedTokens, excludedTokens]);
   const toggleProject = useCallback((projectId: string) => {
     setActiveSavedFilterId(null);
     setSelectedProjects((current) => (
@@ -700,6 +712,7 @@ export default function FocusScreen() {
     setActiveSavedFilterId(null);
     setFocusSortBy(DEFAULT_FOCUS_SORT_BY);
     setSelectedTokens([]);
+    setExcludedTokens([]);
     setSelectedProjects([]);
     setLocationFilter('');
     setSelectedPriorities([]);
@@ -711,6 +724,7 @@ export default function FocusScreen() {
   const applySavedFocusFilter = useCallback((filter: SavedFilter) => {
     const selections = selectionsFromCriteria(filter.criteria);
     setSelectedTokens(selections.tokens);
+    setExcludedTokens(selections.excludedTokens);
     setSelectedProjects(selections.projects);
     setLocationFilter(selections.locations[0] ?? '');
     setSelectedPriorities(selections.priorities);
@@ -1372,6 +1386,14 @@ export default function FocusScreen() {
         onPress: () => toggleToken(token),
       });
     });
+    excludedTokens.forEach((token) => {
+      chips.push({
+        id: `excluded-token:${token}`,
+        label: token,
+        onPress: () => toggleToken(token),
+        variant: 'excluded',
+      });
+    });
     selectedProjects.forEach((projectId) => {
       if (projectId === NO_PROJECT_FILTER_ID) {
         chips.push({
@@ -1435,6 +1457,7 @@ export default function FocusScreen() {
     selectedProjects,
     selectedTimeEstimates,
     selectedTokens,
+    excludedTokens,
     t,
     toggleEnergyLevel,
     togglePriority,
@@ -1496,18 +1519,20 @@ export default function FocusScreen() {
   }, []);
   const renderFilterChip = useCallback((label: string, selected: boolean, onPress?: () => void, key = label, variant?: FocusFilterChip['variant']) => {
     const isAdvanced = variant === 'advanced';
+    const isExcluded = variant === 'excluded';
     const chipStyle = [
       styles.filterChip,
       isAdvanced ? styles.filterChipAdvanced : null,
       {
-        backgroundColor: isAdvanced ? tc.filterBg : selected ? tc.tint : tc.filterBg,
-        borderColor: isAdvanced ? tc.tint : selected ? tc.tint : tc.border,
+        backgroundColor: isAdvanced || isExcluded ? tc.filterBg : selected ? tc.tint : tc.filterBg,
+        borderColor: isAdvanced ? tc.tint : isExcluded ? tc.danger : selected ? tc.tint : tc.border,
       },
     ];
-    const textColor = isAdvanced ? tc.tint : selected ? tc.onTint : tc.text;
+    const textColor = isAdvanced ? tc.tint : isExcluded ? tc.danger : selected ? tc.onTint : tc.text;
     const chipText = (
       <CompactText
-        style={[styles.filterChipText, { color: textColor }]}
+        // Excluded relies on the strikethrough so the state survives E-ink/mono themes.
+        style={[styles.filterChipText, { color: textColor }, isExcluded ? { textDecorationLine: 'line-through' as const } : null]}
         numberOfLines={2}
       >
         {label}
@@ -1544,13 +1569,14 @@ export default function FocusScreen() {
         key={key}
         accessibilityRole="button"
         accessibilityState={{ selected }}
+        accessibilityLabel={isExcluded ? `${label} (${resolveText('filters.excluded', 'Excluded')})` : undefined}
         onPress={onPress}
         style={chipStyle}
       >
         {chipText}
       </TouchableOpacity>
     );
-  }, [resolveText, tc.border, tc.filterBg, tc.onTint, tc.text, tc.tint]);
+  }, [resolveText, tc.border, tc.danger, tc.filterBg, tc.onTint, tc.text, tc.tint]);
 
   const renderItem = ({ item, section }: { item: FocusListItem; section: FocusSection }) => {
     // Margin-free measuring wrapper: its height includes the row's own
@@ -2193,7 +2219,13 @@ export default function FocusScreen() {
                     {resolveText('filters.contexts', 'Contexts & tags')}
                   </Text>
                   <View style={styles.sheetChipRow}>
-                    {tokenOptions.map((token) => renderFilterChip(token, selectedTokens.includes(token), () => toggleToken(token)))}
+                    {tokenOptions.map((token) => renderFilterChip(
+                      token,
+                      selectedTokens.includes(token),
+                      () => toggleToken(token),
+                      token,
+                      excludedTokens.includes(token) ? 'excluded' : undefined,
+                    ))}
                   </View>
                   {showContextMatchMode ? (
                     <View style={styles.matchModeRow}>

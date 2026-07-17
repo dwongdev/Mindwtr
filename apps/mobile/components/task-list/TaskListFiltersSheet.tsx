@@ -10,6 +10,7 @@ type ThemeColors = {
   bg: string;
   border: string;
   cardBg: string;
+  danger: string;
   filterBg: string;
   onTint: string;
   secondaryText: string;
@@ -48,6 +49,8 @@ type TaskListFiltersSheetProps = {
   selectedPriorities: TaskPriority[];
   selectedTimeEstimates: TimeEstimate[];
   selectedTokens: string[];
+  excludedTokens: string[];
+  excludedStateLabel: string;
   showContextMatchMode: boolean;
   showTagMatchMode: boolean;
   showLocationFilter: boolean;
@@ -91,6 +94,8 @@ export function TaskListFiltersSheet({
   selectedPriorities,
   selectedTimeEstimates,
   selectedTokens,
+  excludedTokens,
+  excludedStateLabel,
   showContextMatchMode,
   showTagMatchMode,
   showLocationFilter,
@@ -124,6 +129,39 @@ export function TaskListFiltersSheet({
       </Text>
     </TouchableOpacity>
   );
+
+  // Token chips are tri-state (neutral → included → excluded → neutral); the
+  // excluded state relies on the strikethrough so it survives monochrome themes.
+  const renderTokenChip = (token: string) => {
+    const included = selectedTokens.includes(token);
+    const excluded = excludedTokens.includes(token);
+    return (
+      <TouchableOpacity
+        key={`token:${token}`}
+        accessibilityRole="button"
+        accessibilityState={{ selected: included }}
+        accessibilityLabel={excluded ? `${token} (${excludedStateLabel})` : undefined}
+        onPress={() => toggleToken(token)}
+        style={[
+          styles.taskFilterChip,
+          {
+            backgroundColor: included ? themeColors.tint : themeColors.filterBg,
+            borderColor: excluded ? themeColors.danger : included ? themeColors.tint : themeColors.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.taskFilterChipText,
+            { color: excluded ? themeColors.danger : included ? themeColors.onTint : themeColors.text },
+            excluded ? { textDecorationLine: 'line-through' } : null,
+          ]}
+        >
+          {token}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal
@@ -195,7 +233,7 @@ export function TaskListFiltersSheet({
                   {resolveText(t, 'filters.contexts', 'Contexts & tags')}
                 </Text>
                 <View style={styles.taskFilterChipRow}>
-                  {tokenOptions.map((token) => renderChip(token, selectedTokens.includes(token), () => toggleToken(token), `token:${token}`))}
+                  {tokenOptions.map((token) => renderTokenChip(token))}
                 </View>
                 {showContextMatchMode ? (
                   <View style={styles.taskFilterMatchModeRow}>

@@ -14,6 +14,7 @@ const themeColors = {
   bg: '#0f172a',
   border: '#334155',
   cardBg: '#111827',
+  danger: '#ef4444',
   filterBg: '#1f2937',
   onTint: '#ffffff',
   secondaryText: '#94a3b8',
@@ -51,6 +52,8 @@ const createProps = (
   selectedPriorities: [],
   selectedTimeEstimates: [],
   selectedTokens: [],
+  excludedTokens: [],
+  excludedStateLabel: 'Excluded',
   showContextMatchMode: false,
   showTagMatchMode: false,
   showLocationFilter: false,
@@ -198,6 +201,46 @@ describe('TaskListFiltersSheet', () => {
     });
 
     expect(onChangeTagMatchMode).toHaveBeenCalledWith('all');
+  });
+
+  it('renders token chips tri-state: included selected, excluded struck through with a state label', () => {
+    const toggleToken = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskListFiltersSheet
+          {...createProps({
+            toggleToken,
+            selectedTokens: ['@errands'],
+            excludedTokens: ['#waiting'],
+            tokenOptions: ['@home', '@errands', '#waiting'],
+          })}
+        />
+      );
+    });
+
+    const includedChip = tree.root.find((node) => (
+      node.props.accessibilityRole === 'button'
+      && node.findAllByType(Text).some((textNode) => textNode.props.children === '@errands')
+    ));
+    expect(includedChip.props.accessibilityState).toEqual({ selected: true });
+
+    const excludedChip = tree.root.find((node) => (
+      node.props.accessibilityRole === 'button'
+      && node.props.accessibilityLabel === '#waiting (Excluded)'
+    ));
+    expect(excludedChip.props.accessibilityState).toEqual({ selected: false });
+    const excludedText = excludedChip.findAllByType(Text).find((textNode) => textNode.props.children === '#waiting');
+    const flattenedStyle = Array.isArray(excludedText?.props.style)
+      ? Object.assign({}, ...excludedText!.props.style.filter(Boolean))
+      : excludedText?.props.style;
+    expect(flattenedStyle?.textDecorationLine).toBe('line-through');
+
+    act(() => {
+      excludedChip.props.onPress();
+    });
+    expect(toggleToken).toHaveBeenCalledWith('#waiting');
   });
 
   it('hides metadata filter sections when no visible tasks use those fields', () => {

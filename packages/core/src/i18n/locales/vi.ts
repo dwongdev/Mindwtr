@@ -440,6 +440,7 @@ export const viOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Khớp ngữ cảnh',
         'filters.matchAny': 'Bất kỳ',
         'filters.tagMatchMode': 'Khớp thẻ',
+        'filters.excluded': 'Đã loại trừ',
         'filters.contexts': 'Ngữ cảnh & thẻ',
         'filters.priority': 'Ưu tiên',
         'filters.timeEstimate': 'Ước tính thời gian',

@@ -1139,6 +1139,57 @@ describe('AgendaView', () => {
         expect(getByText('Desk and phone task')).toBeInTheDocument();
     });
 
+    it('cycles a token chip to excluded and subtracts matching tasks from the list', () => {
+        const deskTask: Task = {
+            id: 'desk-task',
+            title: 'Desk task',
+            status: 'next',
+            contexts: ['@desk'],
+            tags: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        const waitingTask: Task = {
+            id: 'waiting-task',
+            title: 'Waiting task',
+            status: 'next',
+            contexts: ['@desk'],
+            tags: ['#waiting'],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+
+        useTaskStore.setState({
+            tasks: [deskTask, waitingTask],
+            _allTasks: [deskTask, waitingTask],
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            error: null,
+            highlightTaskId: null,
+        });
+
+        const { getByRole, getByText, queryByText } = renderAgenda();
+
+        fireEvent.click(getByRole('button', { name: /^Filters$/i }));
+        // Neutral → included: only tasks carrying #waiting remain.
+        fireEvent.click(getByRole('button', { name: '#waiting' }));
+        expect(getByText('Waiting task')).toBeInTheDocument();
+        expect(queryByText('Desk task')).not.toBeInTheDocument();
+
+        // Included → excluded: the same chip (still named '#waiting') advances.
+        fireEvent.click(getByRole('button', { name: '#waiting' }));
+        expect(queryByText('Waiting task')).not.toBeInTheDocument();
+        expect(getByText('Desk task')).toBeInTheDocument();
+
+        // Excluded → neutral: the chip now exposes its excluded state in the name.
+        fireEvent.click(getByRole('button', { name: '#waiting (Excluded)' }));
+        expect(getByText('Waiting task')).toBeInTheDocument();
+        expect(getByText('Desk task')).toBeInTheDocument();
+    });
+
     it('shows store errors inside the Agenda surface', () => {
         useTaskStore.setState({
             error: 'Storage request timed out. Try again.',

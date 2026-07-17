@@ -442,6 +442,7 @@ export const itOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Corrispondenza contesti',
         'filters.matchAny': 'Qualsiasi',
         'filters.tagMatchMode': 'Corrispondenza tag',
+        'filters.excluded': 'Escluso',
         'filters.contexts': 'Contesti e tag',
         'filters.priority': 'Priorità',
         'filters.timeEstimate': 'Tempo stimato',

@@ -416,6 +416,7 @@ export const deOverrides: Record<string, string> = {
         'filters.contextMatchMode': 'Kontextabgleich',
         'filters.matchAny': 'Beliebig',
         'filters.tagMatchMode': 'Schlagwortabgleich',
+        'filters.excluded': 'Ausgeschlossen',
         'filters.contexts': 'Kontexte & Schlagwörter',
         'filters.priority': 'Prioritäten',
         'filters.timeEstimate': 'Zeitabschätzung',
