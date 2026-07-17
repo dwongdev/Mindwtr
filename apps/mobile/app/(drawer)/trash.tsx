@@ -14,11 +14,15 @@ function TrashSwipeRow({
   children,
   onRestore,
   onDelete,
+  restoreLabel,
+  deleteLabel,
   swipeDisabled,
 }: {
   children: ReactNode;
   onRestore: () => void;
   onDelete: () => void;
+  restoreLabel: string;
+  deleteLabel: string;
   swipeDisabled?: boolean;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
@@ -31,7 +35,7 @@ function TrashSwipeRow({
         onRestore();
       }}
     >
-      <Text style={styles.swipeActionText}>↩️ Restore</Text>
+      <Text style={styles.swipeActionText}>↩️ {restoreLabel}</Text>
     </Pressable>
   );
 
@@ -43,7 +47,7 @@ function TrashSwipeRow({
         onDelete();
       }}
     >
-      <Text style={styles.swipeActionText}>🗑️ Delete</Text>
+      <Text style={styles.swipeActionText}>🗑️ {deleteLabel}</Text>
     </Pressable>
   );
 
@@ -85,6 +89,8 @@ function TrashTaskItem({
   isHighlighted,
   typeLabel,
   deletedLabel,
+  restoreLabel,
+  deleteLabel,
 }: {
   task: Task;
   tc: ThemeColors;
@@ -97,9 +103,11 @@ function TrashTaskItem({
   isHighlighted?: boolean;
   typeLabel: string;
   deletedLabel: string;
+  restoreLabel: string;
+  deleteLabel: string;
 }) {
   return (
-    <TrashSwipeRow onRestore={onRestore} onDelete={onDelete} swipeDisabled={selectionMode}>
+    <TrashSwipeRow onRestore={onRestore} onDelete={onDelete} restoreLabel={restoreLabel} deleteLabel={deleteLabel} swipeDisabled={selectionMode}>
       <Pressable
         disabled={!selectionMode}
         onPress={onToggleSelect}
@@ -146,6 +154,8 @@ function TrashProjectItem({
   isSelected,
   typeLabel,
   deletedLabel,
+  restoreLabel,
+  deleteLabel,
 }: {
   project: Project;
   tc: ThemeColors;
@@ -157,9 +167,11 @@ function TrashProjectItem({
   isSelected: boolean;
   typeLabel: string;
   deletedLabel: string;
+  restoreLabel: string;
+  deleteLabel: string;
 }) {
   return (
-    <TrashSwipeRow onRestore={onRestore} onDelete={onDelete} swipeDisabled={selectionMode}>
+    <TrashSwipeRow onRestore={onRestore} onDelete={onDelete} restoreLabel={restoreLabel} deleteLabel={deleteLabel} swipeDisabled={selectionMode}>
       <Pressable
         disabled={!selectionMode}
         onPress={onToggleSelect}
@@ -489,6 +501,8 @@ export default function TrashScreen() {
                   isSelected={selectedProjectIds.has(item.project.id)}
                   typeLabel={t('trash.projectType') || 'Project'}
                   deletedLabel={t('trash.deletedAt') || 'Deleted'}
+                  restoreLabel={t('trash.restore') || 'Restore'}
+                  deleteLabel={t('common.delete') || 'Delete'}
                 />
               )
               : (
@@ -504,6 +518,8 @@ export default function TrashScreen() {
                   isHighlighted={item.task.id === highlightTaskId}
                   typeLabel={t('trash.taskType') || 'Task'}
                   deletedLabel={t('trash.deletedAt') || 'Deleted'}
+                  restoreLabel={t('trash.restore') || 'Restore'}
+                  deleteLabel={t('common.delete') || 'Delete'}
                 />
               )
           )}

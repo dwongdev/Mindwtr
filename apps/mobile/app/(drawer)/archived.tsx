@@ -25,6 +25,8 @@ function ArchivedTaskItem({
     completedLabel,
     editCompletedAtLabel,
     selectLabel,
+    restoreLabel,
+    deleteLabel,
     selectionMode,
     isSelected,
     isHighlighted,
@@ -39,6 +41,8 @@ function ArchivedTaskItem({
     completedLabel: string;
     editCompletedAtLabel: string;
     selectLabel: string;
+    restoreLabel: string;
+    deleteLabel: string;
     selectionMode: boolean;
     isSelected: boolean;
     isHighlighted?: boolean;
@@ -57,7 +61,7 @@ function ArchivedTaskItem({
                 onRestore();
             }}
         >
-            <Text style={styles.swipeActionText}>↩️ Restore</Text>
+            <Text style={styles.swipeActionText}>↩️ {restoreLabel}</Text>
         </Pressable>
     );
 
@@ -69,7 +73,7 @@ function ArchivedTaskItem({
                 onDelete();
             }}
         >
-            <Text style={styles.swipeActionText}>🗑️ Delete</Text>
+            <Text style={styles.swipeActionText}>🗑️ {deleteLabel}</Text>
         </Pressable>
     );
 
@@ -148,6 +152,8 @@ function ArchivedProjectItem({
     onRestore,
     onDelete,
     completedLabel,
+    restoreLabel,
+    deleteLabel,
 }: {
     project: Project;
     tc: ThemeColors;
@@ -156,6 +162,8 @@ function ArchivedProjectItem({
     onRestore: () => void;
     onDelete: () => void;
     completedLabel: string;
+    restoreLabel: string;
+    deleteLabel: string;
 }) {
     const swipeableRef = useRef<Swipeable>(null);
     const archivedDateLabel = project.updatedAt
@@ -170,7 +178,7 @@ function ArchivedProjectItem({
                 onRestore();
             }}
         >
-            <Text style={styles.swipeActionText}>↩️ Restore</Text>
+            <Text style={styles.swipeActionText}>↩️ {restoreLabel}</Text>
         </Pressable>
     );
 
@@ -182,7 +190,7 @@ function ArchivedProjectItem({
                 onDelete();
             }}
         >
-            <Text style={styles.swipeActionText}>🗑️ Delete</Text>
+            <Text style={styles.swipeActionText}>🗑️ {deleteLabel}</Text>
         </Pressable>
     );
 
@@ -446,6 +454,8 @@ export default function ArchivedScreen() {
             onRestore={() => handleRestoreProject(item.id)}
             onDelete={() => handleDeleteProject(item.id)}
             completedLabel={t('list.done') || 'Completed'}
+            restoreLabel={t('trash.restore') || 'Restore'}
+            deleteLabel={t('common.delete') || 'Delete'}
         />
     ), [tc, areaById, handleRestoreProject, handleDeleteProject, t]);
 
@@ -461,6 +471,8 @@ export default function ArchivedScreen() {
             completedLabel={t('list.done') || 'Completed'}
             editCompletedAtLabel={tFallback(t, 'task.editCompletedAt', 'Edit completion time')}
             selectLabel={tFallback(t, 'bulk.select', 'Select')}
+            restoreLabel={t('trash.restore') || 'Restore'}
+            deleteLabel={t('common.delete') || 'Delete'}
             selectionMode={selectionMode}
             isSelected={selectedIds.has(item.id)}
             isHighlighted={item.id === highlightTaskId}
