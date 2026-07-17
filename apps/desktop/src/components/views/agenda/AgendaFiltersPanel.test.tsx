@@ -12,6 +12,8 @@ const translations: Record<string, string> = {
     'filters.priority': 'Priority',
     'filters.projects': 'Projects',
     'filters.show': 'Show',
+    'filters.matchAny': 'Any',
+    'common.all': 'All',
     'filters.timeEstimate': 'Time estimate',
     'priority.urgent': 'Urgent priority',
     'sort.created': 'Created',
@@ -35,6 +37,8 @@ const createProps = (overrides: Partial<Parameters<typeof AgendaFiltersPanel>[0]
     canSaveFilter: false,
     contextMatchMode: 'all',
     contextMatchModeLabels: { title: 'Context matching', any: 'Any', all: 'All' },
+    tagMatchMode: 'all',
+    tagMatchModeLabels: { title: 'Tag match', any: 'Any', all: 'All' },
     energyLevelOptions: ['high'],
     focusSortBy: 'default',
     formatEstimate: () => '30m',
@@ -42,6 +46,7 @@ const createProps = (overrides: Partial<Parameters<typeof AgendaFiltersPanel>[0]
     locationFilter: '',
     onClearFilters: vi.fn(),
     onContextMatchModeChange: vi.fn(),
+    onTagMatchModeChange: vi.fn(),
     onLocationChange: vi.fn(),
     onSaveFilter: vi.fn(),
     onSearchChange: vi.fn(),
@@ -95,5 +100,21 @@ describe('AgendaFiltersPanel', () => {
         expect(screen.getByLabelText('Location')).toBeInTheDocument();
         expect(screen.getByText('Time estimate')).toBeInTheDocument();
         expect(screen.getByText('30m')).toBeInTheDocument();
+    });
+
+    it('only shows the tag match control once 2+ tags are selected', () => {
+        const { rerender } = render(<AgendaFiltersPanel {...createProps({
+            allTokens: ['#quick', '#calls'],
+            selectedTokens: ['#quick'],
+        })} />);
+
+        expect(screen.queryByText('Tag match')).not.toBeInTheDocument();
+
+        rerender(<AgendaFiltersPanel {...createProps({
+            allTokens: ['#quick', '#calls'],
+            selectedTokens: ['#quick', '#calls'],
+        })} />);
+
+        expect(screen.getByText('Tag match')).toBeInTheDocument();
     });
 });

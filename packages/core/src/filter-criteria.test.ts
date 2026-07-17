@@ -22,6 +22,13 @@ describe('filter-criteria', () => {
             .toMatchObject({ contextMatchMode: 'all' });
     });
 
+    it('includes tagMatchMode only when several tags compete', () => {
+        expect(criteriaFromSelections({ tokens: ['#deep'], tagMatchMode: 'all' }))
+            .not.toHaveProperty('tagMatchMode');
+        expect(criteriaFromSelections({ tokens: ['#deep', '#quick'], tagMatchMode: 'all' }))
+            .toMatchObject({ tagMatchMode: 'all' });
+    });
+
     it('maps the remaining selection groups onto their criteria keys', () => {
         expect(criteriaFromSelections({
             projects: ['p1'],
@@ -40,13 +47,14 @@ describe('filter-criteria', () => {
 
     it('round-trips selections through criteria', () => {
         const selections = {
-            tokens: ['@office', '@phone', '#deep'],
+            tokens: ['@office', '@phone', '#deep', '#quick'],
             projects: ['p1'],
             locations: ['Office'],
             priorities: ['high' as const],
             energyLevels: ['low' as const],
             timeEstimates: ['30min' as const],
             contextMatchMode: 'any' as const,
+            tagMatchMode: 'any' as const,
         };
         expect(selectionsFromCriteria(criteriaFromSelections(selections))).toEqual(selections);
     });
@@ -67,6 +75,7 @@ describe('filter-criteria', () => {
         // Custom estimates have no picker option and are dropped.
         expect(selections.timeEstimates).toEqual(['30min']);
         expect(selections.contextMatchMode).toBe('all');
+        expect(selections.tagMatchMode).toBe('all');
     });
 
     it('handles absent criteria', () => {
@@ -78,6 +87,7 @@ describe('filter-criteria', () => {
             energyLevels: [],
             timeEstimates: [],
             contextMatchMode: 'all',
+            tagMatchMode: 'all',
         });
     });
 

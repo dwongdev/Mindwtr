@@ -68,6 +68,50 @@ describe('saved filters', () => {
         expect(filtered.map((item) => item.id)).toEqual(['desk-urgent', 'phone-urgent']);
     });
 
+    it('can override tag matching to any while keeping context matching strict', () => {
+        const tasks = [
+            task({ id: 'desk-quick', contexts: ['@desk'], tags: ['#quick'] }),
+            task({ id: 'desk-calls', contexts: ['@desk'], tags: ['#calls'] }),
+            task({ id: 'phone-quick', contexts: ['@phone'], tags: ['#quick'] }),
+        ];
+
+        const filtered = applyFilter(tasks, {
+            contexts: ['@desk'],
+            tags: ['#quick', '#calls'],
+            tagMatchMode: 'any',
+        }, { tokenMatchMode: 'all' });
+
+        expect(filtered.map((item) => item.id)).toEqual(['desk-quick', 'desk-calls']);
+    });
+
+    it('requires every selected tag by default when tagMatchMode is unset, matching the Focus/list caller default', () => {
+        const tasks = [
+            task({ id: 'both', tags: ['#quick', '#calls'] }),
+            task({ id: 'quick-only', tags: ['#quick'] }),
+            task({ id: 'calls-only', tags: ['#calls'] }),
+        ];
+
+        const filtered = applyFilter(tasks, {
+            tags: ['#quick', '#calls'],
+        }, { tokenMatchMode: 'all' });
+
+        expect(filtered.map((item) => item.id)).toEqual(['both']);
+    });
+
+    it('requires every selected tag when tagMatchMode is explicitly all', () => {
+        const tasks = [
+            task({ id: 'both', tags: ['#quick', '#calls'] }),
+            task({ id: 'quick-only', tags: ['#quick'] }),
+        ];
+
+        const filtered = applyFilter(tasks, {
+            tags: ['#quick', '#calls'],
+            tagMatchMode: 'all',
+        }, { tokenMatchMode: 'any' });
+
+        expect(filtered.map((item) => item.id)).toEqual(['both']);
+    });
+
     it('supports due date presets and no-project filters', () => {
         const now = new Date('2026-05-09T12:00:00.000Z');
         const tasks = [
@@ -207,6 +251,8 @@ describe('saved filters', () => {
                 criteria: {
                     contexts: ['desk', '@desk'],
                     contextMatchMode: 'any',
+                    tags: ['quick', '#calls'],
+                    tagMatchMode: 'any',
                     priority: ['high', 'invalid'],
                     locations: [' Office ', ''],
                 },
@@ -227,6 +273,8 @@ describe('saved filters', () => {
             criteria: {
                 contexts: ['@desk'],
                 contextMatchMode: 'any',
+                tags: ['#quick', '#calls'],
+                tagMatchMode: 'any',
                 priority: ['high'],
                 locations: ['Office'],
             },

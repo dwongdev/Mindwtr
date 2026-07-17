@@ -32,8 +32,15 @@ const createProps = (
     any: 'Any',
     all: 'All',
   },
+  tagMatchMode: 'all',
+  tagMatchModeLabels: {
+    title: 'Tag match',
+    any: 'Any',
+    all: 'All',
+  },
   locationQuery: '',
   onChangeContextMatchMode: vi.fn(),
+  onChangeTagMatchMode: vi.fn(),
   onChangeLocationQuery: vi.fn(),
   onChangeSearchQuery: vi.fn(),
   onClearFilters: vi.fn(),
@@ -45,6 +52,7 @@ const createProps = (
   selectedTimeEstimates: [],
   selectedTokens: [],
   showContextMatchMode: false,
+  showTagMatchMode: false,
   showLocationFilter: false,
   showEnergyLevelFilters: false,
   showPriorityFilters: false,
@@ -154,6 +162,42 @@ describe('TaskListFiltersSheet', () => {
     });
 
     expect(onChangeContextMatchMode).toHaveBeenCalledWith('all');
+  });
+
+  it('shows the tag match mode control only when requested', () => {
+    const onChangeTagMatchMode = vi.fn();
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskListFiltersSheet
+          {...createProps({
+            tagMatchMode: 'any',
+            onChangeTagMatchMode,
+            selectedTokens: ['#quick', '#calls'],
+            showTagMatchMode: true,
+            tokenOptions: ['#quick', '#calls'],
+          })}
+        />
+      );
+    });
+
+    const anyButton = tree.root.find((node) => (
+      node.props.accessibilityRole === 'button'
+      && node.findAllByType(Text).some((textNode) => textNode.props.children === 'Any')
+    ));
+    const allButton = tree.root.find((node) => (
+      node.props.accessibilityRole === 'button'
+      && node.findAllByType(Text).some((textNode) => textNode.props.children === 'All')
+    ));
+
+    expect(anyButton.props.accessibilityState).toEqual({ selected: true });
+
+    act(() => {
+      allButton.props.onPress();
+    });
+
+    expect(onChangeTagMatchMode).toHaveBeenCalledWith('all');
   });
 
   it('hides metadata filter sections when no visible tasks use those fields', () => {

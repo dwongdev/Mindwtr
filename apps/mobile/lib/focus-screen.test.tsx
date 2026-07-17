@@ -1572,6 +1572,56 @@ describe('FocusScreen', () => {
     });
   });
 
+  it('saves tag any matching in Focus filters', async () => {
+    storeState.updateSettings.mockResolvedValue(undefined);
+    storeState.tasks = [
+      makeTask('quick-task', { tags: ['#quick'] }),
+      makeTask('calls-task', { tags: ['#calls'] }),
+    ];
+
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(<FocusScreen />);
+    });
+
+    act(() => {
+      findButtonByLabel(tree, 'Filters').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, '#quick').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, '#calls').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, 'Any').props.onPress();
+    });
+    act(() => {
+      findButtonByText(tree, 'Save', { last: true }).props.onPress();
+    });
+
+    const inputs = tree.root.findAllByType(TextInput);
+    const input = inputs[inputs.length - 1];
+    await act(async () => {
+      input.props.onChangeText('Quick or calls');
+    });
+    await act(async () => {
+      findButtonByText(tree, 'Save', { last: true }).props.onPress();
+    });
+
+    expect(storeState.updateSettings).toHaveBeenCalledWith({
+      savedFilters: [expect.objectContaining({
+        name: 'Quick or calls',
+        view: 'focus',
+        criteria: {
+          tags: ['#quick', '#calls'],
+          tagMatchMode: 'any',
+        },
+      })],
+    });
+  });
+
   it('saves multiple contexts and a tag through one native modal and restores them after relaunch', async () => {
     storeState.tasks = [
       makeTask('matching-task', {

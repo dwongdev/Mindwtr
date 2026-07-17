@@ -27,8 +27,15 @@ type TaskListFiltersSheetProps = {
     any: string;
     all: string;
   };
+  tagMatchMode: MultiValueFilterMatchMode;
+  tagMatchModeLabels: {
+    title: string;
+    any: string;
+    all: string;
+  };
   locationQuery: string;
   onChangeContextMatchMode: (value: MultiValueFilterMatchMode) => void;
+  onChangeTagMatchMode: (value: MultiValueFilterMatchMode) => void;
   onChangeLocationQuery: (value: string) => void;
   onChangeSearchQuery: (value: string) => void;
   onClearFilters: () => void;
@@ -42,6 +49,7 @@ type TaskListFiltersSheetProps = {
   selectedTimeEstimates: TimeEstimate[];
   selectedTokens: string[];
   showContextMatchMode: boolean;
+  showTagMatchMode: boolean;
   showLocationFilter: boolean;
   showTimeEstimateFilters: boolean;
   t: (key: string) => string;
@@ -66,8 +74,11 @@ export function TaskListFiltersSheet({
   hasFilters,
   contextMatchMode,
   contextMatchModeLabels,
+  tagMatchMode,
+  tagMatchModeLabels,
   locationQuery,
   onChangeContextMatchMode,
+  onChangeTagMatchMode,
   onChangeLocationQuery,
   onChangeSearchQuery,
   onClearFilters,
@@ -81,6 +92,7 @@ export function TaskListFiltersSheet({
   selectedTimeEstimates,
   selectedTokens,
   showContextMatchMode,
+  showTagMatchMode,
   showLocationFilter,
   showTimeEstimateFilters,
   t,
@@ -209,6 +221,36 @@ export function TaskListFiltersSheet({
                             ]}
                           >
                             {mode === 'any' ? contextMatchModeLabels.any : contextMatchModeLabels.all}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+                {showTagMatchMode ? (
+                  <View style={styles.taskFilterMatchModeRow}>
+                    <Text style={[styles.taskFilterMatchModeLabel, { color: themeColors.secondaryText }]}>
+                      {tagMatchModeLabels.title}
+                    </Text>
+                    <View style={[styles.taskFilterMatchModeControl, { borderColor: themeColors.border, backgroundColor: themeColors.filterBg }]}>
+                      {(['any', 'all'] as const).map((mode) => (
+                        <TouchableOpacity
+                          key={mode}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: tagMatchMode === mode }}
+                          onPress={() => onChangeTagMatchMode(mode)}
+                          style={[
+                            styles.taskFilterMatchModeButton,
+                            { backgroundColor: tagMatchMode === mode ? themeColors.tint : 'transparent' },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.taskFilterMatchModeButtonText,
+                              { color: tagMatchMode === mode ? themeColors.onTint : themeColors.secondaryText },
+                            ]}
+                          >
+                            {mode === 'any' ? tagMatchModeLabels.any : tagMatchModeLabels.all}
                           </Text>
                         </TouchableOpacity>
                       ))}

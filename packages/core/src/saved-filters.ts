@@ -138,6 +138,8 @@ export function normalizeFilterCriteria(value: unknown): FilterCriteria {
     if (areas) criteria.areas = areas;
     if (projects) criteria.projects = projects;
     if (tags) criteria.tags = tags;
+    const tagMatchMode = normalizeMultiValueFilterMatchMode(value.tagMatchMode);
+    if (tags && tagMatchMode) criteria.tagMatchMode = tagMatchMode;
     if (energy) criteria.energy = energy;
     if (priority) criteria.priority = priority;
     if (statuses) criteria.statuses = statuses;
@@ -309,6 +311,7 @@ type PreparedFilterContext = {
     now: Date;
     tokenMatchMode: 'any' | 'all';
     contextMatchMode: 'any' | 'all';
+    tagMatchMode: 'any' | 'all';
     weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6;
 };
 
@@ -324,6 +327,7 @@ const prepareFilterContext = (
         now: options.now ?? new Date(),
         tokenMatchMode,
         contextMatchMode: normalized.contextMatchMode ?? tokenMatchMode,
+        tagMatchMode: normalized.tagMatchMode ?? tokenMatchMode,
         weekStartsOn: options.weekStartsOn ?? 1,
     };
 };
@@ -333,11 +337,11 @@ const taskMatchesPreparedFilterCriteria = (
     context: PreparedFilterContext
 ): boolean => {
     if (task.deletedAt) return false;
-    const { normalized, projectById, now, tokenMatchMode, contextMatchMode, weekStartsOn } = context;
+    const { normalized, projectById, now, contextMatchMode, tagMatchMode, weekStartsOn } = context;
 
     if (normalized.statuses?.length && !normalized.statuses.includes(task.status)) return false;
     if (!matchesTokens(normalized.contexts, task.contexts, contextMatchMode)) return false;
-    if (!matchesTokens(normalized.tags, task.tags, tokenMatchMode)) return false;
+    if (!matchesTokens(normalized.tags, task.tags, tagMatchMode)) return false;
 
     if (normalized.areas?.length) {
         const projectAreaId = task.projectId ? projectById?.get(task.projectId)?.areaId : undefined;

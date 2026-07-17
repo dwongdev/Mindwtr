@@ -296,6 +296,7 @@ function TaskListComponent({
   const [locationFilter, setLocationFilter] = useState('');
   const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
   const [contextMatchMode, setContextMatchMode] = useState<MultiValueFilterMatchMode>('all');
+  const [tagMatchMode, setTagMatchMode] = useState<MultiValueFilterMatchMode>('all');
   const [selectedPriorities, setSelectedPriorities] = useState<TaskPriority[]>([]);
   const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<TaskEnergyLevel[]>([]);
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
@@ -561,6 +562,7 @@ function TaskListComponent({
     setLocationFilter('');
     setSelectedTokens([]);
     setContextMatchMode('all');
+    setTagMatchMode('all');
     setSelectedPriorities([]);
     setSelectedEnergyLevels([]);
     setSelectedTimeEstimates([]);
@@ -625,8 +627,10 @@ function TaskListComponent({
     timeEstimates: showTimeEstimateFilters ? selectedTimeEstimates : [],
     tokens: selectedTokens,
     contextMatchMode,
+    tagMatchMode,
   }), [
     contextMatchMode,
+    tagMatchMode,
     locationFilter,
     showEnergyLevelFilters,
     showLocationFilter,
@@ -722,6 +726,14 @@ function TaskListComponent({
   const showContextMatchMode = selectedContextCount > 1;
   const updateContextMatchMode = useCallback((mode: MultiValueFilterMatchMode) => {
     setContextMatchMode(mode);
+  }, []);
+  const selectedTagCount = useMemo(
+    () => selectedTokens.filter((token) => token.trim().startsWith('#')).length,
+    [selectedTokens],
+  );
+  const showTagMatchMode = selectedTagCount > 1;
+  const updateTagMatchMode = useCallback((mode: MultiValueFilterMatchMode) => {
+    setTagMatchMode(mode);
   }, []);
   const filteredEmptyMessage = hasActiveTaskFilters
     ? tFallback(t, 'filters.noMatch', 'No tasks match these filters.')
@@ -1797,6 +1809,14 @@ function TaskListComponent({
         }}
         onChangeContextMatchMode={updateContextMatchMode}
         showContextMatchMode={showContextMatchMode}
+        tagMatchMode={tagMatchMode}
+        tagMatchModeLabels={{
+          title: tFallback(t, 'filters.tagMatchMode', 'Tag match'),
+          any: tFallback(t, 'filters.matchAny', 'Any'),
+          all: tFallback(t, 'common.all', 'All'),
+        }}
+        onChangeTagMatchMode={updateTagMatchMode}
+        showTagMatchMode={showTagMatchMode}
         showEnergyLevelFilters={showEnergyLevelFilters}
         showLocationFilter={showLocationFilter}
         showTimeEstimateFilters={showTimeEstimateFilters}

@@ -295,6 +295,7 @@ export function AgendaView() {
     const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
     const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
     const [contextMatchMode, setContextMatchMode] = useState<MultiValueFilterMatchMode>('all');
+    const [tagMatchMode, setTagMatchMode] = useState<MultiValueFilterMatchMode>('all');
     const [locationFilter, setLocationFilter] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [filtersOpen, setFiltersOpen] = useState(false);
@@ -386,6 +387,7 @@ export function AgendaView() {
     const currentFilterCriteria = criteriaFromSelections({
         tokens: selectedTokens,
         contextMatchMode,
+        tagMatchMode,
         projects: selectedProjects,
         locations: showLocationFilter && locationFilter.trim() ? [locationFilter.trim()] : [],
         priorities: activePriorities,
@@ -394,6 +396,7 @@ export function AgendaView() {
     });
     const rawEffectiveFilterCriteria = activeSavedFilter?.criteria ?? currentFilterCriteria;
     const effectiveContextMatchMode = rawEffectiveFilterCriteria.contextMatchMode ?? 'all';
+    const effectiveTagMatchMode = rawEffectiveFilterCriteria.tagMatchMode ?? 'all';
     const effectiveFilterCriteria: FilterCriteria = {
         ...rawEffectiveFilterCriteria,
         ...(showPriorityFilters ? {} : { priority: undefined }),
@@ -600,6 +603,10 @@ export function AgendaView() {
         setActiveSavedFilterId(null);
         setContextMatchMode(mode);
     }, []);
+    const updateTagMatchMode = useCallback((mode: MultiValueFilterMatchMode) => {
+        setActiveSavedFilterId(null);
+        setTagMatchMode(mode);
+    }, []);
     const updateLocationFilter = (value: string) => {
         setActiveSavedFilterId(null);
         setLocationFilter(value);
@@ -622,6 +629,7 @@ export function AgendaView() {
         setSelectedEnergyLevels([]);
         setSelectedTimeEstimates([]);
         setContextMatchMode('all');
+        setTagMatchMode('all');
     };
     const clearAllFilters = () => {
         clearFilters();
@@ -636,6 +644,7 @@ export function AgendaView() {
         setSelectedEnergyLevels(selections.energyLevels);
         setSelectedTimeEstimates(selections.timeEstimates);
         setContextMatchMode(selections.contextMatchMode);
+        setTagMatchMode(selections.tagMatchMode);
         setFocusSortBy(filter.sortBy ?? DEFAULT_FOCUS_SORT_BY);
         setActiveSavedFilterId(filter.id);
         setFiltersOpen(false);
@@ -1108,6 +1117,12 @@ export function AgendaView() {
                         any: resolveText('filters.matchAny', 'Any'),
                         all: resolveText('common.all', 'All'),
                     }}
+                    tagMatchMode={effectiveTagMatchMode}
+                    tagMatchModeLabels={{
+                        title: resolveText('filters.tagMatchMode', 'Tag match'),
+                        any: resolveText('filters.matchAny', 'Any'),
+                        all: resolveText('common.all', 'All'),
+                    }}
                     energyLevelOptions={energyLevelOptions}
                     focusSortBy={effectiveFocusSortBy}
                     formatEstimate={formatEstimate}
@@ -1119,6 +1134,7 @@ export function AgendaView() {
                     onLocationChange={updateLocationFilter}
                     onSaveFilter={() => setSaveFilterPromptOpen(true)}
                     onContextMatchModeChange={updateContextMatchMode}
+                    onTagMatchModeChange={updateTagMatchMode}
                     onSearchChange={setSearchQuery}
                     onSortChange={updateFocusSortBy}
                     onToggleEnergy={toggleEnergyFilter}

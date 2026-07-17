@@ -15,6 +15,7 @@ export type MobileTaskListFilterInput = {
   timeEstimates: TimeEstimate[];
   tokens: string[];
   contextMatchMode: MultiValueFilterMatchMode;
+  tagMatchMode: MultiValueFilterMatchMode;
 };
 
 const normalize = (value: string | undefined): string => value?.trim().toLowerCase() ?? '';
@@ -27,6 +28,7 @@ export const buildMobileTaskListFilterCriteria = (filters: MobileTaskListFilterI
     energyLevels: filters.energyLevels,
     timeEstimates: filters.timeEstimates,
     contextMatchMode: filters.contextMatchMode,
+    tagMatchMode: filters.tagMatchMode,
     locations: location ? [location] : [],
   });
 };

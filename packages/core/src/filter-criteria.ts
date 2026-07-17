@@ -25,6 +25,7 @@ export type FilterSelections = {
     energyLevels: TaskEnergyLevel[];
     timeEstimates: TimeEstimate[];
     contextMatchMode: MultiValueFilterMatchMode;
+    tagMatchMode: MultiValueFilterMatchMode;
 };
 
 export function criteriaFromSelections(selections: Partial<FilterSelections>): FilterCriteria {
@@ -43,6 +44,10 @@ export function criteriaFromSelections(selections: Partial<FilterSelections>): F
             ? { contextMatchMode: selections.contextMatchMode }
             : {}),
         ...(tags.length > 0 ? { tags } : {}),
+        // The match mode only means something once several tags compete.
+        ...(tags.length > 1 && selections.tagMatchMode
+            ? { tagMatchMode: selections.tagMatchMode }
+            : {}),
         ...(projects.length > 0 ? { projects } : {}),
         ...(locations.length > 0 ? { locations } : {}),
         ...(priorities.length > 0 ? { priority: priorities } : {}),
@@ -68,6 +73,7 @@ export function selectionsFromCriteria(criteria: FilterCriteria | undefined): Fi
         energyLevels: normalized.energy ?? [],
         timeEstimates: normalized.timeEstimates ?? [],
         contextMatchMode: normalized.contextMatchMode ?? 'all',
+        tagMatchMode: normalized.tagMatchMode ?? 'all',
     };
 }
 

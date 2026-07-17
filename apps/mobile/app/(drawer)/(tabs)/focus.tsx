@@ -313,6 +313,7 @@ export default function FocusScreen() {
   const [selectedTimeEstimates, setSelectedTimeEstimates] = useState<TimeEstimate[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
   const [contextMatchMode, setContextMatchMode] = useState<MultiValueFilterMatchMode>('all');
+  const [tagMatchMode, setTagMatchMode] = useState<MultiValueFilterMatchMode>('all');
   const [activeSavedFilterId, setActiveSavedFilterId] = useState<string | null>(null);
   const [focusSortBy, setFocusSortBy] = useState<SortField>(DEFAULT_FOCUS_SORT_BY);
   const [focusReorderMode, setFocusReorderMode] = useState(false);
@@ -402,9 +403,11 @@ export default function FocusScreen() {
     priorities: showPriorityFilters ? selectedPriorities : [],
     energyLevels: showEnergyLevelFilters ? selectedEnergyLevels : [],
     contextMatchMode,
+    tagMatchMode,
     timeEstimates: showTimeEstimateFilters ? selectedTimeEstimates : [],
   }), [
     contextMatchMode,
+    tagMatchMode,
     locationFilter,
     showEnergyLevelFilters,
     showPriorityFilters,
@@ -418,6 +421,7 @@ export default function FocusScreen() {
   ]);
   const rawEffectiveFilterCriteria = activeSavedFilter?.criteria ?? currentFilterCriteria;
   const effectiveContextMatchMode = rawEffectiveFilterCriteria.contextMatchMode ?? 'all';
+  const effectiveTagMatchMode = rawEffectiveFilterCriteria.tagMatchMode ?? 'all';
   const effectiveFilterCriteria = useMemo<FilterCriteria>(() => ({
     ...rawEffectiveFilterCriteria,
     ...(showPriorityFilters ? {} : { priority: undefined }),
@@ -684,6 +688,10 @@ export default function FocusScreen() {
     setActiveSavedFilterId(null);
     setContextMatchMode(mode);
   }, []);
+  const updateTagMatchMode = useCallback((mode: MultiValueFilterMatchMode) => {
+    setActiveSavedFilterId(null);
+    setTagMatchMode(mode);
+  }, []);
   const updateLocationFilter = useCallback((value: string) => {
     setActiveSavedFilterId(null);
     setLocationFilter(value);
@@ -698,6 +706,7 @@ export default function FocusScreen() {
     setSelectedEnergyLevels([]);
     setSelectedTimeEstimates([]);
     setContextMatchMode('all');
+    setTagMatchMode('all');
   }, []);
   const applySavedFocusFilter = useCallback((filter: SavedFilter) => {
     const selections = selectionsFromCriteria(filter.criteria);
@@ -708,6 +717,7 @@ export default function FocusScreen() {
     setSelectedEnergyLevels(selections.energyLevels);
     setSelectedTimeEstimates(selections.timeEstimates);
     setContextMatchMode(selections.contextMatchMode);
+    setTagMatchMode(selections.tagMatchMode);
     setFocusSortBy(filter.sortBy ?? DEFAULT_FOCUS_SORT_BY);
     setActiveSavedFilterId(filter.id);
     setFiltersVisible(false);
@@ -1444,6 +1454,11 @@ export default function FocusScreen() {
     [selectedTokens],
   );
   const showContextMatchMode = selectedContextCount > 1;
+  const selectedTagCount = useMemo(
+    () => selectedTokens.filter((token) => token.trim().startsWith('#')).length,
+    [selectedTokens],
+  );
+  const showTagMatchMode = selectedTagCount > 1;
   const emptyTitle = hasFilters ? resolveText('filters.noMatch', 'No tasks match these filters.') : t('agenda.allClear');
   const emptySubtitle = hasFilters
     ? resolveText('filters.label', 'Filters')
@@ -2201,6 +2216,36 @@ export default function FocusScreen() {
                               style={[
                                 styles.matchModeButtonText,
                                 { color: effectiveContextMatchMode === mode ? tc.onTint : tc.secondaryText },
+                              ]}
+                            >
+                              {mode === 'any' ? resolveText('filters.matchAny', 'Any') : resolveText('common.all', 'All')}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
+                  {showTagMatchMode ? (
+                    <View style={styles.matchModeRow}>
+                      <Text style={[styles.matchModeLabel, { color: tc.secondaryText }]}>
+                        {resolveText('filters.tagMatchMode', 'Tag match')}
+                      </Text>
+                      <View style={[styles.matchModeControl, { borderColor: tc.border, backgroundColor: tc.filterBg }]}>
+                        {(['any', 'all'] as const).map((mode) => (
+                          <TouchableOpacity
+                            key={mode}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: effectiveTagMatchMode === mode }}
+                            onPress={() => updateTagMatchMode(mode)}
+                            style={[
+                              styles.matchModeButton,
+                              { backgroundColor: effectiveTagMatchMode === mode ? tc.tint : 'transparent' },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.matchModeButtonText,
+                                { color: effectiveTagMatchMode === mode ? tc.onTint : tc.secondaryText },
                               ]}
                             >
                               {mode === 'any' ? resolveText('filters.matchAny', 'Any') : resolveText('common.all', 'All')}

@@ -33,6 +33,12 @@ type AgendaFiltersPanelProps = {
         any: string;
         all: string;
     };
+    tagMatchMode: MultiValueFilterMatchMode;
+    tagMatchModeLabels: {
+        title: string;
+        any: string;
+        all: string;
+    };
     hasFilters: boolean;
     locationFilter: string;
     showEnergyLevelFilters: boolean;
@@ -41,6 +47,7 @@ type AgendaFiltersPanelProps = {
     onClearFilters: () => void;
     onLocationChange: (value: string) => void;
     onContextMatchModeChange: (value: MultiValueFilterMatchMode) => void;
+    onTagMatchModeChange: (value: MultiValueFilterMatchMode) => void;
     onSearchChange: (value: string) => void;
     onSortChange: (value: SortField) => void;
     onToggleEnergy: (energyLevel: TaskEnergyLevel) => void;
@@ -76,12 +83,15 @@ export function AgendaFiltersPanel({
     canSaveFilter,
     contextMatchMode,
     contextMatchModeLabels,
+    tagMatchMode,
+    tagMatchModeLabels,
     hasFilters,
     locationFilter,
     showEnergyLevelFilters,
     showLocationFilter,
     onClearFilters,
     onContextMatchModeChange,
+    onTagMatchModeChange,
     onLocationChange,
     onSearchChange,
     onSortChange,
@@ -111,6 +121,8 @@ export function AgendaFiltersPanel({
 }: AgendaFiltersPanelProps) {
     const selectedContextCount = selectedTokens.filter((token) => token.trim().startsWith('@')).length;
     const showContextMatchMode = selectedContextCount > 1;
+    const selectedTagCount = selectedTokens.filter((token) => token.trim().startsWith('#')).length;
+    const showTagMatchMode = selectedTagCount > 1;
 
     return (
         <div id="agenda-filters-panel" className="space-y-3 rounded-lg border border-border/70 bg-card/45 p-3">
@@ -242,6 +254,32 @@ export function AgendaFiltersPanel({
                                                 )}
                                             >
                                                 {mode === 'any' ? contextMatchModeLabels.any : contextMatchModeLabels.all}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                        {showTagMatchMode && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{tagMatchModeLabels.title}</span>
+                                <div className="inline-flex rounded-full border border-border bg-muted/50 p-0.5">
+                                    {(['any', 'all'] as const).map((mode) => {
+                                        const isActive = tagMatchMode === mode;
+                                        return (
+                                            <button
+                                                key={mode}
+                                                type="button"
+                                                onClick={() => onTagMatchModeChange(mode)}
+                                                aria-pressed={isActive}
+                                                className={cn(
+                                                    'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                                                    isActive
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : 'text-muted-foreground hover:text-foreground',
+                                                )}
+                                            >
+                                                {mode === 'any' ? tagMatchModeLabels.any : tagMatchModeLabels.all}
                                             </button>
                                         );
                                     })}

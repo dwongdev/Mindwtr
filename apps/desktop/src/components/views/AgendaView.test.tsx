@@ -1466,6 +1466,62 @@ describe('AgendaView', () => {
         });
     });
 
+    it('persists tag any matching when saving a Focus filter', async () => {
+        const tasks: Task[] = [
+            {
+                id: 'quick-task',
+                title: 'Quick task',
+                status: 'next',
+                contexts: [],
+                tags: ['#quick'],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+            {
+                id: 'calls-task',
+                title: 'Calls task',
+                status: 'next',
+                contexts: [],
+                tags: ['#calls'],
+                createdAt: nowIso,
+                updatedAt: nowIso,
+            },
+        ];
+
+        useTaskStore.setState({
+            tasks,
+            _allTasks: tasks,
+            projects: [],
+            _allProjects: [],
+            areas: [],
+            _allAreas: [],
+            settings: {},
+            highlightTaskId: null,
+        });
+
+        const { getAllByRole, getByDisplayValue, getByRole } = renderAgenda();
+
+        fireEvent.click(getByRole('button', { name: /^Filters$/i }));
+        fireEvent.click(getByRole('button', { name: '#quick' }));
+        fireEvent.click(getByRole('button', { name: '#calls' }));
+        fireEvent.click(getByRole('button', { name: 'Any' }));
+        fireEvent.click(getByRole('button', { name: /^Save$/i }));
+        fireEvent.change(getByDisplayValue('#quick + #calls'), { target: { value: 'Quick or calls' } });
+        const saveButtons = getAllByRole('button', { name: /^Save$/i });
+        fireEvent.click(saveButtons[saveButtons.length - 1]);
+
+        await waitFor(() => {
+            expect(useTaskStore.getState().settings.savedFilters?.[0]).toMatchObject({
+                name: 'Quick or calls',
+                view: 'focus',
+                criteria: {
+                    tags: ['#quick', '#calls'],
+                    tagMatchMode: 'any',
+                },
+            });
+        });
+    });
+
     it('saves Focus sort and group preferences without requiring criteria', async () => {
         useTaskStore.setState({
             tasks: [],

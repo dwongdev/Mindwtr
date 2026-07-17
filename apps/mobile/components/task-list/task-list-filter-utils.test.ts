@@ -18,6 +18,7 @@ const emptyFilterInput: MobileTaskListFilterInput = {
   timeEstimates: [],
   tokens: [],
   contextMatchMode: 'all',
+  tagMatchMode: 'all',
 };
 
 const makeFilters = (overrides: Partial<MobileTaskListFilterInput> = {}) => (
@@ -57,6 +58,15 @@ describe('task-list-filter-utils', () => {
       energy: ['high'],
       timeEstimates: ['30min'],
       locations: ['office'],
+    });
+
+    expect(buildMobileTaskListFilterCriteria({
+      ...emptyFilterInput,
+      tagMatchMode: 'any',
+      tokens: ['#client', '#urgent'],
+    })).toEqual({
+      tags: ['#client', '#urgent'],
+      tagMatchMode: 'any',
     });
   });
 
@@ -102,6 +112,21 @@ describe('task-list-filter-utils', () => {
     expect(taskMatchesMobileTaskFilters(task, makeFilters({
       tokens: ['@work', '@phone', '#ops'],
       contextMatchMode: 'any',
+    }))).toBe(false);
+  });
+
+  it('can match any selected tag while keeping context filters required', () => {
+    expect(taskMatchesMobileTaskFilters(task, makeFilters({
+      tokens: ['#client', '#urgent'],
+      tagMatchMode: 'all',
+    }))).toBe(false);
+    expect(taskMatchesMobileTaskFilters(task, makeFilters({
+      tokens: ['#client', '#urgent'],
+      tagMatchMode: 'any',
+    }))).toBe(true);
+    expect(taskMatchesMobileTaskFilters(task, makeFilters({
+      tokens: ['#client', '#urgent', '@remote'],
+      tagMatchMode: 'any',
     }))).toBe(false);
   });
 

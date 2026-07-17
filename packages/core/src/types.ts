@@ -266,6 +266,7 @@ export interface FilterCriteria {
     areas?: string[];
     projects?: string[];
     tags?: string[];
+    tagMatchMode?: MultiValueFilterMatchMode;
     energy?: TaskEnergyLevel[];
     priority?: FilterPriority[];
     dueDateRange?: DateRange;
