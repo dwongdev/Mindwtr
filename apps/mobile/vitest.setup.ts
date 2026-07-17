@@ -36,6 +36,17 @@ testGlobal.cancelAnimationFrame = testGlobal.cancelAnimationFrame ?? ((id: numbe
   clearTimeout(id);
 });
 
+// Unavailable by default so code under test exercises the AsyncStorage
+// fallback; secure-config tests override this with their own mock.
+vi.mock('expo-secure-store', () => ({
+  isAvailableAsync: vi.fn().mockResolvedValue(false),
+  getItemAsync: vi.fn().mockResolvedValue(null),
+  setItemAsync: vi.fn().mockResolvedValue(undefined),
+  deleteItemAsync: vi.fn().mockResolvedValue(undefined),
+  AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 'afterFirstUnlockThisDeviceOnly',
+  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'whenUnlockedThisDeviceOnly',
+}));
+
 vi.mock('expo-audio', () => ({
   AudioModule: {
     requestRecordingPermissionsAsync: vi.fn().mockResolvedValue({ granted: true, status: 'granted' }),

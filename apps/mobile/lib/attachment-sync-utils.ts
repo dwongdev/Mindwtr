@@ -19,6 +19,7 @@ import {
   WEBDAV_USERNAME_KEY,
   WEBDAV_ALLOW_INSECURE_HTTP_KEY,
 } from './sync-constants';
+import { getSecureConfigValue } from './secure-config';
 import { logInfo, logWarn, sanitizeLogMessage } from './app-log';
 import { isLikelyFilePath } from './sync-service-utils';
 
@@ -315,7 +316,7 @@ export const loadWebDavConfig = async (): Promise<WebDavConfig | null> => {
   const [url, username, password, allowInsecureHttp] = await Promise.all([
     AsyncStorage.getItem(WEBDAV_URL_KEY),
     AsyncStorage.getItem(WEBDAV_USERNAME_KEY),
-    AsyncStorage.getItem(WEBDAV_PASSWORD_KEY),
+    getSecureConfigValue(WEBDAV_PASSWORD_KEY),
     AsyncStorage.getItem(WEBDAV_ALLOW_INSECURE_HTTP_KEY),
   ]);
   if (!url) return null;
@@ -330,7 +331,7 @@ export const loadWebDavConfig = async (): Promise<WebDavConfig | null> => {
 export const loadCloudConfig = async (): Promise<CloudConfig | null> => {
   const [url, token, allowInsecureHttp] = await Promise.all([
     AsyncStorage.getItem(CLOUD_URL_KEY),
-    AsyncStorage.getItem(CLOUD_TOKEN_KEY),
+    getSecureConfigValue(CLOUD_TOKEN_KEY),
     AsyncStorage.getItem(CLOUD_ALLOW_INSECURE_HTTP_KEY),
   ]);
   if (!url) return null;

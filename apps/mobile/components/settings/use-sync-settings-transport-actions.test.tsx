@@ -25,6 +25,8 @@ const mocked = vi.hoisted(() => ({
     },
     clearMobileSyncConfigCache: vi.fn(),
     cloudGetJson: vi.fn(),
+    getSecureConfigValue: vi.fn(),
+    setSecureConfigValue: vi.fn(),
     isConnectionAllowed: vi.fn((url: string, options?: { allowInsecureHttp?: boolean }) => {
         if (options?.allowInsecureHttp) return true;
         try {
@@ -52,6 +54,11 @@ const mocked = vi.hoisted(() => ({
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
     default: mocked.asyncStorage,
+}));
+
+vi.mock('@/lib/secure-config', () => ({
+    getSecureConfigValue: mocked.getSecureConfigValue,
+    setSecureConfigValue: mocked.setSecureConfigValue,
 }));
 
 vi.mock('@mindwtr/core', () => ({
@@ -172,6 +179,10 @@ beforeEach(() => {
     mocked.asyncStorage.multiSet.mockResolvedValue(undefined);
     mocked.asyncStorage.removeItem.mockResolvedValue(undefined);
     mocked.asyncStorage.setItem.mockResolvedValue(undefined);
+    mocked.getSecureConfigValue.mockReset();
+    mocked.setSecureConfigValue.mockReset();
+    mocked.getSecureConfigValue.mockResolvedValue(null);
+    mocked.setSecureConfigValue.mockResolvedValue(undefined);
     mocked.addBreadcrumb.mockReset();
     mocked.clearMobileSyncConfigCache.mockReset();
     mocked.cloudGetJson.mockReset();
@@ -203,11 +214,14 @@ describe('useSyncSettingsTransportActions', () => {
             [SYNC_BACKEND_KEY, 'cloudkit'],
             [WEBDAV_URL_KEY, 'https://dav.example.com'],
             [WEBDAV_USERNAME_KEY, 'alice'],
-            [WEBDAV_PASSWORD_KEY, 'secret'],
             [CLOUD_URL_KEY, 'https://cloud.example.com'],
-            [CLOUD_TOKEN_KEY, 'token-123'],
             [CLOUD_PROVIDER_KEY, 'cloudkit'],
         ]);
+        mocked.getSecureConfigValue.mockImplementation(async (key: string) => {
+            if (key === WEBDAV_PASSWORD_KEY) return 'secret';
+            if (key === CLOUD_TOKEN_KEY) return 'token-123';
+            return null;
+        });
 
         await renderHarness({ supportsNativeICloudSync: false });
 
@@ -335,9 +349,9 @@ describe('useSyncSettingsTransportActions', () => {
             [SYNC_BACKEND_KEY, 'webdav'],
             [WEBDAV_URL_KEY, 'https://dav.example.com/mindwtr/'],
             [WEBDAV_USERNAME_KEY, 'alice'],
-            [WEBDAV_PASSWORD_KEY, 'new-secret'],
             [WEBDAV_ALLOW_INSECURE_HTTP_KEY, 'false'],
         ]);
+        expect(mocked.setSecureConfigValue).toHaveBeenCalledWith(WEBDAV_PASSWORD_KEY, 'new-secret');
         expect(mocked.clearMobileSyncConfigCache).toHaveBeenCalledTimes(1);
         expect(mocked.performMobileSync).toHaveBeenCalledTimes(1);
         expect(mocked.clearMobileSyncConfigCache.mock.invocationCallOrder[0]).toBeLessThan(

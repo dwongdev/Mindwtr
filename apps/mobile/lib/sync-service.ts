@@ -37,6 +37,7 @@ import {
   SYNC_PATH_BOOKMARK_KEY,
   DROPBOX_LAST_REV_KEY,
 } from './sync-constants';
+import { getSecureConfigValue, isSecretConfigKey } from './secure-config';
 import { getMobileCloudRequestOptions, getMobileWebDavRequestOptions } from './webdav-request-options';
 
 const DEFAULT_SYNC_TIMEOUT_MS = 30_000;
@@ -211,16 +212,20 @@ export const subscribeMobileSyncActivityState = (listener: MobileSyncActivityLis
   };
 };
 
+const readStoredConfigValue = async (key: string): Promise<string | null> => {
+  return isSecretConfigKey(key) ? getSecureConfigValue(key) : AsyncStorage.getItem(key);
+};
+
 const readConfigValue = async (key: string, useCache = true): Promise<string | null> => {
   if (!useCache) {
-    return sanitizeConfigValue(await AsyncStorage.getItem(key));
+    return sanitizeConfigValue(await readStoredConfigValue(key));
   }
   const now = Date.now();
   const cached = syncConfigCache.get(key);
   if (cached && now - cached.readAt <= SYNC_CONFIG_CACHE_TTL_MS) {
     return cached.value;
   }
-  const value = sanitizeConfigValue(await AsyncStorage.getItem(key));
+  const value = sanitizeConfigValue(await readStoredConfigValue(key));
   syncConfigCache.set(key, { value, readAt: now });
   return value;
 };

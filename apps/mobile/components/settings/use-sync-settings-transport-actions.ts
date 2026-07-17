@@ -49,6 +49,7 @@ import {
     WEBDAV_URL_KEY,
     WEBDAV_USERNAME_KEY,
 } from '@/lib/sync-constants';
+import { getSecureConfigValue, setSecureConfigValue } from '@/lib/secure-config';
 
 import { type CloudProvider, isValidHttpUrl } from './settings.constants';
 import { type SelfHostedSyncSettings } from './sync-settings-selfhosted-panel';
@@ -210,18 +211,20 @@ export function useSyncSettingsTransportActions({
     useEffect(() => {
         let cancelled = false;
 
-        AsyncStorage.multiGet([
-            SYNC_PATH_KEY,
-            SYNC_BACKEND_KEY,
-            WEBDAV_URL_KEY,
-            WEBDAV_USERNAME_KEY,
-            WEBDAV_PASSWORD_KEY,
-            WEBDAV_ALLOW_INSECURE_HTTP_KEY,
-            CLOUD_URL_KEY,
-            CLOUD_TOKEN_KEY,
-            CLOUD_ALLOW_INSECURE_HTTP_KEY,
-            CLOUD_PROVIDER_KEY,
-        ]).then((entries) => {
+        Promise.all([
+            AsyncStorage.multiGet([
+                SYNC_PATH_KEY,
+                SYNC_BACKEND_KEY,
+                WEBDAV_URL_KEY,
+                WEBDAV_USERNAME_KEY,
+                WEBDAV_ALLOW_INSECURE_HTTP_KEY,
+                CLOUD_URL_KEY,
+                CLOUD_ALLOW_INSECURE_HTTP_KEY,
+                CLOUD_PROVIDER_KEY,
+            ]),
+            getSecureConfigValue(WEBDAV_PASSWORD_KEY),
+            getSecureConfigValue(CLOUD_TOKEN_KEY),
+        ]).then(([entries, storedWebDavPassword, storedCloudToken]) => {
             if (cancelled) return;
 
             const entryMap = new Map(entries);
@@ -229,10 +232,8 @@ export function useSyncSettingsTransportActions({
             const storedBackend = entryMap.get(SYNC_BACKEND_KEY);
             const storedWebDavUrl = entryMap.get(WEBDAV_URL_KEY);
             const storedWebDavUsername = entryMap.get(WEBDAV_USERNAME_KEY);
-            const storedWebDavPassword = entryMap.get(WEBDAV_PASSWORD_KEY);
             const storedWebDavAllowInsecureHttp = entryMap.get(WEBDAV_ALLOW_INSECURE_HTTP_KEY);
             const storedCloudUrl = entryMap.get(CLOUD_URL_KEY);
-            const storedCloudToken = entryMap.get(CLOUD_TOKEN_KEY);
             const storedCloudAllowInsecureHttp = entryMap.get(CLOUD_ALLOW_INSECURE_HTTP_KEY);
             const storedCloudProvider = entryMap.get(CLOUD_PROVIDER_KEY);
 
@@ -550,12 +551,14 @@ export function useSyncSettingsTransportActions({
         }
         const trimmedUsername = nextSettings.username.trim();
         try {
-            await AsyncStorage.multiSet([
-                [SYNC_BACKEND_KEY, 'webdav'],
-                [WEBDAV_URL_KEY, trimmedUrl],
-                [WEBDAV_USERNAME_KEY, trimmedUsername],
-                [WEBDAV_PASSWORD_KEY, nextSettings.password],
-                [WEBDAV_ALLOW_INSECURE_HTTP_KEY, serializeBool(nextSettings.allowInsecureHttp)],
+            await Promise.all([
+                AsyncStorage.multiSet([
+                    [SYNC_BACKEND_KEY, 'webdav'],
+                    [WEBDAV_URL_KEY, trimmedUrl],
+                    [WEBDAV_USERNAME_KEY, trimmedUsername],
+                    [WEBDAV_ALLOW_INSECURE_HTTP_KEY, serializeBool(nextSettings.allowInsecureHttp)],
+                ]),
+                setSecureConfigValue(WEBDAV_PASSWORD_KEY, nextSettings.password),
             ]);
             clearMobileSyncConfigCache();
             setWebdavUrl(trimmedUrl);
@@ -591,12 +594,14 @@ export function useSyncSettingsTransportActions({
             return;
         }
         try {
-            await AsyncStorage.multiSet([
-                [SYNC_BACKEND_KEY, 'cloud'],
-                [CLOUD_PROVIDER_KEY, 'selfhosted'],
-                [CLOUD_URL_KEY, trimmedUrl],
-                [CLOUD_TOKEN_KEY, nextSettings.token],
-                [CLOUD_ALLOW_INSECURE_HTTP_KEY, serializeBool(nextSettings.allowInsecureHttp)],
+            await Promise.all([
+                AsyncStorage.multiSet([
+                    [SYNC_BACKEND_KEY, 'cloud'],
+                    [CLOUD_PROVIDER_KEY, 'selfhosted'],
+                    [CLOUD_URL_KEY, trimmedUrl],
+                    [CLOUD_ALLOW_INSECURE_HTTP_KEY, serializeBool(nextSettings.allowInsecureHttp)],
+                ]),
+                setSecureConfigValue(CLOUD_TOKEN_KEY, nextSettings.token),
             ]);
             clearMobileSyncConfigCache();
             setCloudUrl(trimmedUrl);
@@ -658,12 +663,14 @@ export function useSyncSettingsTransportActions({
                     return;
                 }
                 const trimmedWebDavUsername = effectiveWebdav.username.trim();
-                await AsyncStorage.multiSet([
-                    [SYNC_BACKEND_KEY, 'webdav'],
-                    [WEBDAV_URL_KEY, trimmedWebDavUrl],
-                    [WEBDAV_USERNAME_KEY, trimmedWebDavUsername],
-                    [WEBDAV_PASSWORD_KEY, effectiveWebdav.password],
-                    [WEBDAV_ALLOW_INSECURE_HTTP_KEY, serializeBool(effectiveWebdav.allowInsecureHttp)],
+                await Promise.all([
+                    AsyncStorage.multiSet([
+                        [SYNC_BACKEND_KEY, 'webdav'],
+                        [WEBDAV_URL_KEY, trimmedWebDavUrl],
+                        [WEBDAV_USERNAME_KEY, trimmedWebDavUsername],
+                        [WEBDAV_ALLOW_INSECURE_HTTP_KEY, serializeBool(effectiveWebdav.allowInsecureHttp)],
+                    ]),
+                    setSecureConfigValue(WEBDAV_PASSWORD_KEY, effectiveWebdav.password),
                 ]);
                 wroteSyncConfig = true;
                 setWebdavUrl(trimmedWebDavUrl);
@@ -717,12 +724,14 @@ export function useSyncSettingsTransportActions({
                     if (!validateSyncHttpUrl(trimmedCloudUrl, effectiveCloud.allowInsecureHttp, 'self-hosted')) {
                         return;
                     }
-                    await AsyncStorage.multiSet([
-                        [SYNC_BACKEND_KEY, 'cloud'],
-                        [CLOUD_PROVIDER_KEY, 'selfhosted'],
-                        [CLOUD_URL_KEY, trimmedCloudUrl],
-                        [CLOUD_TOKEN_KEY, effectiveCloud.token],
-                        [CLOUD_ALLOW_INSECURE_HTTP_KEY, serializeBool(effectiveCloud.allowInsecureHttp)],
+                    await Promise.all([
+                        AsyncStorage.multiSet([
+                            [SYNC_BACKEND_KEY, 'cloud'],
+                            [CLOUD_PROVIDER_KEY, 'selfhosted'],
+                            [CLOUD_URL_KEY, trimmedCloudUrl],
+                            [CLOUD_ALLOW_INSECURE_HTTP_KEY, serializeBool(effectiveCloud.allowInsecureHttp)],
+                        ]),
+                        setSecureConfigValue(CLOUD_TOKEN_KEY, effectiveCloud.token),
                     ]);
                     wroteSyncConfig = true;
                     setCloudUrl(trimmedCloudUrl);
