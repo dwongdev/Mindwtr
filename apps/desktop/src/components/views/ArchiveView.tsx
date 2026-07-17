@@ -1,7 +1,7 @@
 import { memo, useMemo, useState, useEffect, useCallback, useLayoutEffect, useRef, type UIEvent } from 'react';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { shallow, useTaskStore, sortTasksBy, safeFormatDate, tFallback } from '@mindwtr/core';
-import type { Task, TaskSortBy } from '@mindwtr/core';
+import type { Task, TaskSortBy, Project } from '@mindwtr/core';
 
 import { CheckCircle2, Undo2, Trash2 } from 'lucide-react';
 import { useLanguage } from '../../contexts/language-context';
@@ -9,6 +9,7 @@ import { usePerformanceMonitor } from '../../hooks/usePerformanceMonitor';
 import { checkBudget } from '../../config/performanceBudgets';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { PromptModal } from '../PromptModal';
+import { cn } from '../../lib/utils';
 import { toDateTimeLocalValue } from '../Task/task-item-helpers';
 import {
     LIST_VIRTUALIZATION_THRESHOLD,
@@ -144,13 +145,80 @@ const VirtualArchiveTaskRow = memo(function VirtualArchiveTaskRow({
     );
 });
 
+type ArchiveProjectRowProps = {
+    project: Project;
+    areaName?: string;
+    onRestore: (projectId: string) => void;
+    onDelete: (project: Project) => void;
+    t: (key: string) => string;
+};
+
+const ArchiveProjectRow = memo(function ArchiveProjectRow({
+    project,
+    areaName,
+    onRestore,
+    onDelete,
+    t,
+}: ArchiveProjectRowProps) {
+    const handleRestore = useCallback(() => onRestore(project.id), [onRestore, project.id]);
+    const handleDelete = useCallback(() => onDelete(project), [onDelete, project]);
+    const archivedText = `${t('list.done') || 'Completed'}: ${project.updatedAt ? safeFormatDate(project.updatedAt, 'Pp', project.updatedAt) : 'Unknown'}`;
+
+    return (
+        <div className="rounded-lg px-3 py-3 flex items-center justify-between group hover:bg-muted/50 transition-colors">
+            <div className="flex min-w-0 items-center gap-3">
+                <div>
+                    <h3 className="font-medium text-foreground line-through opacity-70">{project.title}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        {archivedText}
+                        {areaName ? ` • ${areaName}` : ''}
+                    </p>
+                </div>
+            </div>
+            <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+                <button
+                    onClick={handleRestore}
+                    className="p-2 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors"
+                    title={tFallback(t, 'archived.restoreProject', 'Restore project')}
+                >
+                    <Undo2 className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={handleDelete}
+                    className="p-2 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-colors"
+                    title={t('common.delete')}
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    );
+});
+
+type ArchiveSegment = 'tasks' | 'projects';
+
 export function ArchiveView() {
     const perf = usePerformanceMonitor('ArchiveView');
-    const { _allTasks, updateTask, deleteTask, batchMoveTasks, batchDeleteTasks, settings } = useTaskStore(
+    const {
+        _allTasks,
+        projects,
+        areas,
+        updateTask,
+        deleteTask,
+        updateProject,
+        deleteProject,
+        batchMoveTasks,
+        batchDeleteTasks,
+        settings,
+    } = useTaskStore(
         (state) => ({
             _allTasks: state._allTasks,
+            projects: state.projects,
+            areas: state.areas,
             updateTask: state.updateTask,
             deleteTask: state.deleteTask,
+            updateProject: state.updateProject,
+            deleteProject: state.deleteProject,
             batchMoveTasks: state.batchMoveTasks,
             batchDeleteTasks: state.batchDeleteTasks,
             settings: state.settings,
@@ -159,6 +227,7 @@ export function ArchiveView() {
     );
     const { t } = useLanguage();
     const { requestConfirmation, confirmModal } = useConfirmDialog();
+    const [segment, setSegment] = useState<ArchiveSegment>('tasks');
     const [searchQuery, setSearchQuery] = useState('');
     const [completedAtTaskId, setCompletedAtTaskId] = useState<string | null>(null);
     const [selectionMode, setSelectionMode] = useState(false);
@@ -209,6 +278,20 @@ export function ArchiveView() {
             t.title.toLowerCase().includes(searchQuery.toLowerCase())
         );
     }, [_allTasks, searchQuery, sortBy]);
+
+    const areaNameById = useMemo(
+        () => new Map(areas.filter((area) => !area.deletedAt).map((area) => [area.id, area.name])),
+        [areas]
+    );
+
+    const archivedProjects = useMemo(() => {
+        const filtered = projects
+            .filter((project) => project.status === 'archived')
+            .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+        if (!searchQuery) return filtered;
+        const query = searchQuery.toLowerCase();
+        return filtered.filter((project) => project.title.toLowerCase().includes(query));
+    }, [projects, searchQuery]);
     const selectedIdsArray = useMemo(() => Array.from(selectedIds), [selectedIds]);
     const allVisibleSelected = archivedTasks.length > 0
         && selectedIds.size === archivedTasks.length;
@@ -325,16 +408,69 @@ export function ArchiveView() {
         await deleteTask(taskId);
     }, [_allTasks, deleteTask, requestConfirmation, t]);
 
+    const handleRestoreProject = useCallback((projectId: string) => {
+        void updateProject(projectId, { status: 'active' });
+    }, [updateProject]);
+
+    const handleDeleteProject = useCallback(async (project: Project) => {
+        const confirmed = await requestConfirmation({
+            title: project.title,
+            description: t('task.deleteConfirmBody'),
+            confirmLabel: t('common.delete'),
+            cancelLabel: t('common.cancel') || 'Cancel',
+        });
+        if (!confirmed) return;
+        await deleteProject(project.id);
+    }, [deleteProject, requestConfirmation, t]);
+
+    const handleSegmentChange = useCallback((next: ArchiveSegment) => {
+        setSegment((current) => {
+            if (current === next) return current;
+            exitSelectionMode();
+            return next;
+        });
+    }, [exitSelectionMode]);
+
     return (
         <ErrorBoundary>
             <div className={shouldVirtualize ? "flex h-full min-h-0 flex-col gap-6" : "flex flex-col gap-6"}>
-            <header className="flex items-center justify-between">
-                <h2 className="text-3xl font-bold tracking-tight">{t('archived.title')}</h2>
+            <header className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <h2 className="text-3xl font-bold tracking-tight">{t('archived.title')}</h2>
+                    <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
+                        <button
+                            type="button"
+                            onClick={() => handleSegmentChange('tasks')}
+                            className={cn(
+                                'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                                segment === 'tasks'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            )}
+                        >
+                            {t('common.tasks')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleSegmentChange('projects')}
+                            className={cn(
+                                'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                                segment === 'projects'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            )}
+                        >
+                            {t('projects.title')}
+                        </button>
+                    </div>
+                </div>
                 <div className="flex items-center gap-3">
                     <div className="text-sm text-muted-foreground">
-                        {archivedTasks.length} {t('common.tasks')}
+                        {segment === 'tasks'
+                            ? `${archivedTasks.length} ${t('common.tasks')}`
+                            : `${archivedProjects.length} ${t('projects.title')}`}
                     </div>
-                    {archivedTasks.length > 0 && (
+                    {segment === 'tasks' && archivedTasks.length > 0 && (
                         <button
                             type="button"
                             onClick={toggleSelectionMode}
@@ -346,7 +482,7 @@ export function ArchiveView() {
                 </div>
             </header>
 
-            {selectionMode && (
+            {segment === 'tasks' && selectionMode && (
                 <div className="space-y-2">
                     <BulkSelectionToolbar
                         selectionCount={selectedIds.size}
@@ -392,13 +528,38 @@ export function ArchiveView() {
             <div className="relative">
                 <input
                     type="text"
-                    placeholder={t('archived.searchPlaceholder')}
+                    placeholder={segment === 'projects'
+                        ? tFallback(t, 'archived.searchProjectsPlaceholder', 'Search archived projects...')
+                        : t('archived.searchPlaceholder')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full bg-card border border-border rounded-lg py-2 pl-4 pr-4 shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
             </div>
 
+            {segment === 'projects' ? (
+                <div className={shouldVirtualize ? "flex-1 min-h-0 overflow-y-auto" : undefined}>
+                    {archivedProjects.length === 0 ? (
+                        <div className="px-1 py-8 text-left text-sm text-muted-foreground">
+                            <p>{tFallback(t, 'archived.emptyProjects', 'No archived projects')}</p>
+                            <p className="text-xs mt-2">{tFallback(t, 'archived.emptyProjectsHint', 'Projects you archive will appear here')}</p>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-border/30">
+                            {archivedProjects.map((project) => (
+                                <ArchiveProjectRow
+                                    key={project.id}
+                                    project={project}
+                                    areaName={project.areaId ? areaNameById.get(project.areaId) : undefined}
+                                    onRestore={handleRestoreProject}
+                                    onDelete={handleDeleteProject}
+                                    t={t}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : (
             <div
                 ref={listScrollRef}
                 onScroll={handleVirtualScroll}
@@ -448,6 +609,7 @@ export function ArchiveView() {
                     </div>
                 )}
             </div>
+            )}
             </div>
             {confirmModal}
             {completedAtTaskId && (

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { Task } from '@mindwtr/core';
+import type { Project, Task } from '@mindwtr/core';
 import { safeFormatDate, useTaskStore } from '@mindwtr/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LanguageProvider } from '../../contexts/language-context';
@@ -18,6 +18,17 @@ const archivedTask: Task = {
     updatedAt: '2026-05-12T08:30:00.000Z',
 };
 
+const archivedProject: Project = {
+    id: 'project-1',
+    title: 'Archived project',
+    status: 'archived',
+    color: '#6B7280',
+    order: 0,
+    tagIds: [],
+    createdAt: '2026-05-01T08:30:00.000Z',
+    updatedAt: '2026-05-11T08:30:00.000Z',
+};
+
 describe('ArchiveView', () => {
     beforeEach(() => {
         useTaskStore.setState(initialTaskState, true);
@@ -25,6 +36,8 @@ describe('ArchiveView', () => {
             tasks: [],
             _allTasks: [archivedTask],
             _tasksById: new Map([[archivedTask.id, archivedTask]]),
+            projects: [],
+            _allProjects: [],
             settings: {},
         });
     });
@@ -124,5 +137,100 @@ describe('ArchiveView', () => {
             expect(deletedTask?.deletedAt).toBeTruthy();
             expect(deletedTask?.purgedAt).toBeUndefined();
         });
+    });
+
+    it('lists archived projects when the Projects segment is selected', () => {
+        useTaskStore.setState({
+            projects: [archivedProject],
+            _allProjects: [archivedProject],
+        });
+
+        render(
+            <LanguageProvider>
+                <ArchiveView />
+            </LanguageProvider>
+        );
+
+        expect(screen.queryByText('Archived project')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Projects' }));
+        expect(screen.getByText('Archived project')).toBeInTheDocument();
+    });
+
+    it('shows the projects empty state when there are no archived projects', () => {
+        render(
+            <LanguageProvider>
+                <ArchiveView />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Projects' }));
+        expect(screen.getByText('No archived projects')).toBeInTheDocument();
+    });
+
+    it('restores an archived project via updateProject with active status', async () => {
+        useTaskStore.setState({
+            projects: [archivedProject],
+            _allProjects: [archivedProject],
+        });
+
+        render(
+            <LanguageProvider>
+                <ArchiveView />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Projects' }));
+        fireEvent.click(screen.getByTitle('Restore project'));
+
+        await waitFor(() => {
+            const restored = useTaskStore.getState()._allProjects.find((p) => p.id === archivedProject.id);
+            expect(restored?.status).toBe('active');
+            expect(restored?.deletedAt).toBeUndefined();
+        });
+    });
+
+    it('soft-deletes an archived project after confirmation', async () => {
+        useTaskStore.setState({
+            projects: [archivedProject],
+            _allProjects: [archivedProject],
+        });
+
+        render(
+            <LanguageProvider>
+                <ArchiveView />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Projects' }));
+        fireEvent.click(screen.getByTitle('Delete'));
+        fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
+
+        await waitFor(() => {
+            const deleted = useTaskStore.getState()._allProjects.find((p) => p.id === archivedProject.id);
+            expect(deleted?.deletedAt).toBeTruthy();
+            expect(deleted?.purgedAt).toBeUndefined();
+        });
+    });
+
+    it('filters archived projects by title search', () => {
+        const secondProject: Project = { ...archivedProject, id: 'project-2', title: 'Second archived project' };
+        useTaskStore.setState({
+            projects: [archivedProject, secondProject],
+            _allProjects: [archivedProject, secondProject],
+        });
+
+        render(
+            <LanguageProvider>
+                <ArchiveView />
+            </LanguageProvider>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Projects' }));
+        fireEvent.change(screen.getByPlaceholderText('Search archived projects...'), {
+            target: { value: 'Second' },
+        });
+
+        expect(screen.getByText('Second archived project')).toBeInTheDocument();
+        expect(screen.queryByText('Archived project')).not.toBeInTheDocument();
     });
 });

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
-import { getInlineMarkdownPreview, safeFormatDate, shallow, taskMatchesAreaFilter, tFallback, useTaskStore } from '@mindwtr/core';
-import type { Task } from '@mindwtr/core';
+import { View, Text, FlatList, Pressable, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { getInlineMarkdownPreview, projectMatchesAreaFilter, safeFormatDate, shallow, taskMatchesAreaFilter, tFallback, useTaskStore } from '@mindwtr/core';
+import type { Project, Task } from '@mindwtr/core';
 import { MarkdownInlineText } from '@/components/markdown-text';
 import { useLanguage } from '../../contexts/language-context';
 
@@ -138,12 +138,97 @@ function ArchivedTaskItem({
     );
 }
 
+type ArchiveSegment = 'tasks' | 'projects';
+
+function ArchivedProjectItem({
+    project,
+    tc,
+    areaName,
+    onOpen,
+    onRestore,
+    onDelete,
+    completedLabel,
+}: {
+    project: Project;
+    tc: ThemeColors;
+    areaName?: string;
+    onOpen: () => void;
+    onRestore: () => void;
+    onDelete: () => void;
+    completedLabel: string;
+}) {
+    const swipeableRef = useRef<Swipeable>(null);
+    const archivedDateLabel = project.updatedAt
+        ? safeFormatDate(project.updatedAt, 'Pp', project.updatedAt)
+        : 'Unknown';
+
+    const renderLeftActions = () => (
+        <Pressable
+            style={styles.swipeActionRestore}
+            onPress={() => {
+                swipeableRef.current?.close();
+                onRestore();
+            }}
+        >
+            <Text style={styles.swipeActionText}>↩️ Restore</Text>
+        </Pressable>
+    );
+
+    const renderRightActions = () => (
+        <Pressable
+            style={styles.swipeActionDelete}
+            onPress={() => {
+                swipeableRef.current?.close();
+                onDelete();
+            }}
+        >
+            <Text style={styles.swipeActionText}>🗑️ Delete</Text>
+        </Pressable>
+    );
+
+    return (
+        <Swipeable
+            ref={swipeableRef}
+            renderLeftActions={renderLeftActions}
+            renderRightActions={renderRightActions}
+            overshootLeft={false}
+            overshootRight={false}
+        >
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open archived project: ${project.title}`}
+                onPress={onOpen}
+                style={({ pressed }) => [
+                    styles.taskItem,
+                    { backgroundColor: tc.taskItemBg },
+                    pressed && styles.taskItemPressed,
+                ]}
+            >
+                <View style={styles.taskContent}>
+                    <Text style={[styles.taskTitle, { color: tc.secondaryText }]} numberOfLines={2}>
+                        {project.title}
+                    </Text>
+                    <Text style={[styles.archivedDate, { color: tc.secondaryText }]}>
+                        {completedLabel}: {archivedDateLabel}
+                    </Text>
+                    {areaName ? (
+                        <Text style={[styles.archivedDate, { color: tc.secondaryText }]}>{areaName}</Text>
+                    ) : null}
+                </View>
+                <View style={[styles.statusIndicator, { backgroundColor: project.color || '#6B7280' }]} />
+            </Pressable>
+        </Swipeable>
+    );
+}
+
 export default function ArchivedScreen() {
     const {
         _allTasks,
         projects,
         updateTask,
         deleteTask,
+        updateProject,
+        deleteProject,
         batchMoveTasks,
         batchDeleteTasks,
         highlightTaskId,
@@ -153,12 +238,15 @@ export default function ArchivedScreen() {
         projects: state.projects,
         updateTask: state.updateTask,
         deleteTask: state.deleteTask,
+        updateProject: state.updateProject,
+        deleteProject: state.deleteProject,
         batchMoveTasks: state.batchMoveTasks,
         batchDeleteTasks: state.batchDeleteTasks,
         highlightTaskId: state.highlightTaskId,
         setHighlightTask: state.setHighlightTask,
     }), shallow);
     const { t } = useLanguage();
+    const [segment, setSegment] = useState<ArchiveSegment>('tasks');
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -177,6 +265,15 @@ export default function ArchivedScreen() {
             && taskMatchesAreaFilter(task, resolvedAreaFilter, projectById, areaById)
         )),
         [_allTasks, resolvedAreaFilter, projectById, areaById],
+    );
+    const archivedProjects = useMemo(
+        () => projects
+            .filter((project) => (
+                project.status === 'archived'
+                && projectMatchesAreaFilter(project, resolvedAreaFilter, areaById)
+            ))
+            .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')),
+        [projects, resolvedAreaFilter, areaById],
     );
     const selectedTask = useMemo(
         () => selectedTaskId ? _allTasks.find((task) => task.id === selectedTaskId && !task.deletedAt) ?? null : null,
@@ -310,6 +407,48 @@ export default function ArchivedScreen() {
         );
     }, [deleteTask, t]);
 
+    const handleRestoreProject = useCallback((projectId: string) => {
+        void updateProject(projectId, { status: 'active' });
+    }, [updateProject]);
+
+    const handleDeleteProject = useCallback((projectId: string) => {
+        const project = projects.find((item) => item.id === projectId);
+        Alert.alert(
+            project?.title || t('common.delete') || 'Delete',
+            t('task.deleteConfirmBody') || 'Move this project to Trash?',
+            [
+                { text: t('common.cancel') || 'Cancel', style: 'cancel' },
+                {
+                    text: t('common.delete') || 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                        void deleteProject(projectId);
+                    },
+                },
+            ],
+        );
+    }, [deleteProject, projects, t]);
+
+    const handleSegmentChange = useCallback((next: ArchiveSegment) => {
+        setSegment((current) => {
+            if (current === next) return current;
+            exitSelectionMode();
+            return next;
+        });
+    }, [exitSelectionMode]);
+
+    const renderArchivedProject = useCallback(({ item }: { item: Project }) => (
+        <ArchivedProjectItem
+            project={item}
+            tc={tc}
+            areaName={item.areaId ? areaById.get(item.areaId)?.name : undefined}
+            onOpen={() => openProjectScreen(item.id)}
+            onRestore={() => handleRestoreProject(item.id)}
+            onDelete={() => handleDeleteProject(item.id)}
+            completedLabel={t('list.done') || 'Completed'}
+        />
+    ), [tc, areaById, handleRestoreProject, handleDeleteProject, t]);
+
     const renderArchivedTask = useCallback(({ item }: { item: Task }) => (
         <ArchivedTaskItem
             task={item}
@@ -331,7 +470,28 @@ export default function ArchivedScreen() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <View style={[styles.container, { backgroundColor: tc.bg }]}>
-                {archivedTasks.length > 0 && (
+                <View style={styles.segmentRow}>
+                    {(['tasks', 'projects'] as ArchiveSegment[]).map((value) => {
+                        const selected = segment === value;
+                        return (
+                            <TouchableOpacity
+                                key={value}
+                                onPress={() => handleSegmentChange(value)}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected }}
+                                style={[
+                                    styles.segmentChip,
+                                    { backgroundColor: selected ? tc.tint : tc.filterBg, borderColor: tc.border },
+                                ]}
+                            >
+                                <Text style={[styles.segmentChipText, { color: selected ? tc.onTint : tc.text }]}>
+                                    {value === 'tasks' ? (t('common.tasks') || 'Tasks') : (t('projects.title') || 'Projects')}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+                {segment === 'tasks' && archivedTasks.length > 0 && (
                     <View style={styles.summaryRow}>
                         <Text style={[styles.summaryText, { color: tc.secondaryText }]}>
                             {archivedTasks.length} {t('common.tasks') || 'tasks'}
@@ -348,7 +508,14 @@ export default function ArchivedScreen() {
                         </Pressable>
                     </View>
                 )}
-                {selectionMode && (
+                {segment === 'projects' && archivedProjects.length > 0 && (
+                    <View style={styles.summaryRow}>
+                        <Text style={[styles.summaryText, { color: tc.secondaryText }]}>
+                            {archivedProjects.length} {t('projects.title') || 'projects'}
+                        </Text>
+                    </View>
+                )}
+                {segment === 'tasks' && selectionMode && (
                     <View style={[styles.bulkBar, { borderColor: tc.border, backgroundColor: tc.cardBg }]}>
                         <Text
                             accessibilityLabel={`${selectedIds.size} ${t('bulk.selected')}`}
@@ -404,6 +571,35 @@ export default function ArchivedScreen() {
                         </View>
                     </View>
                 )}
+                {segment === 'projects' ? (
+                    <FlatList
+                        data={archivedProjects}
+                        renderItem={renderArchivedProject}
+                        keyExtractor={(item) => item.id}
+                        style={styles.taskList}
+                        contentContainerStyle={[
+                            styles.taskListContent,
+                            archivedProjects.length === 0 && styles.emptyContent,
+                        ]}
+                        initialNumToRender={12}
+                        maxToRenderPerBatch={12}
+                        windowSize={5}
+                        updateCellsBatchingPeriod={50}
+                        removeClippedSubviews={false}
+                        showsVerticalScrollIndicator={false}
+                        ListEmptyComponent={
+                            <View style={styles.emptyState}>
+                                <Archive size={48} color={tc.secondaryText} strokeWidth={1.5} style={styles.emptyIcon} />
+                                <Text style={[styles.emptyTitle, { color: tc.text }]}>
+                                    {tFallback(t, 'archived.emptyProjects', 'No archived projects')}
+                                </Text>
+                                <Text style={[styles.emptyText, { color: tc.secondaryText }]}>
+                                    {tFallback(t, 'archived.emptyProjectsHint', 'Projects you archive will appear here')}
+                                </Text>
+                            </View>
+                        }
+                    />
+                ) : (
                 <FlatList
                     data={archivedTasks}
                     renderItem={renderArchivedTask}
@@ -432,6 +628,7 @@ export default function ArchivedScreen() {
                         </View>
                     }
                 />
+                )}
                 <TaskEditModal
                     visible={Boolean(selectedTask)}
                     task={selectedTask}
@@ -459,6 +656,22 @@ export default function ArchivedScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    segmentRow: {
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        flexDirection: 'row',
+        gap: 8,
+    },
+    segmentChip: {
+        borderWidth: 1,
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    segmentChipText: {
+        fontSize: 12,
+        fontWeight: '600',
     },
     summaryRow: {
         paddingHorizontal: 16,
