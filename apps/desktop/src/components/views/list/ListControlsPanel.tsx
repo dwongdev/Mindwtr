@@ -196,6 +196,9 @@ export function ListControlsPanel({
                 groupBy={activeGroupBy}
                 groupByOptions={groupByOptions}
                 onChangeGroupBy={onChangeGroupBy}
+                showFiltersButton={showFilters}
+                filtersOpen={showFiltersPanel}
+                onToggleFilters={onToggleFiltersOpen}
                 selectionMode={selectionMode}
                 onToggleSelection={onToggleSelection}
                 showListDetails={showListDetails}
@@ -341,13 +344,11 @@ export function ListControlsPanel({
                 </div>
             )}
 
-            {showFilters && !isProcessing && (
+            {showFilters && showFiltersPanel && !isProcessing && (
                 <ListFiltersPanel
                     t={t}
                     hasFilters={hasFilters}
-                    showFiltersPanel={showFiltersPanel}
                     onClearFilters={onClearFilters}
-                    onToggleOpen={onToggleFiltersOpen}
                     allTokens={allTokens}
                     selectedTokens={selectedTokens}
                     tokenCounts={tokenCounts}

@@ -769,7 +769,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         }
     };
 
-    const showFilters = ['next', 'all'].includes(statusFilter);
+    const showFilters = ['next', 'all', 'done', 'waiting', 'someday'].includes(statusFilter);
     const isInbox = statusFilter === 'inbox';
     const isNextView = statusFilter === 'next';
     const isWaitingView = statusFilter === 'waiting';

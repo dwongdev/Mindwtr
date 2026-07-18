@@ -693,4 +693,69 @@ describe('ListView', () => {
 
     expect(queryByRole('button', { name: /add to today's focus/i })).toBeNull();
   });
+
+  it.each([
+    ['done', 'Completed'],
+    ['waiting', 'Waiting'],
+    ['someday', 'Someday'],
+  ] as const)('offers a Filters toggle in the %s toolbar', (statusFilter, title) => {
+    const { getByRole } = renderListView(statusFilter, title);
+
+    expect(getByRole('button', { name: 'Filters' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['inbox', 'Inbox'],
+    ['reference', 'Reference'],
+  ] as const)('does not offer a Filters toggle in the %s toolbar', (statusFilter, title) => {
+    const { queryByRole } = renderListView(statusFilter, title);
+
+    expect(queryByRole('button', { name: 'Filters' })).not.toBeInTheDocument();
+  });
+
+  it('toggles the completed-list filter panel from the toolbar button', async () => {
+    useTaskStore.setState({
+      _allTasks: [makeTask('1', { title: 'Filed task', status: 'done', contexts: ['@work'] })],
+      lastDataChangeAt: 1,
+    });
+
+    const { getByRole, queryByText } = renderListView('done', 'Completed');
+
+    expect(queryByText('Contexts & tags')).not.toBeInTheDocument();
+
+    fireEvent.click(getByRole('button', { name: 'Filters' }));
+    await waitFor(() => {
+      expect(queryByText('Contexts & tags')).toBeInTheDocument();
+    });
+
+    fireEvent.click(getByRole('button', { name: 'Filters' }));
+    await waitFor(() => {
+      expect(queryByText('Contexts & tags')).not.toBeInTheDocument();
+    });
+  });
+
+  it('narrows the completed list when a context chip is selected in the panel', async () => {
+    useTaskStore.setState({
+      _allTasks: [
+        makeTask('1', { title: 'Work done task', status: 'done', contexts: ['@work'] }),
+        makeTask('2', { title: 'Home done task', status: 'done', contexts: ['@home'] }),
+      ],
+      lastDataChangeAt: 1,
+    });
+
+    const { getByRole, queryByText } = renderListView('done', 'Completed');
+
+    expect(queryByText('Work done task')).toBeInTheDocument();
+    expect(queryByText('Home done task')).toBeInTheDocument();
+
+    fireEvent.click(getByRole('button', { name: 'Filters' }));
+    const panel = document.getElementById('list-filters-panel');
+    expect(panel).not.toBeNull();
+    fireEvent.click(within(panel!).getByRole('button', { name: /@work/ }));
+
+    await waitFor(() => {
+      expect(queryByText('Work done task')).toBeInTheDocument();
+      expect(queryByText('Home done task')).not.toBeInTheDocument();
+    });
+  });
 });

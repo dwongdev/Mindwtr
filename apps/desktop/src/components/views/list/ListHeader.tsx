@@ -1,4 +1,4 @@
-import { CheckSquare, ChevronsUpDown, List, SlidersHorizontal } from 'lucide-react';
+import { CheckSquare, ChevronsUpDown, Filter, List, SlidersHorizontal } from 'lucide-react';
 import type { TaskSortBy } from '@mindwtr/core';
 import type { TaskListGroupBy } from './next-grouping';
 import { GroupBySelect } from './GroupBySelect';
@@ -20,6 +20,9 @@ type ListHeaderProps = {
     groupBy?: TaskListGroupBy;
     groupByOptions?: TaskListGroupBy[];
     onChangeGroupBy?: (value: TaskListGroupBy) => void;
+    showFiltersButton?: boolean;
+    filtersOpen?: boolean;
+    onToggleFilters?: () => void;
     selectionMode: boolean;
     onToggleSelection: () => void;
     showListDetails: boolean;
@@ -43,6 +46,9 @@ export function ListHeader({
     groupBy = 'none',
     groupByOptions = DEFAULT_GROUP_BY_OPTIONS,
     onChangeGroupBy,
+    showFiltersButton = false,
+    filtersOpen = false,
+    onToggleFilters,
     selectionMode,
     onToggleSelection,
     showListDetails,
@@ -88,6 +94,17 @@ export function ListHeader({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                {showFiltersButton && onToggleFilters && (
+                    <ToolbarButton
+                        active={filtersOpen}
+                        onClick={onToggleFilters}
+                        aria-expanded={filtersOpen}
+                        aria-controls="list-filters-panel"
+                        icon={<Filter className="h-3.5 w-3.5" aria-hidden="true" />}
+                    >
+                        {t('filters.label')}
+                    </ToolbarButton>
+                )}
                 <ToolbarButton
                     active={selectionMode}
                     onClick={onToggleSelection}
