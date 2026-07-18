@@ -478,11 +478,16 @@ export const reconcileEntityCollection = <T extends EntityWithRevision>(
     previousItems: readonly T[],
     previousById: Map<string, T>,
     incomingItems: readonly T[]
-): { items: T[]; byId: Map<string, T> } => {
+): { items: T[]; byId: Map<string, T>; replacedCount: number } => {
     let changed = previousItems.length !== incomingItems.length;
+    let replacedCount = 0;
     const nextItems = incomingItems.map((incoming, index) => {
         const existing = previousById.get(incoming.id);
-        const resolved = existing && hasSameEntityIdentity(existing, incoming) ? existing : incoming;
+        const reuseExisting = existing != null && hasSameEntityIdentity(existing, incoming);
+        if (!reuseExisting) {
+            replacedCount += 1;
+        }
+        const resolved = reuseExisting ? existing : incoming;
         if (!changed && previousItems[index] !== resolved) {
             changed = true;
         }
@@ -493,13 +498,58 @@ export const reconcileEntityCollection = <T extends EntityWithRevision>(
         return {
             items: previousItems as T[],
             byId: previousById,
+            replacedCount,
         };
     }
 
     return {
         items: nextItems,
         byId: buildEntityMap(nextItems),
+        replacedCount,
     };
+};
+
+// Device-local sync status stamps; they change every sync cycle and are
+// overlaid from local storage on each platform, so a settings object that
+// differs only in these keys is behaviorally identical for every subscriber.
+const VOLATILE_SYNC_STATUS_SETTINGS_KEYS = [
+    'lastSyncAt',
+    'lastSyncStatus',
+    'lastSyncError',
+    'lastSyncStats',
+    'lastSyncHistory',
+] as const;
+
+const withoutVolatileSyncStatus = (settings: AppData['settings']): Record<string, unknown> => {
+    const copy: Record<string, unknown> = { ...(settings ?? {}) };
+    for (const key of VOLATILE_SYNC_STATUS_SETTINGS_KEYS) {
+        delete copy[key];
+    }
+    return copy;
+};
+
+/**
+ * Reuse the previous settings object identity when the incoming settings are
+ * content-equal apart from the device-local `lastSync*` status keys. A fresh
+ * identity per fetch re-renders every settings subscriber and re-arms the
+ * mobile reminder rescheduler after every sync cycle (#766); keeping the old
+ * identity also keeps its fresher local sync-status overlay, which the next
+ * persistSyncStatus patch refreshes anyway. Comparison failures fall back to
+ * the incoming object (no reuse), never the other way around.
+ */
+export const reuseSettingsIfEquivalent = (
+    previous: AppData['settings'] | undefined,
+    next: AppData['settings']
+): AppData['settings'] => {
+    if (!previous) return next;
+    if (previous === next) return previous;
+    try {
+        return JSON.stringify(withoutVolatileSyncStatus(previous)) === JSON.stringify(withoutVolatileSyncStatus(next))
+            ? previous
+            : next;
+    } catch {
+        return next;
+    }
 };
 
 export const updateVisibleTasks = (visible: Task[], previous?: Task | null, next?: Task | null): Task[] => {

@@ -709,10 +709,16 @@ class MobileSyncRun {
   }
 
   private createNotifier(): SyncRunNotifier {
+    // Elapsed time since the previous step start; a shared log then shows
+    // which step a slow cycle actually spent its time in (#766).
+    let lastStepStartedAtMs = 0;
     return {
       setStep: (step) => {
         this.lastStep = step;
-        logSyncInfo('Sync step', { step });
+        const nowMs = Date.now();
+        const sinceLastStepMs = lastStepStartedAtMs > 0 ? nowMs - lastStepStartedAtMs : 0;
+        lastStepStartedAtMs = nowMs;
+        logSyncInfo('Sync step', { step, sinceLastStepMs: String(sinceLastStepMs) });
       },
       logInfo: (message, extra) => logSyncInfo(message, extra),
       logWarning: (message, error) => logSyncWarning(message, error),

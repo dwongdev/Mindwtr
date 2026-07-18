@@ -628,6 +628,7 @@ function scheduleOneShotTopUp(api: AlarmNotificationsApi, reminders: OneShotRemi
 }
 
 async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
+  const cycleStartedAtMs = Date.now();
   await loadAlarmMapIfNeeded();
 
   const { settings, tasks, projects } = useTaskStore.getState();
@@ -661,6 +662,7 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
       scheduledAlarmCount: alarmMap.size,
       oneShotReminderCount: 0,
       scheduledOneShotReminderCount: 0,
+      durationMs: Date.now() - cycleStartedAtMs,
     });
     return;
   }
@@ -886,6 +888,7 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
     futureTaskReviewReminderCount,
     pastTaskReviewReminderCount,
     suppressedTaskReminderCount,
+    durationMs: Date.now() - cycleStartedAtMs,
   });
 }
 

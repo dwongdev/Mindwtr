@@ -1,5 +1,5 @@
 import { AppData, mergeAppDataWithStats, SqliteAdapter, searchAll, splitSqlStatements, type SqliteClient, type CalendarSyncEntry, StorageAdapter, type Task } from '@mindwtr/core';
-import { NativeModules, Platform } from 'react-native';
+import { AppState, NativeModules, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -318,7 +318,7 @@ const saveStartupJsonBackup = async (
     data: AppData,
     phasePrefix: string,
     minimumUpdatedAtMs = 0,
-): Promise<void> => {
+): Promise<{ sizeChars: number }> => {
     const jsonValue = await measureStartupPhase(`${phasePrefix}.json_backup_stringify`, async () => JSON.stringify(data));
     const updatedAtMs = Math.max(Date.now(), minimumUpdatedAtMs);
     await measureStartupPhase(`${phasePrefix}.json_backup_set`, async () =>
@@ -330,6 +330,7 @@ const saveStartupJsonBackup = async (
     await measureStartupPhase(`${phasePrefix}.json_backup_updated_at_set`, async () =>
         AsyncStorage.setItem(STARTUP_BACKUP_UPDATED_AT_KEY, String(updatedAtMs))
     );
+    return { sizeChars: jsonValue.length };
 };
 
 // The full-dataset JSON backup (stringify + AsyncStorage write) and the widget
@@ -341,7 +342,18 @@ const saveStartupJsonBackup = async (
 // durable copy (SQLite failure) or where a fallback read is about to trust it
 // await flushPendingStartupJsonBackup() to keep the freshness invariant
 // (backupUpdatedAt >= latestQueuedWriteStartedAt) observable at read time.
+//
+// Even coalesced, the stringify + AsyncStorage write alone can take 10-20s on
+// large libraries and starves the JS thread while it runs. SQLite is the
+// durable copy on the healthy path, so the JSON copy (a downgrade/rollback
+// safety net) only needs to land once every JSON_BACKUP_MIN_INTERVAL_MS while
+// saves keep arriving; an AppState background/inactive transition flushes it
+// immediately so the AsyncStorage copy stays close to fresh across process
+// death (#766). Widget refresh is unaffected by the throttle: home-screen and
+// lock-screen widgets get their own pending slot and short coalesce timer so
+// they don't freeze for minutes while the backup is held back.
 const JSON_BACKUP_COALESCE_MS = 1_000;
+const JSON_BACKUP_MIN_INTERVAL_MS = 5 * 60_000;
 
 type PendingJsonBackup = {
     data: AppData;
@@ -353,14 +365,106 @@ type PendingJsonBackup = {
 let pendingJsonBackup: PendingJsonBackup | null = null;
 let jsonBackupTimer: ReturnType<typeof setTimeout> | null = null;
 let jsonBackupWriter: Promise<void> = Promise.resolve();
+let jsonBackupWriteInFlight = false;
+let lastJsonBackupEndedAtMs = 0;
 
-const writePendingJsonBackup = async (): Promise<void> => {
-    const pending = pendingJsonBackup;
+const computeJsonBackupDelayMs = (): number => {
+    const remainingMs = lastJsonBackupEndedAtMs + JSON_BACKUP_MIN_INTERVAL_MS - Date.now();
+    return Math.min(Math.max(remainingMs, JSON_BACKUP_COALESCE_MS), JSON_BACKUP_MIN_INTERVAL_MS);
+};
+
+// Only arms while nothing else will trigger a write: a timer already pending,
+// or a write currently in flight (which re-arms itself on completion, using
+// the freshly-updated lastJsonBackupEndedAtMs, if more work queued up behind
+// it). This keeps the throttle correct even when saves arrive faster than a
+// single backup write finishes (#766).
+const armJsonBackupTimer = (): void => {
+    if (jsonBackupTimer || jsonBackupWriteInFlight || !pendingJsonBackup) return;
+    jsonBackupTimer = setTimeout(() => {
+        jsonBackupTimer = null;
+        void writeNextJsonBackup().catch((error) => {
+            logStorageWarn('[Storage] Deferred JSON backup failed', error);
+        });
+    }, computeJsonBackupDelayMs());
+};
+
+const writeNextJsonBackup = (): Promise<void> => {
+    jsonBackupWriter = jsonBackupWriter
+        .catch(() => undefined)
+        .then(async () => {
+            const pending = pendingJsonBackup;
+            if (!pending) return;
+            pendingJsonBackup = null;
+            jsonBackupWriteInFlight = true;
+            const backupStartedAt = Date.now();
+            let sizeChars = 0;
+            try {
+                ({ sizeChars } = await saveStartupJsonBackup(AsyncStorage, pending.data, pending.phasePrefix, pending.minimumUpdatedAtMs));
+            } finally {
+                lastJsonBackupEndedAtMs = Date.now();
+                jsonBackupWriteInFlight = false;
+            }
+            const jsonBackupMs = lastJsonBackupEndedAtMs - backupStartedAt;
+            if (jsonBackupMs >= SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS) {
+                logStorageInfo('[Storage] Slow post-save backup', {
+                    jsonBackupMs: String(jsonBackupMs),
+                    // AsyncStorage on Android cannot read a row back past the
+                    // ~2MB CursorWindow limit; the size tells a shared log
+                    // whether this backup is usable as a fallback at all.
+                    sizeChars: String(sizeChars),
+                    coalescedSaves: String(pending.coalescedSaves),
+                });
+            }
+            // A save that arrived while this write was in flight left pendingJsonBackup
+            // set but couldn't arm a timer (jsonBackupWriteInFlight guarded it); arm the
+            // next throttle window now that lastJsonBackupEndedAtMs is current.
+            armJsonBackupTimer();
+        });
+    return jsonBackupWriter;
+};
+
+const flushPendingStartupJsonBackup = async (): Promise<void> => {
+    // Loop-drain — unlike the throttled timer path (armJsonBackupTimer), a
+    // flush must land the newest pending payload even if a concurrent,
+    // non-serialized caller (e.g. a fallback read racing a save) enqueues a
+    // newer one while this flush is still waiting on an in-flight write.
+    // Without the loop, a single write-then-return could leave a fresher
+    // payload behind a just-armed 5-minute timer, so a caller relying on the
+    // freshness invariant (backupUpdatedAt >= latestQueuedWriteStartedAt)
+    // right after flush would see a stale backup (#766).
+    while (pendingJsonBackup || jsonBackupWriteInFlight) {
+        if (jsonBackupTimer) {
+            clearTimeout(jsonBackupTimer);
+            jsonBackupTimer = null;
+        }
+        if (pendingJsonBackup) {
+            await writeNextJsonBackup();
+        } else {
+            // A write is already in flight; wait for it to settle and
+            // re-check — it may have left a newer payload behind.
+            await jsonBackupWriter.catch(() => undefined);
+        }
+    }
+};
+
+// The widget render is decoupled from the throttled JSON backup (#766): it
+// keeps its own pending slot, short trailing coalesce, and serialized writer
+// so home-screen/lock-screen widgets stay fresh per save burst even while the
+// JSON backup itself is held back for up to JSON_BACKUP_MIN_INTERVAL_MS.
+type PendingWidgetRefresh = {
+    data: AppData;
+    phasePrefix: string;
+    coalescedRefreshes: number;
+};
+
+let pendingWidgetRefresh: PendingWidgetRefresh | null = null;
+let widgetRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+let widgetRefreshWriter: Promise<void> = Promise.resolve();
+
+const writePendingWidgetRefresh = async (): Promise<void> => {
+    const pending = pendingWidgetRefresh;
     if (!pending) return;
-    pendingJsonBackup = null;
-    const backupStartedAt = Date.now();
-    await saveStartupJsonBackup(AsyncStorage, pending.data, pending.phasePrefix, pending.minimumUpdatedAtMs);
-    const jsonBackupMs = Date.now() - backupStartedAt;
+    pendingWidgetRefresh = null;
     const widgetStartedAt = Date.now();
     try {
         await measureStartupPhase(`${pending.phasePrefix}.widget_update`, async () =>
@@ -370,24 +474,46 @@ const writePendingJsonBackup = async (): Promise<void> => {
         logStorageWarn('[Widgets] Failed to update mobile widget after backup', error);
     }
     const widgetMs = Date.now() - widgetStartedAt;
-    if (jsonBackupMs + widgetMs >= SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS) {
-        logStorageInfo('[Storage] Slow post-save backup', {
-            jsonBackupMs: String(jsonBackupMs),
+    if (widgetMs >= SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS) {
+        logStorageInfo('[Storage] Slow widget refresh', {
             widgetMs: String(widgetMs),
-            coalescedSaves: String(pending.coalescedSaves),
+            coalescedRefreshes: String(pending.coalescedRefreshes),
         });
     }
 };
 
-const drainJsonBackupQueue = (): Promise<void> => {
-    jsonBackupWriter = jsonBackupWriter
+const drainWidgetRefreshQueue = (): Promise<void> => {
+    widgetRefreshWriter = widgetRefreshWriter
         .catch(() => undefined)
         .then(async () => {
-            while (pendingJsonBackup) {
-                await writePendingJsonBackup();
+            while (pendingWidgetRefresh) {
+                await writePendingWidgetRefresh();
             }
         });
-    return jsonBackupWriter;
+    return widgetRefreshWriter;
+};
+
+const scheduleWidgetRefresh = (data: AppData, phasePrefix: string): void => {
+    pendingWidgetRefresh = {
+        data,
+        phasePrefix,
+        coalescedRefreshes: (pendingWidgetRefresh?.coalescedRefreshes ?? 0) + 1,
+    };
+    if (widgetRefreshTimer) return;
+    widgetRefreshTimer = setTimeout(() => {
+        widgetRefreshTimer = null;
+        void drainWidgetRefreshQueue().catch((error) => {
+            logStorageWarn('[Widgets] Deferred widget refresh failed', error);
+        });
+    }, JSON_BACKUP_COALESCE_MS);
+};
+
+const flushPendingWidgetRefresh = async (): Promise<void> => {
+    if (widgetRefreshTimer) {
+        clearTimeout(widgetRefreshTimer);
+        widgetRefreshTimer = null;
+    }
+    await drainWidgetRefreshQueue();
 };
 
 const scheduleStartupJsonBackup = (
@@ -401,21 +527,28 @@ const scheduleStartupJsonBackup = (
         minimumUpdatedAtMs: Math.max(pendingJsonBackup?.minimumUpdatedAtMs ?? 0, minimumUpdatedAtMs),
         coalescedSaves: (pendingJsonBackup?.coalescedSaves ?? 0) + 1,
     };
-    if (jsonBackupTimer) return;
-    jsonBackupTimer = setTimeout(() => {
-        jsonBackupTimer = null;
-        void drainJsonBackupQueue().catch((error) => {
-            logStorageWarn('[Storage] Deferred JSON backup failed', error);
-        });
-    }, JSON_BACKUP_COALESCE_MS);
+    armJsonBackupTimer();
+    scheduleWidgetRefresh(data, phasePrefix);
 };
 
-const flushPendingStartupJsonBackup = async (): Promise<void> => {
-    if (jsonBackupTimer) {
-        clearTimeout(jsonBackupTimer);
-        jsonBackupTimer = null;
-    }
-    await drainJsonBackupQueue();
+let appStateListenerRegistered = false;
+
+// Keeps the AsyncStorage copy near-fresh for the pre-1.1.5 downgrade path and
+// for process death after backgrounding, without waiting out the throttle
+// window while the app stays foregrounded and busy (#766). Feature-detected
+// because AppState isn't available in every host environment (vitest/jsdom
+// have no native AppState module) — this must not crash module load there.
+const registerBackgroundFlushListener = (): void => {
+    if (Platform.OS === 'web' || appStateListenerRegistered) return;
+    const appStateModule = AppState as unknown as { addEventListener?: (...args: any[]) => unknown } | undefined;
+    if (typeof appStateModule?.addEventListener !== 'function') return;
+    appStateListenerRegistered = true;
+    (AppState as any).addEventListener('change', (nextState: string) => {
+        if (nextState !== 'background' && nextState !== 'inactive') return;
+        flushPendingStartupJsonBackup().catch((error) => {
+            logStorageWarn('[Storage] Failed to flush JSON backup on app background', error);
+        });
+    });
 };
 
 const readStartupJsonBackupUpdatedAt = async (AsyncStorage: any): Promise<number | null> => {
@@ -649,6 +782,7 @@ const createStorage = (): StorageAdapter => {
     // Native platforms - use SQLite with AsyncStorage backup for widgets/rollback.
     const sqliteUnavailableReason = getSqliteUnavailableReason();
     const shouldUseSqlite = sqliteUnavailableReason == null;
+    registerBackgroundFlushListener();
 
     return {
         getData: async (): Promise<AppData> => {
@@ -928,6 +1062,7 @@ export const mobileStorage = createStorage();
 export const __mobileStorageTestUtils = {
     createOpSqliteClientForTests: createOpSqliteClient,
     flushPendingStartupJsonBackup,
+    flushPendingWidgetRefresh,
     reconcileJsonBackupIntoSqliteForTests: reconcileJsonBackupIntoSqlite,
     reset: () => {
         saveQueue = Promise.resolve();
@@ -940,6 +1075,14 @@ export const __mobileStorageTestUtils = {
         }
         pendingJsonBackup = null;
         jsonBackupWriter = Promise.resolve();
+        jsonBackupWriteInFlight = false;
+        lastJsonBackupEndedAtMs = 0;
+        if (widgetRefreshTimer) {
+            clearTimeout(widgetRefreshTimer);
+            widgetRefreshTimer = null;
+        }
+        pendingWidgetRefresh = null;
+        widgetRefreshWriter = Promise.resolve();
         initializeSqliteState = initSqliteState;
         clearPreferJsonBackup();
     },

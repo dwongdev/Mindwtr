@@ -22,6 +22,7 @@ import {
     nextRevision,
     reconcileEntityCollection,
     reuseArrayIfShallowEqual,
+    reuseSettingsIfEquivalent,
     selectVisibleAreas,
     selectVisiblePeople,
     selectVisibleProjects,
@@ -1128,11 +1129,18 @@ export const createSettingsActions = ({
             const postProcessMs = Date.now() - postProcessStartedAt;
             markCoreStartupPhase('core.fetch_data.post_process:end', { durationMs: postProcessMs });
             let skippedDueToConcurrentLocalChange = false;
+            let setProducerMs = 0;
+            let tasksReplaced = 0;
+            let projectsReplaced = 0;
+            let settingsReused = false;
+            let visibleTasksReused = false;
             const setStateStartedAt = Date.now();
             await measureCoreStartupPhase('core.fetch_data.zustand_set_state', async () => {
                 set((state) => {
+                    const producerStartedAt = Date.now();
                     if (state.lastDataChangeAt > fetchStartedAt) {
                         skippedDueToConcurrentLocalChange = true;
+                        setProducerMs = Date.now() - producerStartedAt;
                         return options?.silent ? {} : { isLoading: false };
                     }
                     const nextTasks = reconcileEntityCollection(state._allTasks, state._tasksById, allTasks);
@@ -1145,13 +1153,19 @@ export const createSettingsActions = ({
                     const visibleSections = reuseArrayIfShallowEqual(state.sections, selectVisibleSections(nextSections.items));
                     const visibleAreas = reuseArrayIfShallowEqual(state.areas, selectVisibleAreas(nextAreas.items));
                     const visiblePeople = reuseArrayIfShallowEqual(state.people, selectVisiblePeople(nextPeople.items));
+                    const settingsForState = reuseSettingsIfEquivalent(state.settings, nextSettings);
+                    tasksReplaced = nextTasks.replacedCount;
+                    projectsReplaced = nextProjects.replacedCount;
+                    settingsReused = settingsForState === state.settings;
+                    visibleTasksReused = visibleTasks === state.tasks;
+                    setProducerMs = Date.now() - producerStartedAt;
                     return {
                         tasks: visibleTasks,
                         projects: visibleProjects,
                         sections: visibleSections,
                         areas: visibleAreas,
                         people: visiblePeople,
-                        settings: nextSettings,
+                        settings: settingsForState,
                         _allTasks: nextTasks.items,
                         _allProjects: nextProjects.items,
                         _allSections: nextSections.items,
@@ -1196,6 +1210,16 @@ export const createSettingsActions = ({
                         storageReadMs,
                         postProcessMs,
                         setStateMs,
+                        // setStateMs = producer (reconcile + visibility filtering)
+                        // + notify (store subscribers, incl. synchronous React
+                        // re-renders). The split plus the reuse flags attribute a
+                        // slow refresh to recompute vs re-render storm (#766).
+                        setProducerMs,
+                        setNotifyMs: Math.max(0, setStateMs - setProducerMs),
+                        tasksReplaced,
+                        projectsReplaced,
+                        settingsReused,
+                        visibleTasksReused,
                         preloaded: Boolean(options?.preloadedData),
                         taskCount: allTasks.length,
                         liveTasks: lifecycle.live,

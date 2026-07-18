@@ -16,6 +16,7 @@ import {
     restoreSectionFromProjectArchive,
     restoreTaskFromProjectArchive,
     reuseArrayIfShallowEqual,
+    reuseSettingsIfEquivalent,
 } from './store-helpers';
 import type { Project, Section, Task } from './types';
 
@@ -286,6 +287,24 @@ describe('entity collection helpers', () => {
         expect(result.byId.get(first.id)).toBe(first);
     });
 
+    it('counts replaced identities for diagnostics', () => {
+        const first = createTask('t1');
+        const second = createTask('t2');
+        const existing = [first, second];
+        const existingById = buildEntityMap(existing);
+        const changedSecond = createTask('t2', 'project-1', 0, {
+            updatedAt: '2026-01-02T00:00:00.000Z',
+            rev: 2,
+        });
+        const added = createTask('t3');
+
+        const unchanged = reconcileEntityCollection(existing, existingById, [{ ...first }, { ...second }]);
+        expect(unchanged.replacedCount).toBe(0);
+
+        const changed = reconcileEntityCollection(existing, existingById, [{ ...first }, changedSecond, added]);
+        expect(changed.replacedCount).toBe(2);
+    });
+
     it('preserves stable refs by id when incoming items are reordered', () => {
         const first = createTask('t1');
         const second = createTask('t2');
@@ -306,6 +325,49 @@ describe('entity collection helpers', () => {
         expect(result.byId.get(first.id)).toBe(first);
         expect(result.byId.get(second.id)).toBe(second);
         expect(result.byId.get(third.id)).toBe(third);
+    });
+});
+
+describe('reuseSettingsIfEquivalent', () => {
+    const baseSettings = {
+        deviceId: 'device-a',
+        theme: 'nord',
+        gtd: { focusGroupBy: 'none' },
+    };
+
+    it('reuses the previous identity when content is unchanged', () => {
+        const previous = { ...baseSettings, gtd: { ...baseSettings.gtd } };
+        const next = { ...baseSettings, gtd: { ...baseSettings.gtd } };
+        expect(reuseSettingsIfEquivalent(previous, next)).toBe(previous);
+    });
+
+    it('reuses the previous identity when only lastSync* status keys differ', () => {
+        const previous = {
+            ...baseSettings,
+            lastSyncAt: '2026-07-18T00:00:00.000Z',
+            lastSyncStatus: 'success',
+        };
+        const next = {
+            ...baseSettings,
+            lastSyncAt: '2026-07-18T00:01:00.000Z',
+            lastSyncStatus: 'success',
+            lastSyncStats: { conflicts: 0 },
+        };
+        expect(reuseSettingsIfEquivalent(previous, next)).toBe(previous);
+    });
+
+    it('returns the incoming settings when real content changed', () => {
+        const previous = { ...baseSettings };
+        const next = { ...baseSettings, theme: 'e-ink' };
+        expect(reuseSettingsIfEquivalent(previous, next)).toBe(next);
+
+        const nestedNext = { ...baseSettings, gtd: { focusGroupBy: 'context' } };
+        expect(reuseSettingsIfEquivalent(previous, nestedNext)).toBe(nestedNext);
+    });
+
+    it('returns the incoming settings when there is no previous object', () => {
+        const next = { ...baseSettings };
+        expect(reuseSettingsIfEquivalent(undefined, next)).toBe(next);
     });
 });
 

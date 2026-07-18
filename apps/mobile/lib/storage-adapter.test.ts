@@ -7,6 +7,7 @@ const {
   logWarnMock,
   sqliteAdapterSaveTask,
   updateMobileWidgetFromDataMock,
+  appStateListeners,
 } = vi.hoisted(() => ({
   asyncStorageMock: {
     getItem: vi.fn(),
@@ -21,6 +22,7 @@ const {
   logWarnMock: vi.fn(),
   sqliteAdapterSaveTask: vi.fn(),
   updateMobileWidgetFromDataMock: vi.fn(),
+  appStateListeners: [] as Array<(state: string) => void>,
 }));
 
 vi.mock('expo-constants', () => ({
@@ -41,6 +43,13 @@ vi.mock('react-native', async () => {
     NativeModules: {
       ...actual.NativeModules,
       OPSQLite: { install: vi.fn(() => true) },
+    },
+    AppState: {
+      currentState: 'active',
+      addEventListener: vi.fn((_event: string, listener: (state: string) => void) => {
+        appStateListeners.push(listener);
+        return { remove: vi.fn() };
+      }),
     },
   };
 });
@@ -69,6 +78,7 @@ describe('mobile storage adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+    appStateListeners.length = 0;
     asyncStorageMock.getItem.mockResolvedValue(null);
     asyncStorageMock.setItem.mockResolvedValue(undefined);
     sqliteAdapterSaveTask.mockResolvedValue(undefined);
@@ -201,6 +211,9 @@ describe('mobile storage adapter', () => {
     expect(asyncStorageMock.setItem).not.toHaveBeenCalledWith('mindwtr-data', expect.anything());
 
     await __mobileStorageTestUtils.flushPendingStartupJsonBackup();
+    // Widget refresh runs on its own decoupled schedule (#766) and needs its
+    // own flush.
+    await __mobileStorageTestUtils.flushPendingWidgetRefresh();
 
     expect(asyncStorageMock.setItem).toHaveBeenCalledWith(
       'mindwtr-data',
@@ -253,11 +266,307 @@ describe('mobile storage adapter', () => {
     await mobileStorage.saveTask(third, makeSnapshot(third));
 
     await __mobileStorageTestUtils.flushPendingStartupJsonBackup();
+    // Widget refresh runs on its own decoupled schedule (#766) and needs its
+    // own flush.
+    await __mobileStorageTestUtils.flushPendingWidgetRefresh();
 
     const dataWrites = asyncStorageMock.setItem.mock.calls.filter(([key]) => key === 'mindwtr-data');
     expect(dataWrites).toHaveLength(1);
     expect(dataWrites[0]?.[1]).toBe(JSON.stringify(makeSnapshot(third)));
     expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(1);
+  }, 10_000);
+
+  it('throttles the JSON backup to at most one write per 5 minutes while saves keep arriving (#766)', async () => {
+    const makeTask = (id: string): Task => ({
+      id,
+      title: `Task ${id}`,
+      status: 'next',
+      tags: [],
+      contexts: [],
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:00.000Z',
+    });
+    const makeSnapshot = (task: Task): AppData => ({
+      tasks: [task],
+      projects: [],
+      sections: [],
+      areas: [],
+      people: [],
+      settings: {},
+    });
+
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-06-30T00:00:00.000Z'));
+      const { mobileStorage, __mobileStorageTestUtils } = await import('./storage-adapter');
+      if (!mobileStorage.saveTask) {
+        throw new Error('Expected mobile storage to support saveTask');
+      }
+      __mobileStorageTestUtils.setSqliteStateForTests({
+        adapter: { saveTask: sqliteAdapterSaveTask },
+        client: {},
+      });
+
+      const first = makeTask('task-first');
+      await mobileStorage.saveTask(first, makeSnapshot(first));
+      await vi.advanceTimersByTimeAsync(1_000);
+      const writesAfterFirst = asyncStorageMock.setItem.mock.calls.filter(([key]) => key === 'mindwtr-data');
+      expect(writesAfterFirst).toHaveLength(1);
+
+      // Keep saving well inside the 5-minute throttle window (~50s of churn).
+      let lastChurnTask = first;
+      for (let index = 0; index < 5; index += 1) {
+        lastChurnTask = makeTask(`task-churn-${index}`);
+        await mobileStorage.saveTask(lastChurnTask, makeSnapshot(lastChurnTask));
+        await vi.advanceTimersByTimeAsync(10_000);
+      }
+      const writesDuringChurn = asyncStorageMock.setItem.mock.calls.filter(([key]) => key === 'mindwtr-data');
+      expect(writesDuringChurn).toHaveLength(1);
+
+      // Advance past the remainder of the 5-minute window; the newest pending
+      // payload lands in a single second write.
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      const finalWrites = asyncStorageMock.setItem.mock.calls.filter(([key]) => key === 'mindwtr-data');
+      expect(finalWrites).toHaveLength(2);
+      expect(finalWrites[1]?.[1]).toBe(JSON.stringify(makeSnapshot(lastChurnTask)));
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 10_000);
+
+  it('flushPendingStartupJsonBackup writes the newest payload immediately during the throttle window (#766)', async () => {
+    const makeTask = (id: string): Task => ({
+      id,
+      title: `Task ${id}`,
+      status: 'next',
+      tags: [],
+      contexts: [],
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:00.000Z',
+    });
+    const makeSnapshot = (task: Task): AppData => ({
+      tasks: [task],
+      projects: [],
+      sections: [],
+      areas: [],
+      people: [],
+      settings: {},
+    });
+
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-06-30T00:00:00.000Z'));
+      const { mobileStorage, __mobileStorageTestUtils } = await import('./storage-adapter');
+      if (!mobileStorage.saveTask) {
+        throw new Error('Expected mobile storage to support saveTask');
+      }
+      __mobileStorageTestUtils.setSqliteStateForTests({
+        adapter: { saveTask: sqliteAdapterSaveTask },
+        client: {},
+      });
+
+      const first = makeTask('task-first');
+      await mobileStorage.saveTask(first, makeSnapshot(first));
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(asyncStorageMock.setItem.mock.calls.filter(([key]) => key === 'mindwtr-data')).toHaveLength(1);
+
+      const second = makeTask('task-second');
+      await mobileStorage.saveTask(second, makeSnapshot(second));
+      // Still well inside the throttle window; no timer has fired yet.
+      expect(asyncStorageMock.setItem.mock.calls.filter(([key]) => key === 'mindwtr-data')).toHaveLength(1);
+
+      await __mobileStorageTestUtils.flushPendingStartupJsonBackup();
+
+      const writes = asyncStorageMock.setItem.mock.calls.filter(([key]) => key === 'mindwtr-data');
+      expect(writes).toHaveLength(2);
+      expect(writes[1]?.[1]).toBe(JSON.stringify(makeSnapshot(second)));
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 10_000);
+
+  it('flushPendingStartupJsonBackup drains a payload that arrives while an earlier write is still in flight (#766)', async () => {
+    const makeTask = (id: string): Task => ({
+      id,
+      title: `Task ${id}`,
+      status: 'next',
+      tags: [],
+      contexts: [],
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:00.000Z',
+    });
+    const makeSnapshot = (task: Task): AppData => ({
+      tasks: [task],
+      projects: [],
+      sections: [],
+      areas: [],
+      people: [],
+      settings: {},
+    });
+
+    const stored = new Map<string, string>();
+    let resolveFirstDataWrite: (() => void) | undefined;
+    let firstDataWriteStarted = false;
+    asyncStorageMock.getItem.mockImplementation(async (key: string) => stored.get(key) ?? null);
+    // Stall only the FIRST write to the data key so we can inject a
+    // concurrent save while it's still in flight, then let it land.
+    asyncStorageMock.setItem.mockImplementation((key: string, value: string) => {
+      if (key === 'mindwtr-data' && !firstDataWriteStarted) {
+        firstDataWriteStarted = true;
+        return new Promise<void>((resolve) => {
+          resolveFirstDataWrite = () => {
+            stored.set(key, value);
+            resolve();
+          };
+        });
+      }
+      stored.set(key, value);
+      return Promise.resolve();
+    });
+
+    const { mobileStorage, __mobileStorageTestUtils } = await import('./storage-adapter');
+    if (!mobileStorage.saveTask) {
+      throw new Error('Expected mobile storage to support saveTask');
+    }
+    __mobileStorageTestUtils.setSqliteStateForTests({
+      adapter: { saveTask: sqliteAdapterSaveTask },
+      client: {},
+    });
+
+    const first = makeTask('task-first');
+    await mobileStorage.saveTask(first, makeSnapshot(first));
+
+    const flushPromise = __mobileStorageTestUtils.flushPendingStartupJsonBackup();
+
+    // Let the first write actually start (and stall on the mocked setItem)
+    // before injecting a concurrent save behind it.
+    for (let index = 0; index < 10 && !firstDataWriteStarted; index += 1) {
+      await Promise.resolve();
+    }
+    expect(firstDataWriteStarted).toBe(true);
+
+    const second = makeTask('task-second');
+    await mobileStorage.saveTask(second, makeSnapshot(second));
+
+    let flushSettled = false;
+    void flushPromise.then(() => { flushSettled = true; });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    // The flush must not resolve until the newer payload lands too — not
+    // just the one that was pending when flush was called.
+    expect(flushSettled).toBe(false);
+
+    resolveFirstDataWrite?.();
+    await flushPromise;
+    expect(flushSettled).toBe(true);
+
+    expect(stored.get('mindwtr-data')).toBe(JSON.stringify(makeSnapshot(second)));
+
+    // Exercise the exact failure mode this guards against: a fallback read
+    // racing the flush must see the newest payload and its freshness stamp,
+    // not be refused as stale.
+    __mobileStorageTestUtils.setSqliteStateForTests({
+      adapter: {
+        saveTask: sqliteAdapterSaveTask,
+        getData: vi.fn().mockRejectedValue(new Error('database is locked')),
+      } as never,
+      client: {},
+    });
+    const data = await mobileStorage.getData();
+    expect(data.tasks.map((task) => task.id)).toEqual(['task-second']);
+  }, 10_000);
+
+  it('keeps widget refresh on its short coalesce cadence while the JSON backup is throttled (#766)', async () => {
+    const makeTask = (id: string): Task => ({
+      id,
+      title: `Task ${id}`,
+      status: 'next',
+      tags: [],
+      contexts: [],
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:00.000Z',
+    });
+    const makeSnapshot = (task: Task): AppData => ({
+      tasks: [task],
+      projects: [],
+      sections: [],
+      areas: [],
+      people: [],
+      settings: {},
+    });
+
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-06-30T00:00:00.000Z'));
+      const { mobileStorage, __mobileStorageTestUtils } = await import('./storage-adapter');
+      if (!mobileStorage.saveTask) {
+        throw new Error('Expected mobile storage to support saveTask');
+      }
+      __mobileStorageTestUtils.setSqliteStateForTests({
+        adapter: { saveTask: sqliteAdapterSaveTask },
+        client: {},
+      });
+
+      // Five saves spaced 2s apart (10s total), well inside the 5-minute
+      // backup throttle window but each past the widget's 1s coalesce delay.
+      for (let index = 0; index < 5; index += 1) {
+        const task = makeTask(`task-${index}`);
+        await mobileStorage.saveTask(task, makeSnapshot(task));
+        await vi.advanceTimersByTimeAsync(2_000);
+      }
+
+      const backupWrites = asyncStorageMock.setItem.mock.calls.filter(([key]) => key === 'mindwtr-data').length;
+      expect(backupWrites).toBe(1);
+      expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(5);
+      expect(updateMobileWidgetFromDataMock.mock.calls.length).toBeGreaterThan(backupWrites);
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 10_000);
+
+  it('flushes the pending JSON backup when the app moves to background (#766)', async () => {
+    const currentTask: Task = {
+      id: 'task-background',
+      title: 'Background flush task',
+      status: 'next',
+      tags: [],
+      contexts: [],
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:00.000Z',
+    };
+    const currentSnapshot: AppData = {
+      tasks: [currentTask],
+      projects: [],
+      sections: [],
+      areas: [],
+      people: [],
+      settings: {},
+    };
+
+    const { mobileStorage, __mobileStorageTestUtils } = await import('./storage-adapter');
+    if (!mobileStorage.saveTask) {
+      throw new Error('Expected mobile storage to support saveTask');
+    }
+    __mobileStorageTestUtils.setSqliteStateForTests({
+      adapter: { saveTask: sqliteAdapterSaveTask },
+      client: {},
+    });
+    expect(appStateListeners.length).toBeGreaterThan(0);
+
+    await mobileStorage.saveTask(currentTask, currentSnapshot);
+    expect(asyncStorageMock.setItem).not.toHaveBeenCalledWith('mindwtr-data', expect.anything());
+
+    appStateListeners.forEach((listener) => listener('background'));
+    // The listener flushes fire-and-forget; give its promise chain a couple
+    // of real event-loop turns to settle.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(asyncStorageMock.setItem).toHaveBeenCalledWith(
+      'mindwtr-data',
+      JSON.stringify(currentSnapshot),
+    );
   }, 10_000);
 
   it('flushes a pending deferred backup before serving a JSON fallback read (#766)', async () => {
