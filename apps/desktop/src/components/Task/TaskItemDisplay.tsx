@@ -661,7 +661,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                         onClick={handleTitleClick}
                         onDoubleClick={handleTitleDoubleClick}
                         className={cn(
-                            "block w-full text-left rounded px-0.5 py-0.5 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40",
+                            "block w-full text-left rounded px-0.5 py-0.5 transition-colors focus:outline-none",
                             selectionMode ? "cursor-pointer" : "cursor-default",
                             isRtl && "text-right"
                         )}

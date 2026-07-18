@@ -172,6 +172,11 @@ export function useListSelection({
     const lastFilterKeyRef = useRef('');
     const multiSelectAnchorIdRef = useRef<string | null>(null);
     const pendingSelectionScrollRef = useRef(false);
+    // Set by keyboard navigation (selectNext/Prev/First/Last) to request that
+    // DOM focus follow the selection. The follow only happens when focus was
+    // already inside a task title toggle (checked at settle time), so j/k
+    // navigation from the sidebar/body keeps working without focus side effects.
+    const pendingSelectionFocusRef = useRef(false);
 
     const exitSelectionMode = useCallback(() => {
         setSelectionMode(false);
@@ -267,6 +272,52 @@ export function useListSelection({
         }
     }, [filteredTasks, scrollToVirtualIndex, selectedIndex, selectionScrollVersion, shouldVirtualize]);
 
+    // Keyboard navigation moves DOM focus to the newly selected task's title
+    // toggle so no stale input-looking ring lingers on the previously focused
+    // row (#860). We only follow focus when the active element is (or is inside)
+    // a task title toggle: navigating from the sidebar/body leaves focus alone.
+    // Scrolling is handled by the layout effect above, so we focus with
+    // preventScroll to avoid fighting it.
+    useLayoutEffect(() => {
+        if (!pendingSelectionFocusRef.current) return;
+        pendingSelectionFocusRef.current = false;
+        if (typeof document === 'undefined') return;
+
+        const active = document.activeElement;
+        const activeToggle = active && typeof active.closest === 'function'
+            ? (active.closest('[data-task-view-toggle]') as HTMLElement | null)
+            : null;
+        if (!activeToggle) return;
+
+        const task = filteredTasks[selectedIndex];
+        if (!task) return;
+
+        const focusTarget = (): boolean => {
+            const toggle = document.querySelector(
+                `[data-task-id="${task.id}"] [data-task-view-toggle]`,
+            ) as HTMLElement | null;
+            if (!toggle || typeof toggle.focus !== 'function') return false;
+            if (toggle === activeToggle) return true;
+            toggle.focus({ preventScroll: true });
+            return true;
+        };
+
+        if (focusTarget()) return;
+
+        // A virtualized target row may not be mounted this frame. Retry after
+        // the layout effect's scroll mounts it; if it still cannot be found,
+        // blur the stale toggle so no lingering ring remains on the old row.
+        if (typeof requestAnimationFrame !== 'function') {
+            if (typeof activeToggle.blur === 'function') activeToggle.blur();
+            return;
+        }
+        const frame = requestAnimationFrame(() => {
+            if (focusTarget()) return;
+            if (typeof activeToggle.blur === 'function') activeToggle.blur();
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [filteredTasks, selectedIndex, selectionScrollVersion]);
+
     useEffect(() => {
         if (!highlightTaskId) return;
         const index = filteredTasks.findIndex((task) => task.id === highlightTaskId);
@@ -306,22 +357,26 @@ export function useListSelection({
     const selectNext = useCallback(() => {
         if (filteredTasks.length === 0) return;
         requestSelectionScroll();
+        pendingSelectionFocusRef.current = true;
         setSelectedIndex((index) => Math.min(index + 1, filteredTasks.length - 1));
     }, [filteredTasks.length, requestSelectionScroll]);
 
     const selectPrev = useCallback(() => {
         requestSelectionScroll();
+        pendingSelectionFocusRef.current = true;
         setSelectedIndex((index) => Math.max(index - 1, 0));
     }, [requestSelectionScroll]);
 
     const selectFirst = useCallback(() => {
         requestSelectionScroll();
+        pendingSelectionFocusRef.current = true;
         setSelectedIndex(0);
     }, [requestSelectionScroll]);
 
     const selectLast = useCallback(() => {
         if (filteredTasks.length > 0) {
             requestSelectionScroll();
+            pendingSelectionFocusRef.current = true;
             setSelectedIndex(filteredTasks.length - 1);
         }
     }, [filteredTasks.length, requestSelectionScroll]);

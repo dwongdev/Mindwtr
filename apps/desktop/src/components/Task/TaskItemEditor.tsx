@@ -271,7 +271,7 @@ export function TaskItemEditor({
             onClick={(e) => e.stopPropagation()}
             className="flex flex-col gap-3 max-h-[80vh]"
         >
-            <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 pl-1 -ml-1 pt-1 -mt-1 pb-1 -mb-1 space-y-3">
                 <div className="flex items-start gap-3 pt-0.5">
                     {onMarkDone && (
                         <button
