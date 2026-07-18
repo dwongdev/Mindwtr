@@ -186,7 +186,6 @@ export function TaskEditScheduleField({
         mode: 'start' | 'due' | 'review',
         selectedDate: Date | null
     ) => {
-        if (mode === 'due' && showDatePicker !== 'due') return null;
         return (
             <QuickDateChips
                 t={t}

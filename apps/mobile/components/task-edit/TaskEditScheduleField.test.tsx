@@ -131,7 +131,7 @@ describe('TaskEditScheduleField', () => {
         expect(setShowDatePicker).toHaveBeenCalledWith('due');
     });
 
-    it('shows due-date suggestions only while the due picker is active', () => {
+    it('renders due-date suggestions whether or not the due picker is open', () => {
         let hiddenTree!: renderer.ReactTestRenderer;
         act(() => {
             hiddenTree = renderer.create(
@@ -166,7 +166,10 @@ describe('TaskEditScheduleField', () => {
             );
         });
 
-        expect(hiddenTree.root.findAllByProps({ testID: 'quick-date-chips-row' })).toHaveLength(0);
+        // The picker being closed (showDatePicker null) must no longer hide the
+        // chips: on Android that same state opens the native dialog on top of
+        // the sheet, so gating chips on it made them unreachable (issue #901).
+        expect(hiddenTree.root.findAllByProps({ testID: 'quick-date-chips-row' }).length).toBeGreaterThan(0);
 
         let activeTree!: renderer.ReactTestRenderer;
         act(() => {

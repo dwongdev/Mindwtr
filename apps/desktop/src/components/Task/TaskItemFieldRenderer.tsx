@@ -48,6 +48,7 @@ import {
 } from '@mindwtr/core';
 import { readFile, remove } from '@tauri-apps/plugin-fs';
 
+import { usePointerPress } from '../../hooks/usePointerPress';
 import { useMarkdownReferenceAutocomplete } from '../MarkdownReferenceAutocomplete';
 import { AttachmentsField } from './TaskForm/AttachmentsField';
 import { ChecklistField } from './TaskForm/ChecklistField';
@@ -284,6 +285,7 @@ export function DateField({
     const rootRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const calendarRef = useRef<HTMLDivElement | null>(null);
+    const { runAfterPointerRelease } = usePointerPress();
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [isFieldActive, setIsFieldActive] = useState(false);
     const [calendarPosition, setCalendarPosition] = useState({ top: 0, left: 0 });
@@ -402,11 +404,11 @@ export function DateField({
             ref={rootRef}
             onFocusCapture={() => setIsFieldActive(true)}
             onBlurCapture={() => {
-                window.setTimeout(() => {
+                runAfterPointerRelease(() => {
                     const activeElement = document.activeElement;
                     if (activeElement instanceof Node && rootRef.current?.contains(activeElement)) return;
                     resetFieldState();
-                }, 0);
+                });
             }}
         >
             <label className={taskEditorLabelClassName}>{label}</label>

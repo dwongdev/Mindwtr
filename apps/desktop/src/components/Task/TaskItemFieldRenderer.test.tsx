@@ -678,6 +678,56 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(setField).toHaveBeenCalledWith(draftKey, expect.anything());
     });
 
+    it('keeps the quick shortcuts mounted until an in-flight pointer press releases', async () => {
+        const setField = vi.fn();
+
+        const { getByLabelText, queryByText } = render(
+            <TaskItemFieldRenderer
+                fieldId="dueDate"
+                {...createProps({ setField })}
+            />
+        );
+
+        fireEvent.focus(getByLabelText('Due date'));
+        expect(queryByText('Next month')).toBeInTheDocument();
+
+        // A press starts outside the field (e.g. on the Save button) and blurs
+        // the input while still held down.
+        document.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        fireEvent.blur(getByLabelText('Due date'));
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+        // The chip row must stay put so the button under the pointer does not
+        // move out from under the click (issue #901).
+        expect(queryByText('Next month')).toBeInTheDocument();
+
+        document.dispatchEvent(new Event('pointerup', { bubbles: true }));
+        await waitFor(() => {
+            expect(queryByText('Next month')).not.toBeInTheDocument();
+        });
+    });
+
+    it('hides the quick shortcuts on a keyboard blur without waiting for a pointer release', async () => {
+        const setField = vi.fn();
+
+        const { getByLabelText, queryByText } = render(
+            <TaskItemFieldRenderer
+                fieldId="dueDate"
+                {...createProps({ setField })}
+            />
+        );
+
+        fireEvent.focus(getByLabelText('Due date'));
+        expect(queryByText('Next month')).toBeInTheDocument();
+
+        // No pointer press is in flight, so the collapse runs on the existing
+        // next-tick timeout rather than waiting for a pointerup that will never come.
+        fireEvent.blur(getByLabelText('Due date'));
+        await waitFor(() => {
+            expect(queryByText('Next month')).not.toBeInTheDocument();
+        });
+    });
+
     it('renders status choices as pills and keeps archived available', () => {
         const setField = vi.fn();
 
