@@ -343,6 +343,42 @@ describe('SyncService testability hooks', () => {
         });
     });
 
+    it('falls back to the stored WebDAV password when the form field is empty after a restart (#899)', async () => {
+        const fetchSpy = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        }));
+        const invoke = vi.fn(async (command: string) => {
+            if (command === 'get_webdav_password') return 'stored-secret';
+            throw new Error(`unexpected command: ${command}`);
+        });
+        __syncServiceTestUtils.setDependenciesForTests({
+            getTauriFetch: async () => fetchSpy as unknown as typeof fetch,
+            invoke: invoke as unknown as <T>(command: string, args?: Record<string, unknown>) => Promise<T>,
+            isTauriRuntime: () => true,
+        });
+
+        // The settings form sends password: '' with hasPassword: true after a
+        // restart; the empty string must not shadow the keyring secret.
+        await SyncService.testWebDavConnection({
+            url: 'https://example.com/remote.php/dav/files/user/mindwtr',
+            username: 'alice',
+            password: '',
+            hasPassword: true,
+        });
+
+        expect(invoke).toHaveBeenCalledWith('get_webdav_password', undefined);
+        const firstCall = fetchSpy.mock.calls[0];
+        expect(firstCall).toBeDefined();
+        if (!firstCall) {
+            throw new Error('Expected WebDAV fetch call');
+        }
+        const init = firstCall[1] as RequestInit | undefined;
+        expect(init?.headers).toMatchObject({
+            Authorization: 'Basic YWxpY2U6c3RvcmVkLXNlY3JldA==',
+        });
+    });
+
     it('keeps file watcher ignores active until sync completion after writing the sync file', async () => {
         const getMonotonicNowSpy = vi.spyOn(SyncService as any, 'getMonotonicNow');
         getMonotonicNowSpy.mockReturnValue(9_000);

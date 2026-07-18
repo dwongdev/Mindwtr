@@ -909,19 +909,28 @@ export class SyncService {
             throw new Error('WebDAV URL not configured');
         }
         const fetcher = await getTauriFetch();
+        // The settings form leaves the password field empty after a restart
+        // (the secret stays in the keyring, only hasPassword survives). An
+        // empty string must mean "unchanged", not "no password", or the test
+        // 401s on saved credentials that sync itself uses fine (#899).
         const password = await resolveWebdavPassword({
             url: config.url,
             username: config.username || '',
-            password: config.password,
+            password: config.password?.trim() ? config.password : undefined,
             hasPassword: config.hasPassword,
         });
-        await webdavGetJson<unknown>(normalizedUrl, {
-            allowInsecureHttp: config.allowInsecureHttp,
-            username: config.username?.trim(),
-            password,
-            timeoutMs: 10_000,
-            fetcher: fetcher ?? fetch,
-        });
+        try {
+            await webdavGetJson<unknown>(normalizedUrl, {
+                allowInsecureHttp: config.allowInsecureHttp,
+                username: config.username?.trim(),
+                password,
+                timeoutMs: 10_000,
+                fetcher: fetcher ?? fetch,
+            });
+        } catch (error) {
+            logSyncWarning('WebDAV connection test failed', error);
+            throw error;
+        }
     }
 
     static async getCloudConfig(options?: { silent?: boolean }): Promise<CloudConfig> {
