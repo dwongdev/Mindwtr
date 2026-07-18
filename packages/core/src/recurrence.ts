@@ -858,8 +858,21 @@ export function createProjectedRecurringTask(
         const baseIso = projectionSourceTask[field];
         if (!baseIso) return { iso: undefined, steps: 0 };
         if (strategy === 'fluid') {
+            // Fluid has no series anchor: the base is normally "now" (the spawn
+            // date if the current occurrence were completed on time). But when
+            // the field's own date is still in the future, projecting from now
+            // would land on or before that date and duplicate it on the
+            // calendar (#900) instead of showing the occurrence after it. Use
+            // the later of the field's own date and now as the base, per field.
+            const fieldBaseDate = safeParseDate(baseIso);
+            const fieldIsFuture = !!fieldBaseDate && fieldBaseDate.getTime() > projectionBase.getTime();
+            const fluidBaseIso = fieldIsFuture ? baseIso : projectedAtIso;
+            const fluidFallbackBase = fieldIsFuture ? fieldBaseDate : projectionBase;
             return {
-                iso: nextFluidIsoFrom(projectedAtIso, rule, projectionBase, byDay, interval, byMonthDay, weekStart),
+                iso: preserveDateOnlyFormat(
+                    nextFluidIsoFrom(fluidBaseIso, rule, fluidFallbackBase, byDay, interval, byMonthDay, weekStart),
+                    baseIso
+                ),
                 steps: 1,
             };
         }

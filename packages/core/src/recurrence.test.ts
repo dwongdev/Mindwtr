@@ -1187,6 +1187,155 @@ describe('recurrence', () => {
         expect(projected?.dueDate?.slice(0, 10)).toBe(spawned?.dueDate);
     });
 
+    it('projects a future-dated fluid task from its own date, not from now (#900)', () => {
+        // Reporter's case: due 3 days from now, fluid daily INTERVAL=3. Projecting
+        // from "now" would land on/before the due date and duplicate it on the
+        // calendar; the fix must project one interval past the due date itself.
+        const task: Task = {
+            id: 't-projected-fluid-future-daily',
+            title: 'Run',
+            status: 'next',
+            tags: [],
+            contexts: [],
+            dueDate: '2026-07-21',
+            recurrence: {
+                rule: 'daily',
+                strategy: 'fluid',
+                interval: 3,
+                rrule: 'FREQ=DAILY;INTERVAL=3',
+            },
+            showFutureRecurrence: true,
+            createdAt: '2026-07-01T00:00:00.000Z',
+            updatedAt: '2026-07-01T00:00:00.000Z',
+        };
+
+        const projected = createProjectedRecurringTask(task, '2026-07-18T12:00:00.000Z');
+
+        expect(projected?.dueDate).toBe('2026-07-24');
+        expect(projected?.dueDate).not.toBe(task.dueDate);
+
+        // Parity: the projection must match what completing the task on its own
+        // due date would actually spawn.
+        const spawned = createNextRecurringTask(task, task.dueDate as string, 'done');
+        expect(projected?.dueDate).toBe(spawned?.dueDate);
+    });
+
+    it('projects a future-dated fluid weekly BYDAY task by counting the interval from its own date, not from now', () => {
+        const task: Task = {
+            id: 't-projected-fluid-future-byday',
+            title: 'Water plants',
+            status: 'next',
+            tags: [],
+            contexts: [],
+            dueDate: '2026-07-12', // Sunday, future relative to projectedAtIso below
+            recurrence: {
+                rule: 'weekly',
+                strategy: 'fluid',
+                rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=SU',
+            },
+            showFutureRecurrence: true,
+            createdAt: '2026-06-01T00:00:00.000Z',
+            updatedAt: '2026-06-01T00:00:00.000Z',
+        };
+
+        const projected = createProjectedRecurringTask(task, '2026-07-01T10:00:00.000Z');
+        const spawned = createNextRecurringTask(task, task.dueDate as string, 'done');
+
+        // Two weeks after the task's own Sunday, not the Sunday nearest to "now".
+        expect(projected?.dueDate).toBe('2026-07-26');
+        expect(projected?.dueDate).not.toBe(task.dueDate);
+        expect(projected?.dueDate).toBe(spawned?.dueDate);
+    });
+
+    it('advances a fluid start+due pair independently from each field\'s own future date, preserving spacing and time-of-day', () => {
+        const task: Task = {
+            id: 't-projected-fluid-start-due',
+            title: 'Prep and ship report',
+            status: 'next',
+            tags: [],
+            contexts: [],
+            startTime: '2026-07-20T09:00',
+            dueDate: '2026-07-22T17:00',
+            recurrence: {
+                rule: 'daily',
+                strategy: 'fluid',
+                interval: 2,
+                rrule: 'FREQ=DAILY;INTERVAL=2',
+            },
+            showFutureRecurrence: true,
+            createdAt: '2026-07-01T00:00:00.000Z',
+            updatedAt: '2026-07-01T00:00:00.000Z',
+        };
+
+        const projected = createProjectedRecurringTask(task, '2026-07-18T08:00:00.000Z');
+
+        expect(projected?.startTime).toBe('2026-07-22T09:00');
+        expect(projected?.dueDate).toBe('2026-07-24T17:00');
+
+        const originalSpacingMs = new Date(task.dueDate as string).getTime() - new Date(task.startTime as string).getTime();
+        const projectedSpacingMs = new Date(projected?.dueDate as string).getTime() - new Date(projected?.startTime as string).getTime();
+        expect(projectedSpacingMs).toBe(originalSpacingMs);
+    });
+
+    it('sweeps fluid schedule/rule/timing combinations, projecting strictly past the field\'s own date when future-dated', () => {
+        const projectedAtIso = '2026-07-15T10:00:00.000Z'; // Wednesday
+        type ScheduleType = 'due-only' | 'start-only' | 'start+due';
+        type RuleType = 'daily-interval' | 'weekly-byday';
+        type Timing = 'future' | 'overdue';
+
+        const fieldDate = (rule: RuleType, timing: Timing): string => {
+            if (rule === 'daily-interval') return timing === 'future' ? '2026-07-20' : '2026-07-10';
+            // Sundays, matching BYDAY=SU
+            return timing === 'future' ? '2026-07-19' : '2026-07-05';
+        };
+
+        const buildRecurrence = (rule: RuleType): Task['recurrence'] => (
+            rule === 'daily-interval'
+                ? { rule: 'daily', strategy: 'fluid', interval: 3, rrule: 'FREQ=DAILY;INTERVAL=3' }
+                : { rule: 'weekly', strategy: 'fluid', rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=SU' }
+        );
+
+        const scheduleTypes: ScheduleType[] = ['due-only', 'start-only', 'start+due'];
+        const ruleTypes: RuleType[] = ['daily-interval', 'weekly-byday'];
+        const timings: Timing[] = ['future', 'overdue'];
+
+        for (const scheduleType of scheduleTypes) {
+            for (const ruleType of ruleTypes) {
+                for (const timing of timings) {
+                    const date = fieldDate(ruleType, timing);
+                    const task: Task = {
+                        id: `t-matrix-${scheduleType}-${ruleType}-${timing}`,
+                        title: 'Matrix task',
+                        status: 'next',
+                        tags: [],
+                        contexts: [],
+                        ...(scheduleType === 'due-only' ? { dueDate: date } : {}),
+                        ...(scheduleType === 'start-only' ? { startTime: date } : {}),
+                        ...(scheduleType === 'start+due' ? { startTime: date, dueDate: date } : {}),
+                        recurrence: buildRecurrence(ruleType),
+                        showFutureRecurrence: true,
+                        createdAt: '2026-06-01T00:00:00.000Z',
+                        updatedAt: '2026-06-01T00:00:00.000Z',
+                    };
+
+                    const projected = createProjectedRecurringTask(task, projectedAtIso);
+                    expect(projected).not.toBeNull();
+
+                    if (timing === 'future') {
+                        if (task.dueDate) {
+                            expect(new Date(projected?.dueDate as string).getTime())
+                                .toBeGreaterThan(new Date(task.dueDate).getTime());
+                        }
+                        if (task.startTime) {
+                            expect(new Date(projected?.startTime as string).getTime())
+                                .toBeGreaterThan(new Date(task.startTime).getTime());
+                        }
+                    }
+                }
+            }
+        }
+    });
+
     it('does not project recurring tasks unless the calendar preview is enabled', () => {
         const task: Task = {
             id: 't-projected-disabled',
