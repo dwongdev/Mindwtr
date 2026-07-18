@@ -760,9 +760,12 @@ export function useSyncSettingsTransportActions({
                 { manual: true }
             );
             if (result.skipped === 'offline' || isLikelyOfflineSyncError(result.error)) {
+                // 'request' means the OS says the device is online but the app's
+                // requests failed — telling the user they are offline would be false.
+                const serverUnreachable = result.skipped === 'offline' && result.offlineCause === 'request';
                 showToast({
-                    title: t('common.offline'),
-                    message: t('settings.syncSkippedOffline'),
+                    title: serverUnreachable ? t('common.notice') : t('common.offline'),
+                    message: serverUnreachable ? t('settings.syncServerUnreachable') : t('settings.syncSkippedOffline'),
                     tone: 'warning',
                 });
                 return;

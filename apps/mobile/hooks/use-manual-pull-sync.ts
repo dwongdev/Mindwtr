@@ -88,9 +88,16 @@ export function useManualPullSync() {
       const result = await performMobileSync(undefined, { manual: true });
       if (result.skipped === 'offline' || isLikelyOfflineSyncError(result.error)) {
         finishIndicator('error');
+        // 'request' means the OS says the device is online but the app's own
+        // requests failed — telling the user they are offline would be false.
+        const serverUnreachable = result.skipped === 'offline' && result.offlineCause === 'request';
         showToast({
-          title: tFallback(t, 'common.offline', 'Offline'),
-          message: tFallback(t, 'settings.syncSkippedOffline', 'No internet connection. Sync skipped.'),
+          title: serverUnreachable
+            ? tFallback(t, 'common.notice', 'Notice')
+            : tFallback(t, 'common.offline', 'Offline'),
+          message: serverUnreachable
+            ? tFallback(t, 'settings.syncServerUnreachable', "Couldn't reach the sync server. Check that Mindwtr is allowed to use the network (cellular data, VPN, or firewall).")
+            : tFallback(t, 'settings.syncSkippedOffline', 'No internet connection. Sync skipped.'),
           tone: 'warning',
         });
         return;

@@ -24,6 +24,7 @@ vi.mock('@/contexts/language-context', () => ({
         'settings.syncQueued': 'Sync queued',
         'settings.syncQueuedBody': 'Local changes arrived during sync. A retry was queued automatically.',
         'settings.syncSkippedOffline': 'No internet connection. Sync skipped.',
+        'settings.syncServerUnreachable': "Couldn't reach the sync server. Check that Mindwtr is allowed to use the network (cellular data, VPN, or firewall).",
       }[key] ?? key),
   }),
 }));
@@ -135,6 +136,22 @@ describe('useManualPullSync', () => {
     expect(mocked.showToast).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Offline',
       message: 'No internet connection. Sync skipped.',
+      tone: 'warning',
+    }));
+  });
+
+  it('reports an unreachable sync server instead of claiming the device is offline', async () => {
+    mocked.performMobileSync.mockResolvedValue({ success: true, skipped: 'offline', offlineCause: 'request' });
+    renderHarness();
+
+    await act(async () => {
+      await latest?.onRefresh();
+    });
+
+    expect(latest?.indicatorState).toBe('error');
+    expect(mocked.showToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Notice',
+      message: "Couldn't reach the sync server. Check that Mindwtr is allowed to use the network (cellular data, VPN, or firewall).",
       tone: 'warning',
     }));
   });

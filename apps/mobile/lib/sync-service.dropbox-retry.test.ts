@@ -342,7 +342,7 @@ describe('mobile Dropbox sync transient retry', () => {
 
     const result = await syncServiceModule.performMobileSync();
 
-    expect(result).toEqual({ success: true, skipped: 'offline' });
+    expect(result).toEqual({ success: true, skipped: 'offline', offlineCause: 'request' });
     expect(dropboxSyncMocks.downloadDropboxAppData).toHaveBeenCalledTimes(3);
     expect(logMocks.logInfo).toHaveBeenCalledWith(
       'Sync skipped after offline detection',

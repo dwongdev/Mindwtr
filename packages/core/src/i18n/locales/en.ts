@@ -991,6 +991,7 @@ export const en: Record<string, string> = {
         'settings.syncFailureConflict': 'Another device or backend reported a sync conflict. Retry after both sides finish syncing.',
         'settings.syncFailureGeneric': 'Review Settings → Sync and try again.',
         'settings.syncSkippedOffline': 'No internet connection. Sync skipped.',
+        'settings.syncServerUnreachable': "Couldn't reach the sync server. Check that Mindwtr is allowed to use the network (cellular data, VPN, or firewall).",
         'settings.syncQueuedBody': 'Local changes arrived during sync. A retry was queued automatically.',
         'settings.syncCompleted': 'Sync completed!',
         'settings.syncCompletedWithConflicts': 'Sync completed with {count} conflicts (resolved automatically).',

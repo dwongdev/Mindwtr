@@ -970,6 +970,7 @@ export const frOverrides: Record<string, string> = {
         'settings.syncFailureConflict': 'Conflit de synchronisation détecté.',
         'settings.syncFailureGeneric': 'Une erreur inconnue est survenue lors de la synchronisation.',
         'settings.syncSkippedOffline': 'Pas de connexion Internet, synchronisation ignorée.',
+        'settings.syncServerUnreachable': 'Impossible de joindre le serveur de synchronisation. Vérifiez que Mindwtr est autorisé à accéder au réseau (données cellulaires, VPN ou pare-feu).',
         'settings.syncQueuedBody': 'Des changements locaux se sont produits pendant la synchronisation. Une nouvelle tentative a été automatiquement planifiée.',
         'settings.syncCompleted': 'Synchronisation terminée.',
         'settings.syncCompletedWithConflicts': 'Synchronisation terminée avec des {count} conflits (résolus automatiquement).',

@@ -334,7 +334,7 @@ describe('mobile sync-service runtime', () => {
 
     const result = await syncServiceModule.performMobileSync();
 
-    expect(result).toEqual({ success: true, skipped: 'offline' });
+    expect(result).toEqual({ success: true, skipped: 'offline', offlineCause: 'network' });
     expect(coreMocks.performSyncCycle).not.toHaveBeenCalled();
     expect(coreMocks.webdavGetJson).not.toHaveBeenCalled();
     expect(storeStateRef.current.fetchData).not.toHaveBeenCalled();
@@ -815,7 +815,7 @@ describe('mobile sync-service runtime', () => {
 
     const result = await syncServiceModule.performMobileSync();
 
-    expect(result).toEqual({ success: true, skipped: 'offline' });
+    expect(result).toEqual({ success: true, skipped: 'offline', offlineCause: 'request' });
     expect(coreMocks.performSyncCycle).not.toHaveBeenCalled();
     expect(coreMocks.webdavGetJson).toHaveBeenCalledTimes(1);
     expect(storeStateRef.current.fetchData).not.toHaveBeenCalled();

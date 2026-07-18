@@ -983,6 +983,7 @@ export const viOverrides: Record<string, string> = {
         'settings.syncFailureConflict': 'Thiết bị hoặc backend khác báo cáo xung đột đồng bộ. Thử lại sau khi cả hai phía hoàn thành đồng bộ.',
         'settings.syncFailureGeneric': 'Xem xét Cài đặt → Đồng bộ và thử lại.',
         'settings.syncSkippedOffline': 'Không có kết nối internet. Đã bỏ qua đồng bộ.',
+        'settings.syncServerUnreachable': 'Không thể kết nối máy chủ đồng bộ. Hãy kiểm tra xem Mindwtr có được phép truy cập mạng không (dữ liệu di động, VPN hoặc tường lửa).',
         'settings.syncQueuedBody': 'Các thay đổi cục bộ đã đến trong khi đồng bộ. Lần thử lại đã được xếp hàng tự động.',
         'settings.syncCompleted': 'Đồng bộ hoàn thành!',
         'settings.syncCompletedWithConflicts': 'Đồng bộ hoàn thành với {count} xung đột (đã giải quyết tự động).',

@@ -902,6 +902,7 @@ export const zhHans: Record<string, string> = {
         'settings.syncFailureConflict': '另一台设备或后端报告了同步冲突。请等待双方完成同步后再重试。',
         'settings.syncFailureGeneric': '请检查“设置 → 同步”后重试。',
         'settings.syncSkippedOffline': '当前无网络连接，已跳过同步。',
+        'settings.syncServerUnreachable': '无法连接同步服务器。请检查 Mindwtr 是否被允许联网（蜂窝数据、VPN 或防火墙设置）。',
         'settings.syncQueuedBody': '同步期间检测到本地更改，已自动重新排队重试。',
         'settings.syncingAccessibility': '同步进行中。点按可打开设置查看同步详情。',
         'settings.syncIssueAccessibility': '同步需要处理。点按可打开设置查看同步详情。',

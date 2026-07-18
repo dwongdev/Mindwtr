@@ -902,6 +902,7 @@ export const zhHant: Record<string, string> = {
         'settings.syncFailureConflict': '另一台設備或後端報告了同步衝突。請等待雙方完成同步後再重試。',
         'settings.syncFailureGeneric': '請檢查「設定 → 同步」後再試。',
         'settings.syncSkippedOffline': '當前無網絡連接，已跳過同步。',
+        'settings.syncServerUnreachable': '無法連接同步伺服器。請檢查 Mindwtr 是否被允許聯網（行動數據、VPN 或防火牆設置）。',
         'settings.syncQueuedBody': '同步期間檢測到本地更改，已自動重新排隊重試。',
         'settings.syncingAccessibility': '同步進行中。點按可打開設定查看同步詳情。',
         'settings.syncIssueAccessibility': '同步需要處理。點按可打開設定查看同步詳情。',

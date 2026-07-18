@@ -56,7 +56,10 @@ const INVALID_CONFIG_CHAR_PATTERN = /[\u0000-\u001F\u007F]/;
 type MobileSyncActivityState = 'idle' | 'syncing';
 type MobileSyncActivityListener = (state: MobileSyncActivityState) => void;
 type MobileSyncSkipReason = 'offline' | 'requeued' | 'unchanged' | 'pendingRemoteWriteBackoff';
-type MobileSyncResult = { success: boolean; stats?: MergeStats; error?: string; skipped?: MobileSyncSkipReason };
+// 'network': the OS reported the device offline. 'request': the device looked
+// online but the app's requests failed (per-app cellular block, VPN/firewall).
+type MobileSyncOfflineCause = 'network' | 'request';
+type MobileSyncResult = { success: boolean; stats?: MergeStats; error?: string; skipped?: MobileSyncSkipReason; offlineCause?: MobileSyncOfflineCause };
 type MobileWebDavSyncConfig = { url: string; username: string; password: string; allowInsecureHttp?: boolean; allowWeakFingerprint?: boolean };
 type MobileCloudSyncConfig = { url: string; token: string; allowInsecureHttp?: boolean };
 const isFossBuild = (() => {
@@ -392,9 +395,10 @@ const logSyncDiagnostic = (
   });
 };
 
-const buildOfflineSkipResult = (): MobileSyncResult => ({
+const buildOfflineSkipResult = (offlineCause: MobileSyncOfflineCause): MobileSyncResult => ({
   success: true,
   skipped: 'offline',
+  offlineCause,
 });
 
 type MobileNetworkStatus = {
@@ -954,7 +958,7 @@ class MobileSyncRun {
           reason: this.offlineDetectionCause ?? 'unknown',
           error: formatSyncErrorMessage(error, backend),
         });
-        return buildOfflineSkipResult();
+        return buildOfflineSkipResult(this.networkWentOffline ? 'network' : 'request');
       },
       finalizeErrorStatus: async ({ at, message, step, history, wroteLocal }) => {
         logSyncDiagnostic('Sync diagnostic error', this.syncDiagnosticStartedAt, {
@@ -1226,7 +1230,7 @@ const mobileSyncOrchestrator = createSyncOrchestrator<MobileSyncRequest | undefi
       return { success: true };
     }
     if (await shouldSkipSyncForOfflineState(backend)) {
-      return buildOfflineSkipResult();
+      return buildOfflineSkipResult('network');
     }
 
     return new MobileSyncRun(backend, request, requestFollowUp).run();
