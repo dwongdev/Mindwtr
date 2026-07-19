@@ -9,7 +9,7 @@ import { Switch } from '../../ui/Switch';
 const FLATPAK_QUICK_ADD_COMMAND = 'flatpak run tech.dongdongbh.mindwtr --quick-add';
 
 type ThemeMode = 'system' | 'light' | 'dark' | 'eink' | 'nord' | 'sepia';
-type DensityMode = 'comfortable' | 'compact';
+type DensityMode = 'comfortable' | 'compact' | 'condensed';
 type TextSizeMode = 'small' | 'default' | 'large' | 'extra-large';
 type WeekStart = 'system' | 'sunday' | 'monday' | 'saturday';
 type DateFormatSetting = 'system' | 'dmy' | 'mdy' | 'ymd';
@@ -26,6 +26,7 @@ type Labels = {
     densityDesc: string;
     densityComfortable: string;
     densityCompact: string;
+    densityCondensed: string;
     textSize: string;
     textSizeDesc: string;
     textSizeSmall: string;
@@ -276,6 +277,7 @@ export function SettingsMainPage({
                     >
                         <option value="comfortable">{t.densityComfortable}</option>
                         <option value="compact">{t.densityCompact}</option>
+                        <option value="condensed">{t.densityCondensed}</option>
                     </select>
                 </SettingsRow>
                 <SettingsRow title={t.textSize} description={t.textSizeDesc}>

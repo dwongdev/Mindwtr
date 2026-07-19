@@ -78,7 +78,11 @@ export function useSettingsMainPage({
     const [launchAtStartupLoading, setLaunchAtStartupLoading] = useState(false);
 
     const densityMode = (
-        appearanceSettings?.density === 'compact' ? 'compact' : 'comfortable'
+        appearanceSettings?.density === 'condensed'
+            ? 'condensed'
+            : appearanceSettings?.density === 'compact'
+                ? 'compact'
+                : 'comfortable'
     ) as MainPageProps['densityMode'];
     const textSizeMode = coerceDesktopTextSize(appearanceSettings?.textSize);
     const showTaskAge = appearanceSettings?.showTaskAge === true;

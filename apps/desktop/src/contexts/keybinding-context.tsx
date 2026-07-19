@@ -251,7 +251,12 @@ export function KeybindingProvider({
         setListOptions({ showDetails: true });
     }, [collapseAllTaskDetails, listOptions.showDetails, setListOptions]);
     const toggleDensity = useCallback(() => {
-        const nextDensity = settings.appearance?.density === 'compact' ? 'comfortable' : 'compact';
+        const currentDensity = settings.appearance?.density ?? 'comfortable';
+        const nextDensity = currentDensity === 'comfortable'
+            ? 'compact'
+            : currentDensity === 'compact'
+                ? 'condensed'
+                : 'comfortable';
         updateSettings({ appearance: { density: nextDensity } })
             .catch((error) => reportError('Failed to update density', error));
     }, [settings.appearance?.density, updateSettings]);

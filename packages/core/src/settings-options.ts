@@ -52,6 +52,7 @@ const KEYBINDING_STYLE_VALUE_FLAGS: Record<KeybindingStyleValue, true> = {
 const DENSITY_VALUE_FLAGS: Record<DensityValue, true> = {
     comfortable: true,
     compact: true,
+    condensed: true,
 };
 
 const TEXT_SIZE_VALUE_FLAGS: Record<TextSizeValue, true> = {

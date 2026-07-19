@@ -318,6 +318,65 @@ describe('Sync Logic', () => {
             expect(merged.settings.appearance).toEqual({ density: 'compact', textSize: 'small', mobileQuickAccessView: 'calendar' });
         });
 
+        it('keeps an incoming condensed density value through the merge sanitizer', () => {
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    appearance: { density: 'compact' },
+                    syncPreferences: { appearance: true },
+                    syncPreferencesUpdatedAt: {
+                        preferences: '2024-01-01T00:00:00.000Z',
+                        appearance: '2024-01-01T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    appearance: { density: 'condensed' },
+                    syncPreferences: { appearance: true },
+                    syncPreferencesUpdatedAt: {
+                        preferences: '2024-01-02T00:00:00.000Z',
+                        appearance: '2024-01-02T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.appearance?.density).toBe('condensed');
+        });
+
+        it('sanitizes an unknown incoming density back to the local value', () => {
+            const local: AppData = {
+                ...mockAppData(),
+                settings: {
+                    appearance: { density: 'compact' },
+                    syncPreferences: { appearance: true },
+                    syncPreferencesUpdatedAt: {
+                        preferences: '2024-01-01T00:00:00.000Z',
+                        appearance: '2024-01-01T00:00:00.000Z',
+                    },
+                },
+            };
+            const incoming: AppData = {
+                ...mockAppData(),
+                settings: {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    appearance: { density: 'ultra' as any },
+                    syncPreferences: { appearance: true },
+                    syncPreferencesUpdatedAt: {
+                        preferences: '2024-01-02T00:00:00.000Z',
+                        appearance: '2024-01-02T00:00:00.000Z',
+                    },
+                },
+            };
+
+            const merged = mergeAppData(local, incoming);
+
+            expect(merged.settings.appearance?.density).toBe('compact');
+        });
+
         it('preserves local mobile quick access when newer incoming appearance omits it', () => {
             const local: AppData = {
                 ...mockAppData(),

@@ -26,7 +26,7 @@ type ListControlsPanelProps = {
     areaById: Map<string, Area>;
     areaOptions: Array<{ id: string; name: string }>;
     deferredProjects: Project[];
-    densityMode: 'comfortable' | 'compact';
+    densityMode: 'comfortable' | 'compact' | 'condensed';
     formatEstimate: (estimate: TimeEstimate) => string;
     filterSummaryLabel: string;
     filterSummarySuffix: string;
@@ -375,7 +375,7 @@ export function ListControlsPanel({
                         contexts={allTokens}
                         people={people}
                         t={t}
-                        dense={densityMode === 'compact'}
+                        dense={densityMode !== 'comfortable'}
                         onCreateProject={onCreateProject}
                         onChange={onChangeQuickAdd}
                         onSubmit={onSubmitQuickAdd}

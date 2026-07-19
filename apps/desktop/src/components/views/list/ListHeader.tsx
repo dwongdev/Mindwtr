@@ -27,7 +27,7 @@ type ListHeaderProps = {
     onToggleSelection: () => void;
     showListDetails: boolean;
     onToggleDetails: () => void;
-    densityMode: 'comfortable' | 'compact';
+    densityMode: 'comfortable' | 'compact' | 'condensed';
     onToggleDensity: () => void;
     t: (key: string) => string;
 };
@@ -61,15 +61,18 @@ export function ListHeader({
         const value = t('list.density');
         return value === 'list.density' ? 'Density' : value;
     })();
-    const densityLabel = densityMode === 'compact'
-        ? (() => {
+    const densityLabel = (() => {
+        if (densityMode === 'condensed') {
+            const value = t('list.densityCondensed');
+            return value === 'list.densityCondensed' ? 'Condensed' : value;
+        }
+        if (densityMode === 'compact') {
             const value = t('list.densityCompact');
             return value === 'list.densityCompact' ? 'Compact' : value;
-        })()
-        : (() => {
-            const value = t('list.densityComfortable');
-            return value === 'list.densityComfortable' ? 'Comfortable' : value;
-        })();
+        }
+        const value = t('list.densityComfortable');
+        return value === 'list.densityComfortable' ? 'Comfortable' : value;
+    })();
 
     return (
         <header className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
@@ -137,9 +140,9 @@ export function ListHeader({
                     {showListDetails ? (t('list.details') || 'Details') : (t('list.detailsOff') || 'Details off')}
                 </ToolbarButton>
                 <ToolbarButton
-                    active={densityMode === 'compact'}
+                    active={densityMode !== 'comfortable'}
                     onClick={onToggleDensity}
-                    aria-pressed={densityMode === 'compact'}
+                    aria-pressed={densityMode !== 'comfortable'}
                     title={densityTitle}
                     icon={<ChevronsUpDown className="h-3.5 w-3.5" aria-hidden="true" />}
                 >

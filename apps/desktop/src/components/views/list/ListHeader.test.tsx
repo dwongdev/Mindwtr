@@ -14,6 +14,8 @@ const translations: Record<string, string> = {
     'list.detailsOff': 'Details off',
     'list.density': 'Density',
     'list.densityComfortable': 'Comfortable',
+    'list.densityCompact': 'Compact',
+    'list.densityCondensed': 'Condensed',
     'list.groupBy': 'Group',
     'list.groupByArea': 'Area',
     'list.groupByContext': 'Context',
@@ -122,6 +124,35 @@ describe('ListHeader', () => {
         );
 
         expect(screen.queryByRole('button', { name: 'Filters' })).not.toBeInTheDocument();
+    });
+
+    it('shows the condensed density label and marks the control active when condensed', () => {
+        render(
+            <ListHeader
+                title="Focus"
+                showNextCount={false}
+                nextCount={0}
+                taskCount={3}
+                hasFilters={false}
+                filterSummaryLabel=""
+                filterSummarySuffix=""
+                sortBy="default"
+                onChangeSortBy={vi.fn()}
+                showGroupBy
+                groupBy="none"
+                onChangeGroupBy={vi.fn()}
+                selectionMode={false}
+                onToggleSelection={vi.fn()}
+                showListDetails
+                onToggleDetails={vi.fn()}
+                densityMode="condensed"
+                onToggleDensity={vi.fn()}
+                t={t}
+            />
+        );
+
+        const button = screen.getByRole('button', { name: 'Condensed' });
+        expect(button).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('renders a Filters toggle that reflects and drives the panel open state', () => {

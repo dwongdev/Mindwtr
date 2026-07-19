@@ -205,7 +205,7 @@ export function BoardView() {
     );
     const { t } = useLanguage();
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
-    const isCompact = settings?.appearance?.density === 'compact';
+    const isDense = (settings?.appearance?.density ?? 'comfortable') !== 'comfortable';
 
     const [activeTask, setActiveTask] = React.useState<Task | null>(null);
     const [computeSequential, setComputeSequential] = React.useState(false);
@@ -690,7 +690,7 @@ export function BoardView() {
                                     emptyState={getEmptyState(col.id)}
                                     onQuickAdd={openQuickAdd}
                                     dragLabel={t('board.dragTask') || 'Drag task'}
-                                    compact={isCompact}
+                                    compact={isDense}
                                 />
                             ))}
 

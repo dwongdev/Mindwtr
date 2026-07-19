@@ -379,7 +379,7 @@ export interface FeatureSettings {
 }
 
 export interface AppearanceSettings {
-    density?: 'comfortable' | 'compact';
+    density?: 'comfortable' | 'compact' | 'condensed';
     textSize?: 'small' | 'default' | 'large' | 'extra-large';
     showTaskAge?: boolean;
     showFutureStarts?: boolean;

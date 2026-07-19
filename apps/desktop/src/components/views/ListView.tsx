@@ -182,8 +182,9 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const { t } = useLanguage();
     const { registerTaskListScope } = useKeybindings();
     const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
-    const isCompact = settings?.appearance?.density === 'compact';
-    const densityMode = isCompact ? 'compact' : 'comfortable';
+    const density = settings?.appearance?.density ?? 'comfortable';
+    const densityMode: 'comfortable' | 'compact' | 'condensed' =
+        density === 'condensed' ? 'condensed' : density === 'compact' ? 'compact' : 'comfortable';
     const resolvedAreaFilter = resolveAreaFilter(settings?.filters?.areaId, areas);
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [quickAddSyntaxOpen, setQuickAddSyntaxOpen] = useState(false);
@@ -619,7 +620,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
     const rowVirtualizer = useVirtualizer({
         count: shouldVirtualize ? filteredTasks.length : 0,
         getScrollElement: () => listScrollRef.current,
-        estimateSize: () => (isCompact ? 90 : LIST_VIRTUAL_ROW_ESTIMATE),
+        estimateSize: () => (densityMode === 'condensed' ? 72 : densityMode === 'compact' ? 90 : LIST_VIRTUAL_ROW_ESTIMATE),
         overscan: Math.max(2, Math.ceil(LIST_VIRTUAL_OVERSCAN / LIST_VIRTUAL_ROW_ESTIMATE)),
         getItemKey: (index) => filteredTasks[index]?.id ?? index,
     });
@@ -913,9 +914,14 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                     onToggleDetails={handleToggleDetails}
                     densityMode={densityMode}
                     onToggleDensity={() => {
+                        const nextDensity = densityMode === 'comfortable'
+                            ? 'compact'
+                            : densityMode === 'compact'
+                                ? 'condensed'
+                                : 'comfortable';
                         void updateSettings({
                             appearance: {
-                                density: densityMode === 'compact' ? 'comfortable' : 'compact',
+                                density: nextDensity,
                             },
                         });
                     }}
@@ -1089,7 +1095,7 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                                         transform: `translateY(${virtualRow.start}px)`,
                                     }}
                                 >
-                                    <div className={cn(isCompact ? "pb-1" : "pb-1.5")}>
+                                    <div className={cn(densityMode === 'condensed' ? "pb-0.5" : densityMode === 'compact' ? "pb-1" : "pb-1.5")}>
                                         <StoreTaskItem
                                             taskId={task.id}
                                             isSelected={virtualRow.index === selectedIndex}

@@ -261,7 +261,10 @@ export const TaskItem = memo(function TaskItem({
     const undoNotificationsEnabled = settings?.undoNotificationsEnabled !== false;
     const showTaskAge = settings?.appearance?.showTaskAge === true;
     const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
-    const isCompact = settings?.appearance?.density === 'compact';
+    const density = settings?.appearance?.density ?? 'comfortable';
+    const isCondensed = density === 'condensed';
+    const isCompact = density === 'compact';
+    const isDense = isCompact || isCondensed;
     const isHighlighted = highlightTaskId === task.id;
     const recurrenceRule = getRecurrenceRuleValue(task.recurrence);
     const recurrenceStrategy = getRecurrenceStrategyValue(task.recurrence);
@@ -1338,14 +1341,14 @@ export const TaskItem = memo(function TaskItem({
                 onContextMenu={handleOpenQuickActionMenu}
                 className={cn(
                     "group rounded-lg hover:bg-muted/50 dark:hover:bg-muted/20 transition-colors animate-in fade-in slide-in-from-bottom-2",
-                    isCompact ? "p-2.5" : "px-3 py-3",
+                    isCondensed ? "px-2.5 py-1.5" : isCompact ? "p-2.5" : "px-3 py-3",
                     "focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary/40 focus-within:bg-primary/5",
                     canCalendarDrag && "cursor-grab active:cursor-grabbing",
                     isSelected && "ring-2 ring-inset ring-primary/40 bg-primary/5",
                     isHighlighted && "ring-2 ring-inset ring-primary/70 bg-primary/5"
                 )}
             >
-                <div className={cn("flex items-start", isCompact ? "gap-2" : "gap-3")}>
+                <div className={cn("flex items-start", isCondensed ? "gap-1.5" : isCompact ? "gap-2" : "gap-3")}>
                     {selectionMode && (
                         <input
                             type="checkbox"
@@ -1355,7 +1358,7 @@ export const TaskItem = memo(function TaskItem({
                             onChange={() => undefined}
                             className={cn(
                                 "h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer",
-                                isCompact ? "mt-1" : "mt-1.5"
+                                isCondensed ? "mt-0.5" : isCompact ? "mt-1" : "mt-1.5"
                             )}
                         />
                     )}
@@ -1391,7 +1394,7 @@ export const TaskItem = memo(function TaskItem({
                                 showProjectBadgeInMetadata={showProjectBadgeInMetadata}
                                 readOnly={effectiveReadOnly}
                                 compactMetaEnabled={compactMetaEnabled}
-                                dense={isCompact}
+                                dense={isDense}
                                 actionsOverlay={actionsOverlay}
                                 dragHandle={dragHandle}
                                 showTaskAge={showTaskAge}

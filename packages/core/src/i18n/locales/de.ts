@@ -167,6 +167,7 @@ export const deOverrides: Record<string, string> = {
         'list.density': 'Dichte',
         'list.densityComfortable': 'Komfortabel',
         'list.densityCompact': 'Kompakt',
+        'list.densityCondensed': 'Verdichtet',
         'reference.empty': 'Noch keine Referenz-Einträge.',
         
         // Status Labels
@@ -1183,6 +1184,7 @@ export const deOverrides: Record<string, string> = {
         'settings.densityDesc': 'Passen Sie den Listenabstand an, um mehr Elemente auf dem Bildschirm anzuzeigen.',
         'settings.densityComfortable': 'Komfortabel',
         'settings.densityCompact': 'Kompakt',
+        'settings.densityCondensed': 'Verdichtet',
         'settings.globalQuickAddShortcut': 'Globales schnell Hinzufügen Tastaturkürzel',
         'settings.globalQuickAddShortcutDesc': 'Wird systemweit für eine schnelle Erfassung verwendet, auch wenn Mindwtr nicht fokussiert ist.',
         'settings.windowDecorations': 'Fensterdekorationen',

@@ -128,6 +128,26 @@ describe('SettingsMainPage', () => {
         expect(onCalendarSystemChange).toHaveBeenCalledWith('gregorian');
     });
 
+    it('offers the condensed density preset', () => {
+        const onDensityChange = vi.fn();
+        const { getByRole } = render(
+            <SettingsMainPage
+                {...baseProps}
+                densityMode="condensed"
+                onDensityChange={onDensityChange}
+            />,
+        );
+
+        const select = getByRole('combobox', { name: 'Density' });
+        expect(select).toHaveValue('condensed');
+
+        fireEvent.change(select, {
+            target: { value: 'compact' },
+        });
+
+        expect(onDensityChange).toHaveBeenCalledWith('compact');
+    });
+
     it('offers the small text size preset', () => {
         const onTextSizeChange = vi.fn();
         const { getByRole } = render(
