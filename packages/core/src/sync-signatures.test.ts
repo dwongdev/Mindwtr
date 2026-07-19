@@ -3,11 +3,12 @@ import {
     chooseDeterministicWinner,
     createSyncSignatureMemo,
     normalizeAreaForContentComparison,
+    normalizeProjectForContentComparison,
     normalizeSectionForContentComparison,
     normalizeTaskForContentComparison,
     toComparableSignature,
 } from './sync-signatures';
-import type { Area, Section, Task } from './types';
+import type { Area, Project, Section, Task } from './types';
 
 const area = (updates: Partial<Area> = {}): Area => ({
     id: 'area-1',
@@ -43,7 +44,40 @@ const section = (updates: Partial<Section> = {}): Section => ({
     ...updates,
 });
 
+const project = (updates: Partial<Project> = {}): Project => ({
+    id: 'project-1',
+    title: 'Project',
+    status: 'active',
+    color: '#6B7280',
+    order: 0,
+    tagIds: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...updates,
+});
+
 describe('sync signatures', () => {
+    it('treats default, undefined, null, and missing project taskSortBy as equal', () => {
+        const missing = toComparableSignature(normalizeProjectForContentComparison(project()));
+        const undefinedValue = toComparableSignature(normalizeProjectForContentComparison(project({ taskSortBy: undefined })));
+        const defaultValue = toComparableSignature(normalizeProjectForContentComparison(project({ taskSortBy: 'default' })));
+        const nullValue = toComparableSignature(normalizeProjectForContentComparison({
+            ...project(),
+            taskSortBy: null,
+        } as unknown as Project));
+        const invalidValue = toComparableSignature(normalizeProjectForContentComparison({
+            ...project(),
+            taskSortBy: 'done-desc',
+        } as unknown as Project));
+        const dueValue = toComparableSignature(normalizeProjectForContentComparison(project({ taskSortBy: 'due' })));
+
+        expect(undefinedValue).toBe(missing);
+        expect(defaultValue).toBe(missing);
+        expect(nullValue).toBe(missing);
+        expect(invalidValue).toBe(missing);
+        expect(dueValue).not.toBe(missing);
+    });
+
     it('omits repeatReminderMinutes from the task signature when off, includes it when set', () => {
         const undef = toComparableSignature(normalizeTaskForContentComparison(task()));
         const zero = toComparableSignature(normalizeTaskForContentComparison(task({ repeatReminderMinutes: 0 })));

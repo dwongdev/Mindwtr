@@ -1,6 +1,6 @@
 import type { AppData, Area, Attachment, Person, Project, Task } from './types';
 import { normalizePersonName, normalizePersonNote, normalizePersonReferenceLink } from './people';
-import { normalizeProjectSequentialScope } from './project-utils';
+import { normalizeProjectSequentialScope, normalizeProjectTaskSortBy } from './project-utils';
 import { normalizeTaskForLoad } from './task-status';
 import { SYNC_REPAIR_REV_BY } from './sync-types';
 import { isValidRevision, nextRevision, normalizeRevision } from './sync-revision';
@@ -209,6 +209,7 @@ export const normalizeProjectForSyncMerge = (project: Project): Project => {
         tagIds: normalizeStringArray(project.tagIds),
         isSequential: normalizeSyncedBoolean(project.isSequential),
         sequentialScope: normalizeProjectSequentialScope(project.sequentialScope),
+        taskSortBy: normalizeProjectTaskSortBy(project.taskSortBy),
         isFocused: normalizeSyncedBoolean(project.isFocused),
         attachments: normalizeAttachmentsForSyncMerge(project.attachments),
         dueDate: normalizeOptionalString(project.dueDate),

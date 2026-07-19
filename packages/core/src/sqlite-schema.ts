@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS projects (
   tagIds TEXT,
   isSequential INTEGER,
   sequentialScope TEXT,
+  taskSortBy TEXT,
   isFocused INTEGER,
   supportNotes TEXT,
   attachments TEXT,

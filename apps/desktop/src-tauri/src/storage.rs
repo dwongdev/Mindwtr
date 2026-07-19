@@ -141,6 +141,7 @@ pub(crate) fn open_sqlite(app: &tauri::AppHandle) -> Result<Connection, String> 
     ensure_tasks_organization_indexes(&conn)?;
     ensure_projects_order_column(&conn)?;
     ensure_column(&conn, "projects", "sequentialScope", "TEXT")?;
+    ensure_column(&conn, "projects", "taskSortBy", "TEXT")?;
     ensure_projects_due_date_column(&conn)?;
     ensure_projects_purged_at_column(&conn)?;
     ensure_projects_area_order_index(&conn)?;
@@ -165,6 +166,20 @@ fn json_number_from_f64(value: f64) -> Option<Value> {
         return Some(Value::Number((value as i64).into()));
     }
     serde_json::Number::from_f64(value).map(Value::Number)
+}
+
+fn normalize_project_task_sort_by(value: Option<&str>) -> Option<&str> {
+    match value {
+        Some(value)
+            if matches!(
+                value,
+                "due" | "start" | "review" | "title" | "created" | "created-desc"
+            ) =>
+        {
+            Some(value)
+        }
+        _ => None,
+    }
 }
 
 fn is_retryable_storage_error(message: &str) -> bool {
@@ -1056,6 +1071,11 @@ fn row_to_project_value(row: &rusqlite::Row<'_>) -> Result<Value, rusqlite::Erro
             map.insert("sequentialScope".to_string(), Value::String(v));
         }
     }
+    if let Ok(val) = row.get::<_, Option<String>>("taskSortBy") {
+        if let Some(v) = normalize_project_task_sort_by(val.as_deref()) {
+            map.insert("taskSortBy".to_string(), Value::String(v.to_string()));
+        }
+    }
     if let Ok(val) = row.get::<_, i64>("isFocused") {
         map.insert("isFocused".to_string(), Value::Bool(val != 0));
     }
@@ -1322,7 +1342,7 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
         let tag_ids_json = json_str_or_default(project.get("tagIds"), "[]");
         let attachments_json = json_str(project.get("attachments"));
         tx.execute(
-            "INSERT OR REPLACE INTO projects (id, title, status, color, orderNum, tagIds, isSequential, sequentialScope, isFocused, supportNotes, attachments, dueDate, reviewAt, areaId, areaTitle, rev, revBy, createdAt, updatedAt, deletedAt, purgedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
+            "INSERT OR REPLACE INTO projects (id, title, status, color, orderNum, tagIds, isSequential, sequentialScope, taskSortBy, isFocused, supportNotes, attachments, dueDate, reviewAt, areaId, areaTitle, rev, revBy, createdAt, updatedAt, deletedAt, purgedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
             params![
                 project.get("id").and_then(|v| v.as_str()).unwrap_or_default(),
                 project.get("title").and_then(|v| v.as_str()).unwrap_or_default(),
@@ -1332,6 +1352,7 @@ fn migrate_json_to_sqlite(conn: &mut Connection, data: &Value) -> Result<(), Str
                 tag_ids_json,
                 project.get("isSequential").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
                 project.get("sequentialScope").and_then(|v| v.as_str()),
+                normalize_project_task_sort_by(project.get("taskSortBy").and_then(|v| v.as_str())),
                 project.get("isFocused").and_then(|v| v.as_bool()).unwrap_or(false) as i32,
                 project.get("supportNotes").and_then(|v| v.as_str()),
                 attachments_json,
@@ -2627,6 +2648,8 @@ mod tests {
             .expect("should add area archived delete time");
         ensure_column(&conn, "areas", "projectArchivedAt", "TEXT")
             .expect("should add area project archived time");
+        ensure_column(&conn, "projects", "taskSortBy", "TEXT")
+            .expect("should add project task sort");
 
         let source = serde_json::json!({
             "tasks": [{
@@ -2775,6 +2798,8 @@ mod tests {
         let mut conn = Connection::open_in_memory().expect("should open in-memory db");
         conn.execute_batch(SQLITE_SCHEMA)
             .expect("should create schema");
+        ensure_column(&conn, "projects", "taskSortBy", "TEXT")
+            .expect("should add project task sort");
 
         let task = serde_json::json!({
             "id": "task-full",
@@ -2850,6 +2875,7 @@ mod tests {
             "tagIds": ["tag-1"],
             "isSequential": true,
             "sequentialScope": "section",
+            "taskSortBy": "due",
             "isFocused": true,
             "supportNotes": "Project notes",
             "attachments": [{
@@ -2957,6 +2983,7 @@ mod tests {
             "tagIds",
             "isSequential",
             "sequentialScope",
+            "taskSortBy",
             "isFocused",
             "supportNotes",
             "attachments",
@@ -3051,10 +3078,12 @@ mod tests {
     }
 
     #[test]
-    fn sqlite_project_round_trip_preserves_sequential_scope() {
+    fn sqlite_project_round_trip_preserves_sequential_scope_and_task_sort() {
         let mut conn = Connection::open_in_memory().expect("should open in-memory db");
         conn.execute_batch(SQLITE_SCHEMA)
             .expect("should create schema");
+        ensure_column(&conn, "projects", "taskSortBy", "TEXT")
+            .expect("should add project task sort");
 
         let data = serde_json::json!({
             "tasks": [],
@@ -3067,6 +3096,7 @@ mod tests {
                 "tagIds": [],
                 "isSequential": true,
                 "sequentialScope": "section",
+                "taskSortBy": "created-desc",
                 "createdAt": "2026-05-25T00:00:00.000Z",
                 "updatedAt": "2026-05-25T00:00:00.000Z"
             }],
@@ -3083,6 +3113,7 @@ mod tests {
             .expect("project should exist");
 
         assert_eq!(project["sequentialScope"], "section");
+        assert_eq!(project["taskSortBy"], "created-desc");
     }
 
     #[test]

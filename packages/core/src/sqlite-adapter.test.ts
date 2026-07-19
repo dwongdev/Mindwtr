@@ -323,6 +323,38 @@ describeSqlite('SqliteAdapter', () => {
         expect(area.revBy).toBe('device-desktop');
     });
 
+    it('round-trips project taskSortBy and stores default as absent', async () => {
+        const now = '2026-07-19T12:00:00.000Z';
+        const project = (id: string, taskSortBy: 'due' | 'default'): AppData['projects'][number] => ({
+            id,
+            title: `Project ${id}`,
+            status: 'active',
+            color: '#6B7280',
+            order: 0,
+            tagIds: [],
+            taskSortBy,
+            createdAt: now,
+            updatedAt: now,
+        });
+        const data: AppData = {
+            tasks: [],
+            projects: [project('project-due', 'due'), project('project-default', 'default')],
+            sections: [],
+            areas: [],
+            settings: {},
+        };
+
+        await adapter.saveData(data);
+        const loaded = await adapter.getData();
+
+        expect(loaded.projects.find((item) => item.id === 'project-due')?.taskSortBy).toBe('due');
+        expect(loaded.projects.find((item) => item.id === 'project-default')?.taskSortBy).toBeUndefined();
+        expect(allSql(db, 'SELECT id, taskSortBy FROM projects ORDER BY id')).toEqual([
+            { id: 'project-default', taskSortBy: null },
+            { id: 'project-due', taskSortBy: 'due' },
+        ]);
+    });
+
     it('declares repeat reminder minutes in the base task schema', () => {
         db.exec(SQLITE_BASE_SCHEMA);
 

@@ -88,6 +88,7 @@ export interface Project {
     tagIds: string[]; // Array of Tag IDs
     isSequential?: boolean; // If true, only first incomplete task shows in Next Actions
     sequentialScope?: ProjectSequentialScope; // 'project' = one stream, 'section' = first incomplete task per section
+    taskSortBy?: TaskSortBy; // Optional synced task-list sort; absent means manual project order
     isFocused?: boolean; // If true, this project is a priority focus (max 5 allowed)
     supportNotes?: string;
     attachments?: Attachment[];

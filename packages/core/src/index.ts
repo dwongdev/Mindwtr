@@ -580,6 +580,7 @@ export {
     getSequentialProjectTaskCues,
     isSelectableProjectForTaskAssignment,
     isTaskInActiveProject,
+    normalizeProjectTaskSortBy,
     type ProjectSequenceTaskCue,
     projectHasNextAction,
     shouldPromptForProjectNextAction,

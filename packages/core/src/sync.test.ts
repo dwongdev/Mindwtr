@@ -13,6 +13,28 @@ const parseLoggedContext = (value: unknown): Record<string, unknown> => {
 
 describe('Sync Logic', () => {
     describe('mergeAppData', () => {
+        it('converges when an old-client project lacks taskSortBy', () => {
+            const newClientProject = {
+                ...createMockProject('project-sort', '2026-07-19T12:00:00.000Z'),
+                taskSortBy: 'due',
+                rev: 2,
+                revBy: 'new-client',
+            } satisfies Project;
+            const oldClientProject = {
+                ...createMockProject('project-sort', '2026-07-19T11:00:00.000Z'),
+                rev: 1,
+                revBy: 'old-client',
+            } satisfies Project;
+            const oldClientData = mockAppData([], [oldClientProject]);
+
+            const first = mergeAppData(mockAppData([], [newClientProject]), oldClientData);
+            const second = mergeAppDataWithStats(first, oldClientData);
+
+            expect(first.projects[0].taskSortBy).toBe('due');
+            expect(second.data).toEqual(first);
+            expect(second.stats.projects.conflicts).toBe(0);
+        });
+
         it('should merge attachments across devices', () => {
             const localAttachment: Attachment = {
                 id: 'att-local',

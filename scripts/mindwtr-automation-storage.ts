@@ -227,9 +227,9 @@ export function createMindwtrAutomationStorage(options: AutomationStorageOptions
             for (const project of data.projects) {
                 writeDb.prepare(
                     `INSERT INTO projects (
-                        id, title, status, color, orderNum, tagIds, isSequential, isFocused, supportNotes,
-                        attachments, reviewAt, areaId, areaTitle, rev, revBy, createdAt, updatedAt, deletedAt
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        id, title, status, color, orderNum, tagIds, isSequential, sequentialScope, taskSortBy, isFocused, supportNotes,
+                        attachments, dueDate, reviewAt, areaId, areaTitle, rev, revBy, createdAt, updatedAt, deletedAt, purgedAt
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
                         title = excluded.title,
                         status = excluded.status,
@@ -237,9 +237,12 @@ export function createMindwtrAutomationStorage(options: AutomationStorageOptions
                         orderNum = excluded.orderNum,
                         tagIds = excluded.tagIds,
                         isSequential = excluded.isSequential,
+                        sequentialScope = excluded.sequentialScope,
+                        taskSortBy = excluded.taskSortBy,
                         isFocused = excluded.isFocused,
                         supportNotes = excluded.supportNotes,
                         attachments = excluded.attachments,
+                        dueDate = excluded.dueDate,
                         reviewAt = excluded.reviewAt,
                         areaId = excluded.areaId,
                         areaTitle = excluded.areaTitle,
@@ -247,7 +250,8 @@ export function createMindwtrAutomationStorage(options: AutomationStorageOptions
                         revBy = excluded.revBy,
                         createdAt = excluded.createdAt,
                         updatedAt = excluded.updatedAt,
-                        deletedAt = excluded.deletedAt`,
+                        deletedAt = excluded.deletedAt,
+                        purgedAt = excluded.purgedAt`,
                 ).run(
                     project.id,
                     project.title,
@@ -256,9 +260,12 @@ export function createMindwtrAutomationStorage(options: AutomationStorageOptions
                     Number.isFinite(project.order) ? project.order : 0,
                     toJson(project.tagIds ?? []),
                     toBool(project.isSequential),
+                    project.sequentialScope ?? null,
+                    project.taskSortBy ?? null,
                     toBool(project.isFocused),
                     project.supportNotes ?? null,
                     toJson(project.attachments),
+                    project.dueDate ?? null,
                     project.reviewAt ?? null,
                     project.areaId ?? null,
                     project.areaTitle ?? null,
@@ -267,6 +274,7 @@ export function createMindwtrAutomationStorage(options: AutomationStorageOptions
                     project.createdAt || nowIso,
                     project.updatedAt || project.createdAt || nowIso,
                     project.deletedAt ?? null,
+                    project.purgedAt ?? null,
                 );
             }
 

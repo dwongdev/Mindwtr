@@ -6,6 +6,7 @@ import type { Project, Section, Task } from '@mindwtr/core';
 import { useUiStore } from '../../../store/ui-store';
 import { LanguageProvider } from '../../../contexts/language-context';
 import { KeybindingProvider } from '../../../contexts/keybinding-context';
+import { selectToolbarOption } from '../../../test/toolbar-select';
 import { ProjectWorkspace } from './ProjectWorkspace';
 
 vi.mock('../../TaskItem', () => ({
@@ -96,6 +97,11 @@ const translations: Record<string, string> = {
     'projects.sectionsLabel': 'Tasks',
     'sort.default': 'Default',
     'sort.due': 'Due date',
+    'sort.start': 'Start date',
+    'sort.review': 'Review date',
+    'sort.title': 'Title',
+    'sort.created': 'Created',
+    'sort.created-desc': 'Created (newest)',
     'sort.label': 'Sort',
     'status.done': 'Done',
     'status.inbox': 'Inbox',
@@ -591,18 +597,34 @@ describe('ProjectWorkspace Select mode', () => {
         expect(toolbar).toHaveAttribute('data-compact', 'false');
     });
 
-    it('sorts visible project tasks by due date when selected', () => {
-        const allTasks = [
-            task('task-no-due', 'No due', { createdAt: '2026-05-01T00:00:00.000Z', order: 0 }),
-            task('task-later', 'Later due', { createdAt: '2026-05-02T00:00:00.000Z', dueDate: '2026-07-01', order: 1 }),
-            task('task-soon', 'Soon due', { createdAt: '2026-05-03T00:00:00.000Z', dueDate: '2026-06-01', order: 2 }),
-        ];
-        const { container, getByRole } = renderWorkspace({ allTasks });
+    const sortSampleTasks = () => [
+        task('task-no-due', 'No due', { createdAt: '2026-05-01T00:00:00.000Z', order: 0 }),
+        task('task-later', 'Later due', { createdAt: '2026-05-02T00:00:00.000Z', dueDate: '2026-07-01', order: 1 }),
+        task('task-soon', 'Soon due', { createdAt: '2026-05-03T00:00:00.000Z', dueDate: '2026-06-01', order: 2 }),
+    ];
+
+    it('persists the chosen project sort via updateProject', () => {
+        const updateProject = vi.fn();
+        renderWorkspace({ allTasks: sortSampleTasks(), updateProject });
+
+        selectToolbarOption('Sort', 'Due date');
+
+        expect(updateProject).toHaveBeenCalledWith('project-1', { taskSortBy: 'due' });
+    });
+
+    it('falls back to the default manual order when the project has no persisted sort', () => {
+        const { container } = renderWorkspace({ allTasks: sortSampleTasks() });
         const taskTitles = () => Array.from(container.querySelectorAll('[data-task-id] span')).map((item) => item.textContent);
 
         expect(taskTitles()).toEqual(['No due', 'Later due', 'Soon due']);
+    });
 
-        fireEvent.click(getByRole('button', { name: 'Due date' }));
+    it('renders the project task list in the project\'s persisted sort order', () => {
+        const { container } = renderWorkspace({
+            allTasks: sortSampleTasks(),
+            selectedProject: { ...project, taskSortBy: 'due' },
+        });
+        const taskTitles = () => Array.from(container.querySelectorAll('[data-task-id] span')).map((item) => item.textContent);
 
         expect(taskTitles()).toEqual(['Soon due', 'Later due', 'No due']);
     });

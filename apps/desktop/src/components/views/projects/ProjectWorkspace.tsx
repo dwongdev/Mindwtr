@@ -14,6 +14,7 @@ import {
     type RangeSelectionOptions,
     type Section,
     type StoreActionResult,
+    type TaskSortBy,
     type TaskStatus,
     generateUUID,
     sortTasksBy,
@@ -31,6 +32,7 @@ import { TokenPickerModal } from '../../TokenPickerModal';
 import { TaskItem } from '../../TaskItem';
 import { useUiStore } from '../../../store/ui-store';
 import { BulkSelectionToolbar } from '../list/BulkSelectionToolbar';
+import { SortBySelect } from '../list/list-toolbar';
 import { sortDoneTasksForListView } from '../list/done-sort';
 import { ListBulkActions } from '../list/ListBulkActions';
 import { TaskBulkOrganizeModal } from '../list/TaskBulkOrganizeModal';
@@ -268,8 +270,6 @@ type BulkTokenPickerState = {
     action: 'add' | 'remove';
 } | null;
 
-type ProjectTaskSortBy = 'default' | 'due';
-
 type ProjectWorkspaceProps = {
     addSection: (projectId: string, title: string) => Promise<unknown> | unknown;
     allTasks: Task[];
@@ -398,7 +398,10 @@ export function ProjectWorkspace({
     const [tagDraft, setTagDraft] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [editProjectTitle, setEditProjectTitle] = useState('');
-    const [projectTaskSortBy, setProjectTaskSortBy] = useState<ProjectTaskSortBy>('default');
+    // Effective sort is read straight from the selected project so it persists
+    // across restarts and view switches; the change handler writes it back via
+    // updateProject. Core normalizes 'default' to an absent field.
+    const projectTaskSortBy: TaskSortBy = selectedProject?.taskSortBy ?? 'default';
     const [projectDetailsExpanded, setProjectDetailsExpanded] = useState(false);
     const [isProjectDeleting, setIsProjectDeleting] = useState(false);
     const [selectionMode, setSelectionMode] = useState(false);
@@ -514,10 +517,6 @@ export function ProjectWorkspace({
     }, [selectedProject?.id, selectedProject?.tagIds]);
 
     useEffect(() => {
-        setProjectTaskSortBy('default');
-    }, [selectedProject?.id]);
-
-    useEffect(() => {
         setProjectDetailsExpanded(false);
     }, [selectedProject?.id]);
 
@@ -544,9 +543,16 @@ export function ProjectWorkspace({
         [projectAllTasks, selectedProject, showCompletedTasks],
     );
 
+    const handleProjectTaskSortByChange = useCallback((next: TaskSortBy) => {
+        if (!selectedProject) return;
+        void Promise.resolve(updateProject(selectedProject.id, { taskSortBy: next })).catch((error) => {
+            reportError('Failed to update project task sort', error);
+        });
+    }, [selectedProject, updateProject]);
+
     const sortProjectTasks = useCallback((items: Task[]) => {
-        if (projectTaskSortBy === 'due') {
-            return sortTasksBy(items, 'due');
+        if (projectTaskSortBy !== 'default') {
+            return sortTasksBy(items, projectTaskSortBy);
         }
         const sorted = [...items];
         const hasOrder = sorted.some((task) => Number.isFinite(task.order) || Number.isFinite(task.orderNum));
@@ -1616,34 +1622,11 @@ export function ProjectWorkspace({
                                         </div>
                                         <div className="flex flex-wrap items-center justify-end gap-2">
                                             {projectTaskToolbarCompact && projectAddTaskButton}
-                                            <div
-                                                role="group"
-                                                aria-label={resolveText('sort.label', 'Sort')}
-                                                className="inline-flex h-8 items-center rounded-md border border-border bg-muted/30 p-0.5"
-                                            >
-                                                {(['default', 'due'] as const).map((option) => {
-                                                    const active = projectTaskSortBy === option;
-                                                    const label = option === 'default'
-                                                        ? resolveText('sort.default', 'Default')
-                                                        : resolveText('sort.due', 'Due date');
-                                                    return (
-                                                        <button
-                                                            key={option}
-                                                            type="button"
-                                                            aria-pressed={active}
-                                                            onClick={() => setProjectTaskSortBy(option)}
-                                                            className={cn(
-                                                                'h-7 whitespace-nowrap rounded px-2 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                                                                active
-                                                                    ? 'bg-primary text-primary-foreground'
-                                                                    : 'text-muted-foreground hover:bg-background hover:text-foreground',
-                                                            )}
-                                                        >
-                                                            {label}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
+                                            <SortBySelect
+                                                value={projectTaskSortBy}
+                                                onChange={handleProjectTaskSortByChange}
+                                                t={t}
+                                            />
                                             {selectProjectTasksButton}
                                             {!isArchivedProject && (
                                                 <>

@@ -30,12 +30,12 @@ const EXPECTED: Record<Entity, Record<Surface, string[]>> = {
     project: {
         cloud: [
             'title', 'status', 'color', 'order', 'tagIds', 'isSequential', 'sequentialScope',
-            'isFocused', 'supportNotes', 'attachments', 'dueDate', 'reviewAt', 'areaId', 'areaTitle',
+            'taskSortBy', 'isFocused', 'supportNotes', 'attachments', 'dueDate', 'reviewAt', 'areaId', 'areaTitle',
             'rev', 'revBy', 'createdAt', 'updatedAt', 'deletedAt', 'purgedAt',
         ],
         sqlite: [
             'id', 'title', 'status', 'color', 'orderNum', 'tagIds', 'isSequential', 'sequentialScope',
-            'isFocused', 'supportNotes', 'attachments', 'dueDate', 'reviewAt', 'areaId', 'areaTitle',
+            'taskSortBy', 'isFocused', 'supportNotes', 'attachments', 'dueDate', 'reviewAt', 'areaId', 'areaTitle',
             'rev', 'revBy', 'createdAt', 'updatedAt', 'deletedAt', 'purgedAt',
         ],
     },

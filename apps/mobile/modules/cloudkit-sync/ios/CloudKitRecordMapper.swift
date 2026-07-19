@@ -162,6 +162,7 @@ enum CloudKitRecordMapper {
         FieldSpec(jsKey: "tagIds", ckKey: "tagIds", kind: .stringArray),
         FieldSpec(jsKey: "isSequential", ckKey: "isSequential", kind: .bool),
         FieldSpec(jsKey: "sequentialScope", ckKey: "sequentialScope", kind: .string),
+        FieldSpec(jsKey: "taskSortBy", ckKey: "taskSortBy", kind: .string),
         FieldSpec(jsKey: "isFocused", ckKey: "isFocused", kind: .bool),
         FieldSpec(jsKey: "supportNotes", ckKey: "supportNotes", kind: .string),
         FieldSpec(jsKey: "attachments", ckKey: "attachments", kind: .jsonString),

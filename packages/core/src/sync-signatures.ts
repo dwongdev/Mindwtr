@@ -1,5 +1,5 @@
 import type { Area, Attachment, Person, Project, Section, Task } from './types';
-import { normalizeProjectSequentialScope } from './project-utils';
+import { normalizeProjectSequentialScope, normalizeProjectTaskSortBy } from './project-utils';
 
 type StableSignatureCacheEntry = {
     validation: string;
@@ -143,6 +143,7 @@ export const normalizeProjectForContentComparison = (project: Project): Record<s
         sequentialScope: project.isSequential && normalizeProjectSequentialScope(project.sequentialScope) === 'section'
             ? 'section'
             : undefined,
+        taskSortBy: normalizeProjectTaskSortBy(project.taskSortBy),
         isFocused: project.isFocused ? true : undefined,
     };
     if (project.status === 'active') delete comparable.status;

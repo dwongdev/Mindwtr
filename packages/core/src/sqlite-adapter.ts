@@ -14,7 +14,7 @@ import { normalizeRecurrenceForLoad } from './recurrence';
 import { normalizeRelativeStartOffset } from './task-relative-start';
 import { logWarn } from './logger';
 import { normalizeSavedFilter, normalizeSavedFilters } from './saved-filters';
-import { normalizeProjectSequentialScope } from './project-utils';
+import { normalizeProjectSequentialScope, normalizeProjectTaskSortBy } from './project-utils';
 import { sleep } from './async-utils';
 
 export interface SqliteClient {
@@ -845,6 +845,7 @@ export class SqliteAdapter {
             { name: 'tagIds', sql: 'ALTER TABLE projects ADD COLUMN tagIds TEXT' },
             { name: 'isSequential', sql: 'ALTER TABLE projects ADD COLUMN isSequential INTEGER' },
             { name: 'sequentialScope', sql: 'ALTER TABLE projects ADD COLUMN sequentialScope TEXT' },
+            { name: 'taskSortBy', sql: 'ALTER TABLE projects ADD COLUMN taskSortBy TEXT' },
             { name: 'isFocused', sql: 'ALTER TABLE projects ADD COLUMN isFocused INTEGER' },
             { name: 'supportNotes', sql: 'ALTER TABLE projects ADD COLUMN supportNotes TEXT' },
             { name: 'attachments', sql: 'ALTER TABLE projects ADD COLUMN attachments TEXT' },
@@ -1121,6 +1122,7 @@ export class SqliteAdapter {
             tagIds: toStringArray(fromJson<unknown>(row.tagIds, [])),
             isSequential: fromBool(row.isSequential),
             sequentialScope: normalizeProjectSequentialScope(row.sequentialScope),
+            taskSortBy: normalizeProjectTaskSortBy(row.taskSortBy),
             isFocused: fromBool(row.isFocused),
             supportNotes: row.supportNotes as string | undefined,
             attachments: toAttachments(fromJson<unknown>(row.attachments, undefined)),
@@ -1575,6 +1577,7 @@ export class SqliteAdapter {
                     'tagIds',
                     'isSequential',
                     'sequentialScope',
+                    'taskSortBy',
                     'isFocused',
                     'supportNotes',
                     'attachments',
@@ -1598,6 +1601,7 @@ export class SqliteAdapter {
                     toJson(project.tagIds ?? []),
                     toBool(project.isSequential),
                     normalizeProjectSequentialScope(project.sequentialScope) ?? null,
+                    normalizeProjectTaskSortBy(project.taskSortBy) ?? null,
                     toBool(project.isFocused),
                     project.supportNotes ?? null,
                     toJson(project.attachments),
@@ -1619,6 +1623,7 @@ export class SqliteAdapter {
                  tagIds=excluded.tagIds,
                  isSequential=excluded.isSequential,
                  sequentialScope=excluded.sequentialScope,
+                 taskSortBy=excluded.taskSortBy,
                  isFocused=excluded.isFocused,
                  supportNotes=excluded.supportNotes,
                  attachments=excluded.attachments,

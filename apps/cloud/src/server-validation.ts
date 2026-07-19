@@ -50,6 +50,16 @@ const CLOUD_RECURRENCE_ALLOWED_KEYS = new Set([
     'rrule',
 ]);
 
+const PROJECT_TASK_SORT_BY_VALUES = new Set<NonNullable<Project['taskSortBy']>>([
+    'default',
+    'due',
+    'start',
+    'review',
+    'title',
+    'created',
+    'created-desc',
+]);
+
 function validateTaskRepeatReminderMinutes(value: Record<string, unknown>): string | null {
     if (!hasOwnField(value, 'repeatReminderMinutes')) return null;
     const minutes = value.repeatReminderMinutes;
@@ -108,6 +118,17 @@ function validateTaskPropValues(value: Record<string, unknown>): string | null {
         ?? validateTaskTimeSpentMinutes(value)
         ?? validateTaskRelativeStartOffset(value)
         ?? validateTaskRecurrence(value);
+}
+
+function validateProjectPropValues(value: Record<string, unknown>): string | null {
+    if (!hasOwnField(value, 'taskSortBy')) return null;
+    const taskSortBy = value.taskSortBy;
+    if (taskSortBy === undefined || taskSortBy === null) return null;
+    if (typeof taskSortBy === 'string'
+        && PROJECT_TASK_SORT_BY_VALUES.has(taskSortBy as NonNullable<Project['taskSortBy']>)) {
+        return null;
+    }
+    return 'Invalid project taskSortBy';
 }
 
 function isValidIsoTimestamp(value: unknown): boolean {
@@ -185,6 +206,10 @@ export function validateAppData(
         }
         if (project.purgedAt != null && !isValidIsoTimestamp(project.purgedAt)) {
             return { ok: false, error: 'Invalid data: project purgedAt must be a valid ISO timestamp when present' };
+        }
+        const valueError = validateProjectPropValues(project);
+        if (valueError) {
+            return { ok: false, error: `Invalid data: project ${String(project.id)}: ${valueError}` };
         }
     }
 
@@ -413,6 +438,8 @@ export function validateProjectCreationProps(
             error: `Unsupported project props: ${invalidKeys.slice(0, 10).join(', ')}`,
         };
     }
+    const valueError = validateProjectPropValues(value);
+    if (valueError) return { ok: false, error: valueError };
     return { ok: true, props: value as Partial<Project> };
 }
 
@@ -427,6 +454,8 @@ export function validateProjectPatchProps(
             error: `Unsupported project updates: ${invalidKeys.slice(0, 10).join(', ')}`,
         };
     }
+    const valueError = validateProjectPropValues(value);
+    if (valueError) return { ok: false, error: valueError };
     return { ok: true, props: value as Partial<Project> };
 }
 

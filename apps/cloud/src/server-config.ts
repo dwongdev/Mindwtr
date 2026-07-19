@@ -136,6 +136,7 @@ export const CLOUD_PROJECT_CREATION_ALLOWED_PROP_KEYS = new Set<keyof Project>([
     'order',
     'tagIds',
     'isSequential',
+    'taskSortBy',
     'isFocused',
     'supportNotes',
     'attachments',

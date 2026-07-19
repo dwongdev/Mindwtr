@@ -360,7 +360,7 @@ export default function ProjectsScreen() {
 
   const openProject = useCallback((project: Project) => {
     setSelectedProject(project);
-    setProjectTaskSortBy('default');
+    setProjectTaskSortBy(project.taskSortBy ?? 'default');
     resetProjectNotesUi();
     setShowProjectMeta(false);
     setShowDueDatePicker(false);
@@ -368,6 +368,26 @@ export default function ProjectsScreen() {
     setShowStatusMenu(false);
     resetProjectAttachmentUi();
   }, [resetProjectAttachmentUi, resetProjectNotesUi]);
+
+  // Keep the open project's sort in step with the store, so a sort chosen on
+  // another device (arriving via sync) reorders the already-open detail view.
+  // Local writes set the same value first, making this a no-op for them.
+  const liveSelectedProjectTaskSortBy = selectedProject
+    ? (projects.find((p) => p.id === selectedProject.id)?.taskSortBy ?? 'default')
+    : null;
+  useEffect(() => {
+    if (liveSelectedProjectTaskSortBy === null) return;
+    setProjectTaskSortBy(liveSelectedProjectTaskSortBy);
+  }, [liveSelectedProjectTaskSortBy]);
+
+  // Persist the chosen sort on the project so it survives reopening the project
+  // and syncs across devices; core normalizes 'default' to an absent field.
+  const handleProjectTaskSortByChange = useCallback((next: ProjectTaskSortBy) => {
+    setProjectTaskSortBy(next);
+    if (selectedProject) {
+      updateProject(selectedProject.id, { taskSortBy: next });
+    }
+  }, [selectedProject, updateProject]);
 
   const openProjectQuickAdd = useCallback((projectToAddTo: Project) => {
     openQuickCapture({
@@ -987,7 +1007,7 @@ export default function ProjectsScreen() {
         onSetShowProjectMeta={setShowProjectMeta}
         onSetShowReviewPicker={setShowReviewPicker}
         onSetShowStatusMenu={setShowStatusMenu}
-        onProjectTaskSortByChange={setProjectTaskSortBy}
+        onProjectTaskSortByChange={handleProjectTaskSortByChange}
         onToggleShowCompletedTasks={() => setShowCompletedProjectTasks((current) => !current)}
         overlayVisible={!!selectedProject}
         presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}

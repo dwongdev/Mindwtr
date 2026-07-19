@@ -1,9 +1,25 @@
-import type { Project, Task, TaskStatus } from './types';
+import type { Project, Task, TaskSortBy, TaskStatus } from './types';
 
 const CLOSED_PROJECT_TASK_STATUSES = new Set<TaskStatus>(['done', 'archived', 'reference']);
 
 export function normalizeProjectSequentialScope(value: unknown): Project['sequentialScope'] {
     if (value === 'section' || value === 'project') return value;
+    return undefined;
+}
+
+const PROJECT_TASK_SORT_BY_VALUES = new Set<TaskSortBy>([
+    'due',
+    'start',
+    'review',
+    'title',
+    'created',
+    'created-desc',
+]);
+
+export function normalizeProjectTaskSortBy(value: unknown): TaskSortBy | undefined {
+    if (typeof value === 'string' && PROJECT_TASK_SORT_BY_VALUES.has(value as TaskSortBy)) {
+        return value as TaskSortBy;
+    }
     return undefined;
 }
 
