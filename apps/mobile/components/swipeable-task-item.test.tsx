@@ -121,6 +121,15 @@ vi.mock('@mindwtr/core', () => {
       };
     },
     formatFocusTaskLimitText: (template: string, limit: number) => template.replace('{{count}}', String(limit)),
+    formatTimeSpentLabel: (value: unknown) => {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+      const minutes = Math.round(value);
+      if (minutes <= 0) return null;
+      const hrs = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      if (hrs <= 0) return `${mins}m`;
+      return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+    },
     formatRecurrenceLabel: ({ recurrence, t }: any) => {
       const rule = typeof recurrence === 'string' ? recurrence : recurrence?.rule;
       if (!rule) return '';
@@ -266,6 +275,7 @@ vi.mock('lucide-react-native', () => ({
   ArrowRight: (props: any) => React.createElement('ArrowRight', props),
   Check: (props: any) => React.createElement('Check', props),
   CircleDot: (props: any) => React.createElement('CircleDot', props),
+  History: (props: any) => React.createElement('History', props),
   ListChecks: (props: any) => React.createElement('ListChecks', props),
   Repeat: (props: any) => React.createElement('Repeat', props),
   RotateCcw: (props: any) => React.createElement('RotateCcw', props),
@@ -622,6 +632,76 @@ it('can keep the focus star without adding a redundant focus outline', () => {
       node.props.accessibilityLabel === 'Water plants. Status: Next. Recurrence: Daily · Repeat every 3 day(s)'
       && Array.isArray(node.props.accessibilityActions)
     )).length).toBeGreaterThan(0);
+  });
+
+  it('shows time spent in the mobile row when pomodoro task linking is enabled', () => {
+    storeState.settings = {
+      features: { pomodoro: true },
+      gtd: { pomodoro: { linkTask: true } },
+      appearance: {},
+    } as any;
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <SwipeableTaskItem
+          task={{
+            id: 'task-1',
+            title: 'Write report',
+            status: 'next',
+            timeSpentMinutes: 65,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          } as any}
+          isDark={false}
+          tc={{
+            taskItemBg: '#111111',
+            border: '#222222',
+            text: '#ffffff',
+            secondaryText: '#999999',
+            tint: '#3b82f6',
+            warning: '#f59e0b',
+          } as any}
+          onPress={vi.fn()}
+          onStatusChange={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+    });
+
+    expect(hasText(tree, '1h 5m')).toBe(true);
+    expect(tree.root.findAll((node) => (node.type as unknown) === 'History')).toHaveLength(1);
+  });
+
+  it('hides time spent in the mobile row when pomodoro task linking is disabled', () => {
+    let tree!: renderer.ReactTestRenderer;
+    renderer.act(() => {
+      tree = renderer.create(
+        <SwipeableTaskItem
+          task={{
+            id: 'task-1',
+            title: 'Write report',
+            status: 'next',
+            timeSpentMinutes: 65,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          } as any}
+          isDark={false}
+          tc={{
+            taskItemBg: '#111111',
+            border: '#222222',
+            text: '#ffffff',
+            secondaryText: '#999999',
+            tint: '#3b82f6',
+            warning: '#f59e0b',
+          } as any}
+          onPress={vi.fn()}
+          onStatusChange={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+    });
+
+    expect(hasText(tree, '1h 5m')).toBe(false);
   });
 
   it('uses long press to toggle selection when no custom long-press action is present', () => {

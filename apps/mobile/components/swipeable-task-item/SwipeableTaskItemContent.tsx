@@ -1,6 +1,6 @@
 import React, { type ReactNode, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { CircleDot, ListChecks, Repeat } from 'lucide-react-native';
+import { CircleDot, History, ListChecks, Repeat } from 'lucide-react-native';
 import { useThemeTokens } from '../../hooks/use-theme-tokens';
 import { useStatusColors } from '../../hooks/use-status-colors';
 import {
@@ -9,6 +9,7 @@ import {
     getTaskDateCoherenceIssues,
     getTaskUrgency,
     formatTimeEstimateLabel,
+    formatTimeSpentLabel,
     hasTimeComponent,
     resolveTaskTextDirection,
     safeFormatDate,
@@ -387,6 +388,27 @@ export function SwipeableTaskItemContent({
                 {timeEstimateLabel}
             </Text>,
             'estimate'
+        );
+    }
+
+    const timeSpentLabel = formatTimeSpentLabel(task.timeSpentMinutes);
+    if (timeSpentLabel) {
+        addMetaPart(
+            renderMetaItem({
+                key: 'time-spent',
+                children: (
+                    <>
+                        <History size={12} color={tc.secondaryText} strokeWidth={2} />
+                        <CompactText
+                            style={[styles.metaText, { color: tc.secondaryText }]}
+                            accessibilityLabel={`${tFallback(t, 'taskEdit.timeSpentLabel', 'Time Spent')}: ${timeSpentLabel}`}
+                        >
+                            {timeSpentLabel}
+                        </CompactText>
+                    </>
+                ),
+            }),
+            'time-spent'
         );
     }
 

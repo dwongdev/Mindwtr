@@ -87,6 +87,7 @@ export type SwipeableTaskItemRowContext = {
     focusedCount: number;
     focusTaskLimit: number;
     timeEstimatesEnabled: boolean;
+    timeSpentEnabled: boolean;
     showTaskAge: boolean;
 };
 
@@ -131,6 +132,8 @@ function StoreBackedSwipeableTaskItem(props: SwipeableTaskItemProps) {
         focusedCount: state.getDerivedState().focusedCount,
         focusTaskLimit: normalizeFocusTaskLimit(state.settings?.gtd?.focusTaskLimit),
         timeEstimatesEnabled: state.settings?.features?.timeEstimates !== false,
+        timeSpentEnabled: state.settings?.features?.pomodoro === true
+            && state.settings?.gtd?.pomodoro?.linkTask === true,
         showTaskAge: state.settings?.appearance?.showTaskAge === true,
     }), shallow);
     return <SwipeableTaskItemInner {...props} rowContext={rowContext} />;
@@ -190,6 +193,7 @@ function SwipeableTaskItemInner({
         focusedCount,
         focusTaskLimit,
         timeEstimatesEnabled,
+        timeSpentEnabled,
         showTaskAge,
     } = rowContext;
     const canShowFocusToggle = showFocusToggle
@@ -612,6 +616,7 @@ function SwipeableTaskItemInner({
             task={{
                 ...task,
                 timeEstimate: timeEstimatesEnabled ? task.timeEstimate : undefined,
+                timeSpentMinutes: timeSpentEnabled ? task.timeSpentMinutes : undefined,
             }}
             tc={tc}
         />

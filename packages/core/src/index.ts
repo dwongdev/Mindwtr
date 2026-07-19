@@ -739,6 +739,7 @@ export {
 
 export {
     addTimeSpentMinutes,
+    formatTimeSpentLabel,
     normalizeTimeSpentMinutes,
     TIME_SPENT_MAX_MINUTES,
 } from './time-spent';

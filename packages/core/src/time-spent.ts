@@ -19,6 +19,19 @@ export function normalizeTimeSpentMinutes(value: unknown): number | undefined {
 }
 
 /**
+ * Format a time-spent total for display, e.g. "25m", "1h", "1h 5m".
+ * Returns null when the value normalizes to absent.
+ */
+export function formatTimeSpentLabel(value: unknown): string | null {
+    const minutes = normalizeTimeSpentMinutes(value);
+    if (minutes === undefined) return null;
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hrs <= 0) return `${mins}m`;
+    return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+}
+
+/**
  * Add minutes to an existing total (e.g. a completed focus session).
  * Returns undefined when the result is zero/invalid so the field stays absent.
  */

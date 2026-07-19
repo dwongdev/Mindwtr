@@ -1,6 +1,6 @@
 import { AlertTriangle, Calendar as CalendarIcon, Tag, Trash2, ArrowRight, Repeat, Check, Clock, Timer, Link2, Paperclip, RotateCcw, Copy, MapPin, History, Hourglass, Play, Zap, MoreHorizontal } from 'lucide-react';
 import type { Area, Attachment, Project, RangeSelectionOptions, Task, TaskStatus, RecurrenceRule, RecurrenceStrategy, Language } from '@mindwtr/core';
-import { DEFAULT_AREA_COLOR, formatRecurrenceLabel, formatTimeEstimateLabel, getChecklistProgress, getInlineMarkdownPreview, getRecurringTaskPreviewDate, getTaskAgeLabel, getTaskDateCoherenceIssues, getTaskStaleness, getTaskUrgency, hasTimeComponent, safeFormatDate, resolveTaskTextDirection, tFallback } from '@mindwtr/core';
+import { DEFAULT_AREA_COLOR, formatRecurrenceLabel, formatTimeEstimateLabel, formatTimeSpentLabel, getChecklistProgress, getInlineMarkdownPreview, getRecurringTaskPreviewDate, getTaskAgeLabel, getTaskDateCoherenceIssues, getTaskStaleness, getTaskUrgency, hasTimeComponent, safeFormatDate, resolveTaskTextDirection, tFallback } from '@mindwtr/core';
 import { cn } from '../../lib/utils';
 import { useBareFileReferenceCheck } from '../../lib/attachment-reference';
 import { getAttachmentDisplayTitle } from '../../lib/attachment-utils';
@@ -88,13 +88,6 @@ const getUrgencyColor = (task: Task) => {
 };
 
 const formatTimeEstimate = formatTimeEstimateLabel;
-
-const formatTimeSpent = (minutes: number) => {
-    const hrs = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hrs <= 0) return `${mins}m`;
-    return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
-};
 
 export const TaskItemDisplay = memo(function TaskItemDisplay({
     task,
@@ -532,12 +525,12 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                     label={formatTimeEstimate(task.timeEstimate)}
                 />
             )}
-            {timeSpentEnabled && Boolean(task.timeSpentMinutes) && (
+            {timeSpentEnabled && formatTimeSpentLabel(task.timeSpentMinutes) && (
                 <MetadataBadge
                     variant="estimate"
                     icon={History}
-                    label={formatTimeSpent(task.timeSpentMinutes as number)}
-                    ariaLabel={`${t('taskEdit.timeSpentLabel')}: ${formatTimeSpent(task.timeSpentMinutes as number)}`}
+                    label={formatTimeSpentLabel(task.timeSpentMinutes)!}
+                    ariaLabel={`${t('taskEdit.timeSpentLabel')}: ${formatTimeSpentLabel(task.timeSpentMinutes)}`}
                 />
             )}
         </div>

@@ -435,6 +435,8 @@ function TaskListComponent({
   const keyRequired = isAIKeyRequired(settings);
   const prioritiesEnabled = settings?.features?.priorities !== false;
   const timeEstimatesEnabled = settings?.features?.timeEstimates !== false;
+  const timeSpentEnabled = settings?.features?.pomodoro === true
+    && settings?.gtd?.pomodoro?.linkTask === true;
   const showTaskAge = settings?.appearance?.showTaskAge === true;
   const rowContext = useMemo<SwipeableTaskItemRowContext>(() => ({
     addTask,
@@ -445,6 +447,7 @@ function TaskListComponent({
     focusedCount,
     focusTaskLimit,
     timeEstimatesEnabled,
+    timeSpentEnabled,
     showTaskAge,
   }), [
     addTask,
@@ -455,6 +458,7 @@ function TaskListComponent({
     restoreTask,
     showTaskAge,
     timeEstimatesEnabled,
+    timeSpentEnabled,
     updateTask,
   ]);
   const timeEstimateFiltersEnabled = showTimeEstimateFiltersProp && timeEstimatesEnabled && statusFilter !== 'inbox';
