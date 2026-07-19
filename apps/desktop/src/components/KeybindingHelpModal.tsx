@@ -63,8 +63,8 @@ export function KeybindingHelpModal({
         { keys: 'gb', labelKey: 'keybindings.goBoard' },
         { keys: 'gd', labelKey: 'keybindings.goDone' },
         { keys: 'ga', labelKey: 'keybindings.goArchived' },
-        { keys: 'Shift+A 1-9', labelKey: 'keybindings.switchArea', fallbackLabel: 'Switch to Area 1-9' },
-        { keys: 'Shift+A 0', labelKey: 'keybindings.clearAreaFilter', fallbackLabel: 'Clear area filter' },
+        { keys: '1-9 / Shift+A 1-9', labelKey: 'keybindings.switchArea', fallbackLabel: 'Switch to Area 1-9' },
+        { keys: '0 / Shift+A 0', labelKey: 'keybindings.clearAreaFilter', fallbackLabel: 'Clear area filter' },
     ];
 
     const vimList: HelpItem[] = [
@@ -114,6 +114,8 @@ export function KeybindingHelpModal({
         { keys: 'Alt-b', labelKey: 'keybindings.goBoard' },
         { keys: 'Alt-d', labelKey: 'keybindings.goDone' },
         { keys: 'Alt-A', labelKey: 'keybindings.goArchived' },
+        { keys: '1-9 / Shift+A 1-9', labelKey: 'keybindings.switchArea', fallbackLabel: 'Switch to Area 1-9' },
+        { keys: '0 / Shift+A 0', labelKey: 'keybindings.clearAreaFilter', fallbackLabel: 'Clear area filter' },
     ];
 
     const emacsList: HelpItem[] = [

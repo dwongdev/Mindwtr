@@ -1022,6 +1022,17 @@ export function KeybindingProvider({
                     pendingRef.current = { key: 's', timestamp: now };
                     return;
                 }
+                // Bare digits switch the area filter directly (1-9, 0 clears) —
+                // the no-modifier complement of the Shift+A chord (#865). Read
+                // from the physical key like the chord digits; unassigned digits
+                // fall through untouched.
+                if (!pendingRef.current.key && !e.shiftKey) {
+                    const bareDigit = /^(?:Digit|Numpad)(\d)$/.exec(e.code)?.[1];
+                    if (bareDigit && applyAreaFilterShortcut(bareDigit)) {
+                        e.preventDefault();
+                        return;
+                    }
+                }
                 if (e.key === 'Insert') {
                     const scope = getActiveScope();
                     e.preventDefault();

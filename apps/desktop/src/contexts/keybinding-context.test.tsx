@@ -392,6 +392,69 @@ describe('KeybindingProvider (vim)', () => {
         });
     });
 
+    it('switches the area filter with a bare digit, no chord prefix', async () => {
+        useTaskStore.setState((state) => ({
+            ...state,
+            _allAreas: [
+                { id: 'area-home', name: 'Home', order: 0, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+                { id: 'area-errands', name: 'Errands', order: 1, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+            ],
+            settings: {
+                ...state.settings,
+                filters: {
+                    ...(state.settings?.filters ?? {}),
+                    areaId: 'area-home',
+                },
+            },
+        }));
+
+        render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="inbox" onNavigate={vi.fn()}>
+                    <DummyList />
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        fireEvent.keyDown(window, { key: '2', code: 'Digit2' });
+
+        await waitFor(() => {
+            expect(useTaskStore.getState().settings?.filters?.areaId).toBe('area-errands');
+        });
+    });
+
+    it('clears the area filter with a bare 0 and ignores digits with no matching area', async () => {
+        useTaskStore.setState((state) => ({
+            ...state,
+            _allAreas: [
+                { id: 'area-home', name: 'Home', order: 0, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+            ],
+            settings: {
+                ...state.settings,
+                filters: {
+                    ...(state.settings?.filters ?? {}),
+                    areaId: 'area-home',
+                },
+            },
+        }));
+
+        render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="inbox" onNavigate={vi.fn()}>
+                    <DummyList />
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        fireEvent.keyDown(window, { key: '9', code: 'Digit9' });
+        expect(useTaskStore.getState().settings?.filters?.areaId).toBe('area-home');
+
+        fireEvent.keyDown(window, { key: '0', code: 'Digit0' });
+        await waitFor(() => {
+            expect(useTaskStore.getState().settings?.filters?.areaId).toBe(AREA_FILTER_ALL);
+        });
+    });
+
     it('starts the area filter chord when Shift+a reports lowercase a', async () => {
         useTaskStore.setState((state) => ({
             ...state,
@@ -514,10 +577,15 @@ describe('KeybindingProvider (vim)', () => {
         );
 
         fireEvent.keyDown(window, { key: 'A', shiftKey: false });
-        fireEvent.keyDown(window, { key: '1', code: 'Digit1' });
-
+        // Quick add firing on the 'A' itself proves the chord was not armed.
         expect(quickAddListener).toHaveBeenCalledTimes(1);
-        expect(useTaskStore.getState().settings?.filters?.areaId).toBe(AREA_FILTER_ALL);
+
+        // The follow-up digit is picked up by the bare-digit area shortcut
+        // (in the real app the open quick-add dialog gates it out).
+        fireEvent.keyDown(window, { key: '1', code: 'Digit1' });
+        await waitFor(() => {
+            expect(useTaskStore.getState().settings?.filters?.areaId).toBe('area-home');
+        });
         window.removeEventListener('mindwtr:quick-add', quickAddListener);
     });
 
