@@ -896,7 +896,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
                             aria-label={focusToggle.ariaLabel}
                             className={cn(
                                 "p-1.5 rounded-full transition-colors",
-                                !focusToggle.alwaysVisible && !focusToggle.isFocused && "opacity-0 group-hover:opacity-100 focus:opacity-100",
+                                !focusToggle.alwaysVisible && !(focusToggle.isFocused && task.status === 'next') && "opacity-0 group-hover:opacity-100 focus:opacity-100",
                                 focusToggle.isFocused
                                     ? "text-warning hover:bg-warning/10"
                                     : focusToggle.canToggle
