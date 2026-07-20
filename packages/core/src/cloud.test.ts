@@ -114,6 +114,32 @@ describe('cloud sync http helpers', () => {
         ).rejects.toThrow('Cloud POST failed (500): Internal Server Error');
     });
 
+    it('appends a wrong-server hint on 405 for cloud GET', async () => {
+        const fetcher = vi.fn(async () => errorResponse(405, 'Method Not Allowed'));
+        await expect(cloudGetJson('https://example.com/v1/data', { fetcher })).rejects.toThrow(
+            'Cloud GET failed (405): Method Not Allowed — this URL may not be a Mindwtr sync server (check host and port)',
+        );
+    });
+
+    it('appends a wrong-server hint on 405 for cloud PUT', async () => {
+        const fetcher = vi.fn(async () => errorResponse(405, 'Method Not Allowed'));
+        await expect(
+            cloudPutJson('https://example.com/v1/data', { hello: 'world' }, { fetcher }),
+        ).rejects.toThrow(
+            'Cloud PUT failed (405): Method Not Allowed — this URL may not be a Mindwtr sync server (check host and port)',
+        );
+    });
+
+    it('does not append the wrong-server hint for non-405 statuses', async () => {
+        const fetcher = vi.fn(async () => errorResponse(500, 'Internal Server Error'));
+        await expect(cloudGetJson('https://example.com/v1/data', { fetcher })).rejects.toThrow(
+            'Cloud GET failed (500): Internal Server Error',
+        );
+        await expect(cloudGetJson('https://example.com/v1/data', { fetcher })).rejects.not.toThrow(
+            /may not be a Mindwtr sync server/,
+        );
+    });
+
     it('enforces the https policy on request json', async () => {
         const fetcher = vi.fn(async () => okResponse('{}'));
         await expect(

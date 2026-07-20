@@ -26,6 +26,12 @@ export type SyncRunResult = {
     /** True when an attachment phase failed non-fatally during this run
      *  (feeds the desktop consecutive-warning toast policy). */
     hadAttachmentWarning?: boolean;
+    /** True when the merge/read cycle succeeded locally but the remote write
+     *  failed and was queued for background retry. `success` stays true (the
+     *  run itself did not error and auto-retry behavior is unaffected) — this
+     *  flag lets manual-sync UI avoid reporting a plain success while the
+     *  sidebar still shows `lastSyncStatus: 'error'`. */
+    remoteWriteDeferred?: boolean;
 };
 
 /** Transport metadata from one remote write. Adapters normalize backend-specific

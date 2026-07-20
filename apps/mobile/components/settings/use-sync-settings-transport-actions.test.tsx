@@ -330,6 +330,30 @@ describe('useSyncSettingsTransportActions', () => {
         }));
     });
 
+    it('reports a deferred remote write as an error even though performMobileSync succeeded', async () => {
+        mocked.performMobileSync.mockResolvedValue({
+            success: true,
+            remoteWriteDeferred: true,
+            error: 'Remote write failed. Retrying in the background.',
+        });
+        await renderHarness();
+
+        await act(async () => {
+            await latestHookResult?.handleSync({
+                backend: 'webdav',
+                webdav: {
+                    allowInsecureHttp: false,
+                    password: 'new-secret',
+                    url: 'https://dav.example.com/mindwtr/',
+                    username: 'alice',
+                },
+            });
+        });
+
+        expect(mocked.showToast).not.toHaveBeenCalled();
+        expect(mocked.showSettingsErrorToast).toHaveBeenCalledWith('settings.syncMobile.error', 'Retry sync later.');
+    });
+
     it('clears cached sync config before syncing with freshly saved WebDAV credentials', async () => {
         await renderHarness();
 

@@ -118,7 +118,7 @@ export function useManualPullSync() {
         return;
       }
 
-      if (!result.success) {
+      if (!result.success || result.remoteWriteDeferred) {
         throw new Error(result.error || tFallback(t, 'settings.lastSyncError', 'Sync failed'));
       }
 

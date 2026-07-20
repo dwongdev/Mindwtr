@@ -266,6 +266,30 @@ describe('Layout sync conflict surface', () => {
         performSyncSpy.mockRestore();
     });
 
+    it('shows an error toast when the remote write was deferred despite success:true', async () => {
+        const showToast = vi.fn();
+        const performSyncSpy = vi.spyOn(SyncService, 'performSync').mockResolvedValue({
+            success: true,
+            remoteWriteDeferred: true,
+            error: 'Remote write failed. Retrying in the background.',
+        } as Awaited<ReturnType<typeof SyncService.performSync>>);
+        act(() => {
+            useUiStore.setState((state) => ({
+                ...state,
+                showToast,
+            }));
+        });
+
+        const { getByRole } = renderLayout();
+
+        fireEvent.click(getByRole('button', { name: /Sync now/i }));
+
+        await waitFor(() => expect(performSyncSpy).toHaveBeenCalledTimes(1));
+        expect(showToast).toHaveBeenCalledWith('Remote write failed. Retrying in the background.', 'error');
+
+        performSyncSpy.mockRestore();
+    });
+
     it('shows a toast when a new sync conflict status is present', () => {
         const showToast = vi.fn();
         act(() => {

@@ -271,7 +271,7 @@ describe('desktop sync-service runtime', () => {
 
         const result = await syncServiceModule.SyncService.performSync();
 
-        expect(result).toEqual({ success: true, skipped: 'pendingRemoteWriteBackoff' });
+        expect(result).toEqual({ success: true, skipped: 'pendingRemoteWriteBackoff', remoteWriteDeferred: true });
         expect(storeStateRef.current.setError).not.toHaveBeenCalled();
     });
 

@@ -1114,6 +1114,16 @@ fn cloud_request_builder(
     }
 }
 
+/// A bare 405 from a cloud sync URL usually means the URL points at
+/// something other than a Mindwtr sync server (e.g. the wrong port).
+fn wrong_sync_server_hint(status: reqwest::StatusCode) -> &'static str {
+    if status == reqwest::StatusCode::METHOD_NOT_ALLOWED {
+        " — this URL may not be a Mindwtr sync server (check host and port)"
+    } else {
+        ""
+    }
+}
+
 fn cloud_get_json_blocking(app: &tauri::AppHandle) -> Result<Value, String> {
     let config = read_config(app);
     let url = normalize_cloud_url(&config.cloud_url.clone().unwrap_or_default());
@@ -1134,9 +1144,10 @@ fn cloud_get_json_blocking(app: &tauri::AppHandle) -> Result<Value, String> {
     }
     if !response.status().is_success() {
         return Err(format!(
-            "Cloud GET failed ({}): {}",
+            "Cloud GET failed ({}): {}{}",
             response.status().as_u16(),
-            response.status().canonical_reason().unwrap_or_default()
+            response.status().canonical_reason().unwrap_or_default(),
+            wrong_sync_server_hint(response.status())
         ));
     }
 
@@ -1179,9 +1190,10 @@ fn cloud_put_json_blocking(
 
     if !response.status().is_success() {
         return Err(format!(
-            "Cloud PUT failed ({}): {}",
+            "Cloud PUT failed ({}): {}{}",
             response.status().as_u16(),
-            response.status().canonical_reason().unwrap_or_default()
+            response.status().canonical_reason().unwrap_or_default(),
+            wrong_sync_server_hint(response.status())
         ));
     }
     let mut result = remote_json_write_result_from_headers(response.headers());
@@ -1263,6 +1275,20 @@ mod tests {
             strip_windows_verbatim_prefix(r"C:\Users\mmbtu\Dropbox\Apps\Mindwtr"),
             r"C:\Users\mmbtu\Dropbox\Apps\Mindwtr"
         );
+    }
+
+    #[test]
+    fn wrong_sync_server_hint_appears_only_for_405() {
+        assert_eq!(
+            wrong_sync_server_hint(reqwest::StatusCode::METHOD_NOT_ALLOWED),
+            " — this URL may not be a Mindwtr sync server (check host and port)"
+        );
+        assert_eq!(wrong_sync_server_hint(reqwest::StatusCode::NOT_FOUND), "");
+        assert_eq!(
+            wrong_sync_server_hint(reqwest::StatusCode::INTERNAL_SERVER_ERROR),
+            ""
+        );
+        assert_eq!(wrong_sync_server_hint(reqwest::StatusCode::UNAUTHORIZED), "");
     }
 
     #[test]

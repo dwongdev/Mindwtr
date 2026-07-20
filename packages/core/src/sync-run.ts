@@ -673,7 +673,12 @@ class SharedSyncRunMachine {
                 data: syncResult.data,
                 extra: { retryInMs: String(Math.ceil(syncResult.retryInMs)) },
             });
-            return { success: true, skipped: 'pendingRemoteWriteBackoff' };
+            return {
+                success: true,
+                skipped: 'pendingRemoteWriteBackoff',
+                remoteWriteDeferred: true,
+                error: syncResult.data.settings.lastSyncError,
+            };
         }
 
         const stats = syncResult.stats;
@@ -737,6 +742,14 @@ class SharedSyncRunMachine {
             getLocalSnapshotChangeAt: () => this.state.localSnapshotChangeAt,
             acceptCoveredSnapshot: (expectedData) => this.acceptCoveredLocalSnapshot(expectedData),
         });
+        if (mergedData.settings.pendingRemoteWriteRetryAt) {
+            return {
+                success: true,
+                remoteWriteDeferred: true,
+                error: mergedData.settings.lastSyncError,
+                stats,
+            };
+        }
         return { success: true, stats };
     }
 

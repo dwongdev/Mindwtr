@@ -779,7 +779,7 @@ export function useSyncSettingsTransportActions({
                 });
                 return;
             }
-            if (result.success) {
+            if (result.success && !result.remoteWriteDeferred) {
                 const conflictCount = getSyncConflictCount(result.stats);
                 const maxResultClockSkewMs = getSyncMaxClockSkewMs(result.stats);
                 const resultTimestampAdjustments = getSyncTimestampAdjustments(result.stats);

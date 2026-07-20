@@ -633,7 +633,7 @@ describe('mobile sync-service runtime', () => {
 
     const result = await syncServiceModule.performMobileSync();
 
-    expect(result).toEqual({ success: true, skipped: 'pendingRemoteWriteBackoff' });
+    expect(result).toEqual({ success: true, skipped: 'pendingRemoteWriteBackoff', remoteWriteDeferred: true });
     expect(storeStateRef.current.setError).not.toHaveBeenCalled();
   });
 

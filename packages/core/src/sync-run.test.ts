@@ -16,6 +16,8 @@ import { normalizeAppData } from './sync-normalization';
 import { cloneAppData } from './sync-runtime-utils';
 import type { FastSyncState } from './sync-fast-sync';
 import type { SyncBackend } from './sync-service-utils';
+import type { SyncCycleIO, SyncCycleResult } from './sync-types';
+import { performSyncCycle } from './sync';
 
 const NOW = new Date('2026-07-13T10:00:00.000Z');
 const STAMP = '2026-07-01T00:00:00.000Z';
@@ -48,6 +50,7 @@ type HarnessConfig = {
     hooks?: Partial<SyncRunPlatformHooks>;
     storage?: Partial<SyncRunStorage>;
     attachmentCleanupIntervalMs?: number;
+    performSyncCycle?: (io: SyncCycleIO) => Promise<SyncCycleResult>;
 };
 
 const createHarness = (config: HarnessConfig = {}) => {
@@ -156,6 +159,7 @@ const createHarness = (config: HarnessConfig = {}) => {
         policy,
         now: () => NOW,
         attachmentCleanupIntervalMs: config.attachmentCleanupIntervalMs,
+        performSyncCycle: config.performSyncCycle,
     });
 
     return { harness, io, store, storage, notifier, hooks, policy, run };
@@ -318,19 +322,67 @@ describe('runSharedSyncCycle', () => {
         }));
     });
 
-    it('skips the cycle while the pending-remote-write backoff is active', async () => {
+    it('skips the cycle while the pending-remote-write backoff is active and surfaces the deferred write', async () => {
         const retryAt = new Date(Date.now() + 60_000).toISOString();
         const local = createData([createTask('t-local', 'Local task')], {
             pendingRemoteWriteAt: STAMP,
             pendingRemoteWriteRetryAt: retryAt,
             pendingRemoteWriteAttempts: 2,
+            lastSyncStatus: 'error',
+            lastSyncError: 'Remote write failed. Retrying in the background.',
         });
         const { io, run } = createHarness({ local });
 
         const result = await run();
 
-        expect(result).toMatchObject({ success: true, skipped: 'pendingRemoteWriteBackoff' });
+        expect(result).toMatchObject({
+            success: true,
+            skipped: 'pendingRemoteWriteBackoff',
+            remoteWriteDeferred: true,
+            error: 'Remote write failed. Retrying in the background.',
+        });
         expect(io.readRemote).not.toHaveBeenCalled();
+    });
+
+    it('surfaces a deferred remote write on a completed merge without failing the run', async () => {
+        const { run } = createHarness({
+            performSyncCycle: async (io) => {
+                const result = await performSyncCycle(io);
+                if (result.status === 'skipped') return result;
+                return {
+                    ...result,
+                    data: {
+                        ...result.data,
+                        settings: {
+                            ...result.data.settings,
+                            pendingRemoteWriteRetryAt: new Date(NOW.getTime() + 30_000).toISOString(),
+                            pendingRemoteWriteAttempts: 1,
+                            lastSyncStatus: 'error',
+                            lastSyncError: 'Remote write failed. Retrying in the background.',
+                        },
+                    },
+                };
+            },
+        });
+
+        const result = await run();
+
+        expect(result).toMatchObject({
+            success: true,
+            remoteWriteDeferred: true,
+            error: 'Remote write failed. Retrying in the background.',
+        });
+    });
+
+    it('leaves remoteWriteDeferred falsy on a clean successful run', async () => {
+        const { run } = createHarness({
+            remote: createData([createTask('t-remote', 'Remote task')]),
+        });
+
+        const result = await run();
+
+        expect(result.success).toBe(true);
+        expect(result.remoteWriteDeferred).toBeFalsy();
     });
 
     it('aborts to a requeued skip when local data changes mid-cycle', async () => {

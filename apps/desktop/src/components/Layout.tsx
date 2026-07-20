@@ -411,6 +411,8 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
             const result = await SyncService.performSync({ manual: true });
             if (result.skipped === 'requeued') {
                 showToast('Local changes arrived during sync. Retry queued.', 'info');
+            } else if (result.success && result.remoteWriteDeferred) {
+                showToast(result.error || settings?.lastSyncError || tFallback(t, 'settings.lastSyncError', 'Sync failed'), 'error');
             } else if (result.success) {
                 showToast(tFallback(t, 'settings.lastSyncSuccess', 'Sync completed'), 'success');
             } else {
@@ -423,7 +425,7 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
         } finally {
             setIsManualSyncing(false);
         }
-    }, [manualSyncBusy, showToast, t]);
+    }, [manualSyncBusy, showToast, t, settings?.lastSyncError]);
 
     useEffect(() => {
         if (areas.length === 0) return;

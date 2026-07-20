@@ -156,6 +156,26 @@ describe('useManualPullSync', () => {
     }));
   });
 
+  it('surfaces a deferred remote write as an error even though success is true', async () => {
+    mocked.performMobileSync.mockResolvedValue({
+      success: true,
+      remoteWriteDeferred: true,
+      error: 'Remote write failed. Retrying in the background.',
+    });
+    renderHarness();
+
+    await act(async () => {
+      await latest?.onRefresh();
+    });
+
+    expect(latest?.indicatorState).toBe('error');
+    expect(mocked.showToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Sync failed',
+      message: 'Remote write failed. Retrying in the background.',
+      tone: 'error',
+    }));
+  });
+
   it('keeps success quiet except for conflict summaries', async () => {
     mocked.getSyncConflictCount.mockReturnValue(2);
     mocked.performMobileSync.mockResolvedValue({ success: true, stats: {} });

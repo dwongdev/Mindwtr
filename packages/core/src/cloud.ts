@@ -50,8 +50,10 @@ export class CloudHttpError extends Error {
     }
 }
 
-const cloudHttpError = (label: string, res: Response): CloudHttpError =>
-    new CloudHttpError(`${label} failed (${res.status}): ${res.statusText}`, res.status);
+const cloudHttpError = (label: string, res: Response): CloudHttpError => {
+    const hint = res.status === 405 ? ' — this URL may not be a Mindwtr sync server (check host and port)' : '';
+    return new CloudHttpError(`${label} failed (${res.status}): ${res.statusText}${hint}`, res.status);
+};
 
 const assertCloudUrl = (url: string, options: CloudOptions): void => {
     assertConnectionAllowed(url, CLOUD_HTTPS_ERROR, {
