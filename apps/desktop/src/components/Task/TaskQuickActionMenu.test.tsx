@@ -173,48 +173,46 @@ describe('TaskQuickActionMenu', () => {
         expect(props.onClose).not.toHaveBeenCalled();
     });
 
-    it('cancels a focused quick-date draft with one click', async () => {
+    it('discards a popover-selected quick date when Cancel is clicked', async () => {
         const user = userEvent.setup();
         const props = renderMenu({ task: { ...task, dueDate: '2026-04-12' } });
         await user.click(screen.getByRole('menuitem', { name: 'Due Date…' }));
 
         const panel = screen.getByRole('dialog', { name: 'Due Date' });
-        const input = within(panel).getByLabelText('Due Date');
-        await user.click(input);
-        await user.click(within(panel).getByRole('button', { name: 'Tomorrow' }));
+        await user.click(within(panel).getByRole('button', { name: 'Due Date calendar' }));
+        const calendar = screen.getByRole('dialog', { name: 'Due Date calendar' });
+        await user.click(within(calendar).getByRole('button', { name: 'Tomorrow' }));
 
-        const cancel = within(panel).getByRole('button', { name: 'Cancel' });
-        await user.pointer({ target: cancel, keys: '[MouseLeft>]' });
+        // Picking a suggestion applies to the draft and closes the popover.
+        expect(screen.queryByRole('dialog', { name: 'Due Date calendar' })).not.toBeInTheDocument();
 
-        expect(document.activeElement).toBe(input);
-        expect(within(panel).getByRole('button', { name: 'Tomorrow' })).toBeInTheDocument();
-
-        await user.pointer({ target: cancel, keys: '[/MouseLeft]' });
+        await user.click(within(panel).getByRole('button', { name: 'Cancel' }));
 
         expect(screen.queryByRole('dialog', { name: 'Due Date' })).not.toBeInTheDocument();
         expect(props.onClose).not.toHaveBeenCalled();
     });
 
-    it('saves a focused quick-date draft with one click', async () => {
+    it('saves a popover-selected quick date with one click', async () => {
         const user = userEvent.setup();
         const onUpdateTask = vi.fn(async () => ({ success: true as const }));
         const props = renderMenu({ onUpdateTask });
         await user.click(screen.getByRole('menuitem', { name: 'Due Date…' }));
 
         const panel = screen.getByRole('dialog', { name: 'Due Date' });
-        const input = within(panel).getByLabelText('Due Date');
-        await user.click(input);
-        await user.click(within(panel).getByRole('button', { name: 'Tomorrow' }));
+        await user.click(within(panel).getByRole('button', { name: 'Due Date calendar' }));
+        const calendar = screen.getByRole('dialog', { name: 'Due Date calendar' });
+        await user.click(within(calendar).getByRole('button', { name: 'Tomorrow' }));
 
-        const save = within(panel).getByRole('button', { name: 'Save' });
-        await user.pointer({ target: save, keys: '[MouseLeft>]' });
+        await user.click(within(panel).getByRole('button', { name: 'Save' }));
 
-        expect(document.activeElement).toBe(input);
-        expect(within(panel).getByRole('button', { name: 'Tomorrow' })).toBeInTheDocument();
-
-        await user.pointer({ target: save, keys: '[/MouseLeft]' });
+        const tomorrow = new Date();
+        tomorrow.setHours(0, 0, 0, 0);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const pad = (value: number) => String(value).padStart(2, '0');
+        const expected = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
 
         await waitFor(() => expect(onUpdateTask).toHaveBeenCalledTimes(1));
+        expect(onUpdateTask).toHaveBeenCalledWith({ dueDate: expected });
         expect(props.onClose).toHaveBeenCalledTimes(1);
     });
 

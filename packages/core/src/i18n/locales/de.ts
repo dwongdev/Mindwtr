@@ -81,6 +81,7 @@ export const deOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': 'Speichern & bearbeiten',
         'quickDate.today': 'Heute',
         'quickDate.tomorrow': 'Morgen',
+        'quickDate.in2Days': '+2 Tage',
         'quickDate.in3Days': '+3 Tage',
         'quickDate.nextWeek': 'Nächste Woche',
         'quickDate.nextMonth': 'Nächster Monat',

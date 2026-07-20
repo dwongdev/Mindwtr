@@ -75,6 +75,7 @@ export const jaOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': '保存して編集',
         'quickDate.today': '今日',
         'quickDate.tomorrow': '明日',
+        'quickDate.in2Days': '+2日',
         'quickDate.in3Days': '+3日',
         'quickDate.nextWeek': '来週',
         'quickDate.nextMonth': '来月',

@@ -169,6 +169,7 @@ describe('date utils', () => {
         const now = new Date(2026, 4, 12, 15, 30);
         expect(getQuickDate('today', now)).toEqual(new Date(2026, 4, 12));
         expect(getQuickDate('tomorrow', now)).toEqual(new Date(2026, 4, 13));
+        expect(getQuickDate('in_2_days', now)).toEqual(new Date(2026, 4, 14));
         expect(getQuickDate('in_3_days', now)).toEqual(new Date(2026, 4, 15));
         expect(getQuickDate('next_week', now)).toEqual(new Date(2026, 4, 18));
         expect(getQuickDate('next_month', now)).toEqual(new Date(2026, 5, 1));

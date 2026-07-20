@@ -75,6 +75,7 @@ export const hiOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': 'सहेजें और संपादित करें',
         'quickDate.today': 'आज',
         'quickDate.tomorrow': 'कल',
+        'quickDate.in2Days': '+2 दिन',
         'quickDate.in3Days': '+3 दिन',
         'quickDate.nextWeek': 'अगला सप्ताह',
         'quickDate.nextMonth': 'अगला महीना',

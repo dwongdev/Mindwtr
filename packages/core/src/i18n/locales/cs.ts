@@ -445,6 +445,7 @@ export const csOverrides: Record<string, string> = {
         'filters.datePreset.no_date': 'Bez data',
         'quickDate.today': 'Dnes',
         'quickDate.tomorrow': 'Zítra',
+        'quickDate.in2Days': '+2 dny',
         'quickDate.in3Days': '+3 dny',
         'quickDate.nextWeek': 'Příští týden',
         'quickDate.nextMonth': 'Příští měsíc',

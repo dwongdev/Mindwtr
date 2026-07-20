@@ -13,11 +13,14 @@ import {
     getCalendarDayOfMonth,
     getCalendarMonthIndex,
     getProjectedRecurringTaskCalendarDate,
+    getQuickDate,
     getRecurrenceCompletedOccurrencesValue,
     getTaskDateCoherenceIssues,
     hasTimeComponent,
     isJalaliCalendarLocale,
     isMarkdownEditorAssistEnabled,
+    isQuickDatePresetSelected,
+    QUICK_DATE_PRESETS_EXTENDED,
     normalizeClockTimeInput,
     normalizeDateFormatSetting,
     parseCalendarInputDate,
@@ -33,6 +36,7 @@ import {
     type MarkdownSelection,
     type MarkdownToolbarActionId,
     type MarkdownToolbarResult,
+    type QuickDatePreset,
     type RecurrenceByDay,
     type Recurrence,
     type RecurrenceRule,
@@ -66,7 +70,7 @@ import {
     TimeEstimateField,
     TimeSpentField,
 } from './fields/TaskMetadataFields';
-import { QuickDateChips } from '../QuickDateChips';
+import { QUICK_DATE_LABELS } from '../QuickDateChips';
 import {
     captureScrollSnapshot,
     focusElementWithoutScroll,
@@ -80,7 +84,7 @@ import { processAudioCapture } from '../../lib/speech-to-text';
 import { DEFAULT_PARAKEET_MODEL, DEFAULT_WHISPER_MODEL } from '../../lib/speech-models';
 
 const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const DATE_POPOVER_WIDTH = 288;
+const DATE_POPOVER_WIDTH = 418;
 const DATE_POPOVER_APPROX_HEIGHT = 340;
 const DATE_POPOVER_MARGIN = 8;
 
@@ -287,7 +291,6 @@ export function DateField({
     const calendarRef = useRef<HTMLDivElement | null>(null);
     const { runAfterPointerRelease } = usePointerPress();
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-    const [isFieldActive, setIsFieldActive] = useState(false);
     const [calendarPosition, setCalendarPosition] = useState({ top: 0, left: 0 });
     const calendarSystem = isJalaliCalendarLocale(nativeDateInputLocale) ? 'jalali' : 'gregorian';
     const [calendarMonth, setCalendarMonth] = useState(() =>
@@ -312,8 +315,8 @@ export function DateField({
     });
     const weekdayLabels = getWeekdayLabels(nativeDateInputLocale, weekStartIndex);
     const days = getCalendarGridDays(calendarMonth, weekStartIndex, calendarSystem);
-    const todayValue = safeFormatDate(new Date(), 'yyyy-MM-dd');
-    const showQuickDateChips = isFieldActive && !isCalendarOpen;
+    const now = new Date();
+    const todayValue = safeFormatDate(now, 'yyyy-MM-dd');
 
     const updateCalendarPosition = useCallback(() => {
         const anchor = inputRef.current?.parentElement ?? inputRef.current;
@@ -328,13 +331,11 @@ export function DateField({
         setCalendarPosition({ top, left });
     }, []);
     const openCalendar = useCallback(() => {
-        setIsFieldActive(true);
         updateCalendarPosition();
         setIsCalendarOpen(true);
     }, [updateCalendarPosition]);
 
     const resetFieldState = useCallback(() => {
-        setIsFieldActive(false);
         setIsCalendarOpen(false);
         setDraftDateValue(formatDateInputDisplay(dateValue, dateInputOrder, calendarSystem));
     }, [calendarSystem, dateInputOrder, dateValue]);
@@ -397,12 +398,21 @@ export function DateField({
         onDateChange(nextDateValue);
         setIsCalendarOpen(false);
     };
+    const applyQuickDatePreset = (preset: QuickDatePreset) => {
+        const date = getQuickDate(preset, new Date());
+        if (!date) {
+            setDraftDateValue('');
+            onClear();
+            setIsCalendarOpen(false);
+            return;
+        }
+        applyCalendarDate(date);
+    };
 
     return (
         <div
             className="relative flex flex-col gap-1"
             ref={rootRef}
-            onFocusCapture={() => setIsFieldActive(true)}
             onBlurCapture={() => {
                 runAfterPointerRelease(() => {
                     const activeElement = document.activeElement;
@@ -428,7 +438,6 @@ export function DateField({
                         onKeyDown={(event) => {
                             if (event.key === 'Escape') {
                                 setIsCalendarOpen(false);
-                                setIsFieldActive(false);
                                 event.stopPropagation();
                             } else if (event.key === 'ArrowDown') {
                                 openCalendar();
@@ -481,87 +490,92 @@ export function DateField({
                     ref={calendarRef}
                     role="dialog"
                     aria-label={`${label} calendar`}
-                    className="fixed z-50 w-72 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg"
+                    className="fixed z-50 flex rounded-lg border border-border bg-popover text-popover-foreground shadow-lg"
                     style={{ top: calendarPosition.top, left: calendarPosition.left }}
                 >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                        <button
-                            type="button"
-                            aria-label="Previous month"
-                            onClick={() => setCalendarMonth((current) => addCalendarMonths(current, -1, calendarSystem))}
-                            className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <div className="min-w-0 flex-1 text-center text-sm font-medium text-foreground">
-                            {monthLabel}
-                        </div>
-                        <button
-                            type="button"
-                            aria-label="Next month"
-                            onClick={() => setCalendarMonth((current) => addCalendarMonths(current, 1, calendarSystem))}
-                            className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
-                        {weekdayLabels.map((weekday, index) => (
-                            <div key={`${weekday}-${index}`} className="py-1">
-                                {weekday}
+                    <div className="w-72 p-3">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                            <button
+                                type="button"
+                                aria-label="Show previous month"
+                                onClick={() => setCalendarMonth((current) => addCalendarMonths(current, -1, calendarSystem))}
+                                className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </button>
+                            <div className="min-w-0 flex-1 text-center text-sm font-medium text-foreground">
+                                {monthLabel}
                             </div>
-                        ))}
+                            <button
+                                type="button"
+                                aria-label="Show next month"
+                                onClick={() => setCalendarMonth((current) => addCalendarMonths(current, 1, calendarSystem))}
+                                className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
+                            {weekdayLabels.map((weekday, index) => (
+                                <div key={`${weekday}-${index}`} className="py-1">
+                                    {weekday}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-1 grid grid-cols-7 gap-1">
+                            {days.map((day) => {
+                                const value = safeFormatDate(day, 'yyyy-MM-dd');
+                                const isSelected = value === dateValue;
+                                const isToday = value === todayValue;
+                                const isOutsideMonth = getCalendarMonthIndex(day, calendarSystem) !== getCalendarMonthIndex(calendarMonth, calendarSystem);
+                                return (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        aria-label={fullDateFormatter.format(day)}
+                                        aria-pressed={isSelected}
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={() => applyCalendarDate(day)}
+                                        className={[
+                                            'h-8 rounded text-xs transition-colors',
+                                            isSelected
+                                                ? 'bg-primary text-primary-foreground'
+                                                : isToday
+                                                    ? 'border border-primary/60 text-primary hover:bg-primary/10'
+                                                    : 'text-foreground hover:bg-muted',
+                                            isOutsideMonth && !isSelected ? 'text-muted-foreground/50' : '',
+                                        ].filter(Boolean).join(' ')}
+                                    >
+                                        {getCalendarDayOfMonth(day, calendarSystem)}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                    <div className="mt-1 grid grid-cols-7 gap-1">
-                        {days.map((day) => {
-                            const value = safeFormatDate(day, 'yyyy-MM-dd');
-                            const isSelected = value === dateValue;
-                            const isToday = value === todayValue;
-                            const isOutsideMonth = getCalendarMonthIndex(day, calendarSystem) !== getCalendarMonthIndex(calendarMonth, calendarSystem);
+                    <div className="flex w-32 shrink-0 flex-col gap-0.5 border-l border-border p-2">
+                        {QUICK_DATE_PRESETS_EXTENDED.map((preset) => {
+                            const labelConfig = QUICK_DATE_LABELS[preset];
+                            const suggestionLabel = tFallback(t, labelConfig.key, labelConfig.fallback);
+                            const active = isQuickDatePresetSelected(preset, selectedDate, now);
                             return (
                                 <button
-                                    key={value}
+                                    key={preset}
                                     type="button"
-                                    aria-label={fullDateFormatter.format(day)}
-                                    aria-pressed={isSelected}
+                                    aria-pressed={active}
                                     onMouseDown={(event) => event.preventDefault()}
-                                    onClick={() => applyCalendarDate(day)}
+                                    onClick={() => applyQuickDatePreset(preset)}
                                     className={[
-                                        'h-8 rounded text-xs transition-colors',
-                                        isSelected
+                                        'rounded px-2 py-1.5 text-left text-xs transition-colors',
+                                        active
                                             ? 'bg-primary text-primary-foreground'
-                                            : isToday
-                                                ? 'border border-primary/60 text-primary hover:bg-primary/10'
-                                                : 'text-foreground hover:bg-muted',
-                                        isOutsideMonth && !isSelected ? 'text-muted-foreground/50' : '',
+                                            : 'text-foreground hover:bg-muted',
                                     ].filter(Boolean).join(' ')}
                                 >
-                                    {getCalendarDayOfMonth(day, calendarSystem)}
+                                    {suggestionLabel}
                                 </button>
                             );
                         })}
                     </div>
-                </div>
-            )}
-            {showQuickDateChips && (
-                <div className="w-full" onMouseDown={(event) => event.preventDefault()}>
-                    <QuickDateChips
-                        t={t}
-                        selectedDate={selectedDate}
-                        wrap
-                        onSelect={(date) => {
-                            if (!date) {
-                                setDraftDateValue('');
-                                onClear();
-                                setIsCalendarOpen(false);
-                                return;
-                            }
-                            const nextDateValue = safeFormatDate(date, 'yyyy-MM-dd');
-                            setDraftDateValue(formatDateInputDisplay(nextDateValue, dateInputOrder, calendarSystem));
-                            onDateChange(nextDateValue);
-                        }}
-                        className="w-full"
-                    />
                 </div>
             )}
         </div>

@@ -627,6 +627,7 @@ export {
     normalizeWeekStartPreference,
     normalizeWeekStartSetting,
     QUICK_DATE_PRESETS,
+    QUICK_DATE_PRESETS_EXTENDED,
     parseCalendarInputDate,
     resolveCalendarSystemSetting,
     resolveDateLocaleTag,

@@ -57,6 +57,7 @@ export const ptOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': 'Salvar e editar',
         'quickDate.today': 'Hoje',
         'quickDate.tomorrow': 'Amanhã',
+        'quickDate.in2Days': '+2 dias',
         'quickDate.in3Days': '+3 dias',
         'quickDate.nextWeek': 'Próxima semana',
         'quickDate.nextMonth': 'Próximo mês',

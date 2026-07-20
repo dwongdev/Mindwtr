@@ -462,6 +462,7 @@ export const en: Record<string, string> = {
         'filters.datePreset.no_date': 'No date',
         'quickDate.today': 'Today',
         'quickDate.tomorrow': 'Tomorrow',
+        'quickDate.in2Days': '+2 days',
         'quickDate.in3Days': '+3 days',
         'quickDate.nextWeek': 'Next week',
         'quickDate.nextMonth': 'Next month',

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import { createTaskDraft, setTaskDraftField, taskDraftToUpdatePatch, type Task, type TaskDraft } from '@mindwtr/core';
 
 import {
@@ -577,8 +577,8 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(dialog).not.toBeInTheDocument();
     });
 
-    it('keeps the due-date mini calendar closed when the date input receives focus', () => {
-        const { getByLabelText, getByRole, queryByRole } = render(
+    it('does not render quick-date suggestions when the date input receives focus', () => {
+        const { getByLabelText, queryByRole } = render(
             <TaskItemFieldRenderer
                 fieldId="dueDate"
                 {...createProps({ draft: { dueDate: '2026-04-12' } })}
@@ -587,25 +587,30 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
 
         fireEvent.focus(getByLabelText('Due date'));
 
+        // Suggestions now live only inside the fixed calendar popover, so focusing
+        // the field must not mount anything that shifts the editor layout (#901).
         expect(queryByRole('dialog', { name: 'Due Date calendar' })).not.toBeInTheDocument();
-        expect(getByRole('button', { name: 'Today' })).toBeInTheDocument();
+        expect(queryByRole('button', { name: 'Today' })).not.toBeInTheDocument();
+        expect(queryByRole('button', { name: 'Next month' })).not.toBeInTheDocument();
     });
 
-    it('opens the due-date mini calendar from the calendar button and hides quick shortcuts', () => {
-        const { getByLabelText, getByRole, queryByRole } = render(
+    it('shows the quick-date suggestions inside the calendar popover', () => {
+        const { getByRole, queryByRole } = render(
             <TaskItemFieldRenderer
                 fieldId="dueDate"
                 {...createProps({ draft: { dueDate: '2026-04-12' } })}
             />
         );
 
-        fireEvent.focus(getByLabelText('Due date'));
-        expect(getByRole('button', { name: 'Today' })).toBeInTheDocument();
+        expect(queryByRole('button', { name: 'Today' })).not.toBeInTheDocument();
 
         fireEvent.click(getByRole('button', { name: 'Due Date calendar' }));
 
-        expect(getByRole('dialog', { name: 'Due Date calendar' })).toBeInTheDocument();
-        expect(queryByRole('button', { name: 'Today' })).not.toBeInTheDocument();
+        const dialog = getByRole('dialog', { name: 'Due Date calendar' });
+        expect(within(dialog).getByRole('button', { name: 'Today' })).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: '+2 days' })).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: 'Next month' })).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: 'No date' })).toBeInTheDocument();
     });
 
     it('keeps the mini calendar closed after selecting a date from another month', async () => {
@@ -620,7 +625,7 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
 
         fireEvent.click(getByRole('button', { name: 'Due Date calendar' }));
         const dialog = getByRole('dialog', { name: 'Due Date calendar' });
-        const nextMonthButton = within(dialog).getByRole('button', { name: 'Next month' });
+        const nextMonthButton = within(dialog).getByRole('button', { name: 'Show next month' });
         fireEvent.click(nextMonthButton);
 
         const updatedDialog = getByRole('dialog', { name: 'Due Date calendar' });
@@ -638,93 +643,102 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
     it.each([
         {
             fieldId: 'startTime' as const,
-            inputLabel: 'Start date',
+            calendarLabel: 'Start Date',
             draftKey: 'startTime' as const,
         },
         {
             fieldId: 'dueDate' as const,
-            inputLabel: 'Due date',
+            calendarLabel: 'Due Date',
             draftKey: 'dueDate' as const,
         },
         {
             fieldId: 'reviewAt' as const,
-            inputLabel: 'Review date',
+            calendarLabel: 'Review Date',
             draftKey: 'reviewAt' as const,
         },
-    ])('shows $fieldId quick shortcuts only while the date field is active', ({ fieldId, inputLabel, draftKey }) => {
+    ])('applies the Tomorrow suggestion from the $fieldId popover and closes it', ({ fieldId, calendarLabel, draftKey }) => {
         const setField = vi.fn();
 
-        const { getByLabelText, getByText, queryByRole } = render(
+        const { getByRole, queryByRole } = render(
             <TaskItemFieldRenderer
                 fieldId={fieldId}
                 {...createProps({ setField })}
             />
         );
 
-        expect(queryByRole('button', { name: 'Next month' })).not.toBeInTheDocument();
+        fireEvent.click(getByRole('button', { name: `${calendarLabel} calendar` }));
+        const dialog = getByRole('dialog', { name: `${calendarLabel} calendar` });
+        const tomorrowButton = within(dialog).getByRole('button', { name: 'Tomorrow' });
+        fireEvent.mouseDown(tomorrowButton);
+        fireEvent.click(tomorrowButton);
 
-        fireEvent.focus(getByLabelText(inputLabel));
+        const tomorrow = new Date();
+        tomorrow.setHours(0, 0, 0, 0);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const pad = (value: number) => String(value).padStart(2, '0');
+        const expected = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
 
-        const nextMonthButton = getByText('Next month').closest('button');
-        const chipsRow = nextMonthButton?.parentElement;
-
-        expect(chipsRow).toHaveClass('w-full');
-        expect(chipsRow).toHaveClass('flex-wrap');
-        expect(chipsRow).not.toHaveClass('max-w-[min(22rem,100%)]');
-
-        fireEvent.mouseDown(nextMonthButton!);
-        fireEvent.click(nextMonthButton!);
-
-        expect(setField).toHaveBeenCalledWith(draftKey, expect.anything());
+        expect(setField).toHaveBeenCalledWith(draftKey, expected);
+        expect(queryByRole('dialog', { name: `${calendarLabel} calendar` })).not.toBeInTheDocument();
     });
 
-    it('keeps the quick shortcuts mounted until an in-flight pointer press releases', async () => {
+    it('clears the date when the No date suggestion is chosen from the popover', () => {
         const setField = vi.fn();
 
-        const { getByLabelText, queryByText } = render(
+        const { getByRole, queryByRole } = render(
             <TaskItemFieldRenderer
                 fieldId="dueDate"
-                {...createProps({ setField })}
+                {...createProps({ draft: { dueDate: '2026-04-12' }, setField })}
             />
         );
 
-        fireEvent.focus(getByLabelText('Due date'));
-        expect(queryByText('Next month')).toBeInTheDocument();
+        fireEvent.click(getByRole('button', { name: 'Due Date calendar' }));
+        const dialog = getByRole('dialog', { name: 'Due Date calendar' });
+        const noDateButton = within(dialog).getByRole('button', { name: 'No date' });
+        fireEvent.mouseDown(noDateButton);
+        fireEvent.click(noDateButton);
 
-        // A press starts outside the field (e.g. on the Save button) and blurs
-        // the input while still held down.
-        document.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-        fireEvent.blur(getByLabelText('Due date'));
-        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        expect(setField).toHaveBeenCalledWith('dueDate', '');
+        expect(queryByRole('dialog', { name: 'Due Date calendar' })).not.toBeInTheDocument();
+    });
 
-        // The chip row must stay put so the button under the pointer does not
-        // move out from under the click (issue #901).
-        expect(queryByText('Next month')).toBeInTheDocument();
+    it('closes the calendar popover when a pointer press lands outside the field', async () => {
+        const { getByRole, queryByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="dueDate"
+                {...createProps()}
+            />
+        );
 
-        document.dispatchEvent(new Event('pointerup', { bubbles: true }));
+        fireEvent.click(getByRole('button', { name: 'Due Date calendar' }));
+        expect(getByRole('dialog', { name: 'Due Date calendar' })).toBeInTheDocument();
+
+        act(() => {
+            document.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        });
+
         await waitFor(() => {
-            expect(queryByText('Next month')).not.toBeInTheDocument();
+            expect(queryByRole('dialog', { name: 'Due Date calendar' })).not.toBeInTheDocument();
         });
     });
 
-    it('hides the quick shortcuts on a keyboard blur without waiting for a pointer release', async () => {
-        const setField = vi.fn();
-
-        const { getByLabelText, queryByText } = render(
+    it('closes the calendar popover on a keyboard blur', async () => {
+        const { getByLabelText, getByRole, queryByRole } = render(
             <TaskItemFieldRenderer
                 fieldId="dueDate"
-                {...createProps({ setField })}
+                {...createProps()}
             />
         );
 
         fireEvent.focus(getByLabelText('Due date'));
-        expect(queryByText('Next month')).toBeInTheDocument();
+        fireEvent.keyDown(getByLabelText('Due date'), { key: 'ArrowDown' });
+        expect(getByRole('dialog', { name: 'Due Date calendar' })).toBeInTheDocument();
 
-        // No pointer press is in flight, so the collapse runs on the existing
-        // next-tick timeout rather than waiting for a pointerup that will never come.
+        // No pointer press is in flight, so the teardown runs on the next-tick
+        // timeout rather than waiting for a pointerup that will never come.
         fireEvent.blur(getByLabelText('Due date'));
         await waitFor(() => {
-            expect(queryByText('Next month')).not.toBeInTheDocument();
+            expect(queryByRole('dialog', { name: 'Due Date calendar' })).not.toBeInTheDocument();
         });
     });
 

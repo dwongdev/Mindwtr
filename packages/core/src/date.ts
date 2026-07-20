@@ -37,7 +37,8 @@ export type TimeFormatSetting = 'system' | '12h' | '24h';
 export type WeekStartSetting = 'sunday' | 'monday' | 'saturday';
 export type WeekStartsOnIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export const QUICK_DATE_PRESETS = ['today', 'tomorrow', 'in_3_days', 'next_week', 'next_month', 'no_date'] as const;
-export type QuickDatePreset = typeof QUICK_DATE_PRESETS[number];
+export const QUICK_DATE_PRESETS_EXTENDED = ['today', 'tomorrow', 'in_2_days', 'in_3_days', 'next_week', 'next_month', 'no_date'] as const;
+export type QuickDatePreset = typeof QUICK_DATE_PRESETS_EXTENDED[number];
 export const JALALI_LOCALE_TAG = 'fa-IR-u-ca-persian';
 
 const DEFAULT_LOCALE = enUS;
@@ -321,6 +322,8 @@ export function getQuickDate(preset: QuickDatePreset, now: Date = new Date()): D
             return today;
         case 'tomorrow':
             return addDays(today, 1);
+        case 'in_2_days':
+            return addDays(today, 2);
         case 'in_3_days':
             return addDays(today, 3);
         case 'next_week': {

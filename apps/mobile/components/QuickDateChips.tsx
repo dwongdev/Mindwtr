@@ -14,6 +14,7 @@ import { CompactText } from '@/components/compact-text';
 const QUICK_DATE_LABELS: Record<QuickDatePreset, { key: string; fallback: string }> = {
   today: { key: 'quickDate.today', fallback: 'Today' },
   tomorrow: { key: 'quickDate.tomorrow', fallback: 'Tomorrow' },
+  in_2_days: { key: 'quickDate.in2Days', fallback: '+2 days' },
   in_3_days: { key: 'quickDate.in3Days', fallback: '+3 days' },
   next_week: { key: 'quickDate.nextWeek', fallback: 'Next week' },
   next_month: { key: 'quickDate.nextMonth', fallback: 'Next month' },

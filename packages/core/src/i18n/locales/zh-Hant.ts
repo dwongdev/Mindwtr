@@ -401,6 +401,7 @@ export const zhHant: Record<string, string> = {
         'filters.datePreset.no_date': '無日期',
         'quickDate.today': '今天',
         'quickDate.tomorrow': '明天',
+        'quickDate.in2Days': '+2 天',
         'quickDate.in3Days': '+3 天',
         'quickDate.nextWeek': '下週',
         'quickDate.nextMonth': '下月',

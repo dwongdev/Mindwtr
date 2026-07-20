@@ -75,6 +75,7 @@ export const ruOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': 'Сохранить и редактировать',
         'quickDate.today': 'Сегодня',
         'quickDate.tomorrow': 'Завтра',
+        'quickDate.in2Days': '+2 дня',
         'quickDate.in3Days': '+3 дня',
         'quickDate.nextWeek': 'Следующая неделя',
         'quickDate.nextMonth': 'Следующий месяц',

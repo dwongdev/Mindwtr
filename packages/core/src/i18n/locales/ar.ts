@@ -51,6 +51,7 @@ export const arOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': 'حفظ وتحرير',
         'quickDate.today': 'اليوم',
         'quickDate.tomorrow': 'غدًا',
+        'quickDate.in2Days': '+2 أيام',
         'quickDate.in3Days': '+3 أيام',
         'quickDate.nextWeek': 'الأسبوع القادم',
         'quickDate.nextMonth': 'الشهر القادم',

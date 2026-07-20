@@ -66,6 +66,7 @@ export const esOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': 'Guardar y editar',
         'quickDate.today': 'Hoy',
         'quickDate.tomorrow': 'Mañana',
+        'quickDate.in2Days': '+2 días',
         'quickDate.in3Days': '+3 días',
         'quickDate.nextWeek': 'Próxima semana',
         'quickDate.nextMonth': 'Próximo mes',

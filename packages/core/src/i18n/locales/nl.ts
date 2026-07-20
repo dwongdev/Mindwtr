@@ -86,6 +86,7 @@ export const nlOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': 'Opslaan en bewerken',
         'quickDate.today': 'Vandaag',
         'quickDate.tomorrow': 'Morgen',
+        'quickDate.in2Days': '+2 dagen',
         'quickDate.in3Days': '+3 dagen',
         'quickDate.nextWeek': 'Volgende week',
         'quickDate.nextMonth': 'Volgende maand',

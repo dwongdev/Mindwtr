@@ -76,6 +76,7 @@ export const plOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': 'Zapisz i edytuj',
         'quickDate.today': 'Dzisiaj',
         'quickDate.tomorrow': 'Jutro',
+        'quickDate.in2Days': '+2 dni',
         'quickDate.in3Days': '+3 dni',
         'quickDate.nextWeek': 'Następny tydzień',
         'quickDate.nextMonth': 'Następny miesiąc',

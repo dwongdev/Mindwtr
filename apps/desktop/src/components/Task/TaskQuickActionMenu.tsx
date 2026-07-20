@@ -78,8 +78,8 @@ const parseTokenInput = (value: string) => Array.from(new Set(
 ));
 
 const preserveFocusedDatePanelLayout = (event: ReactMouseEvent<HTMLDivElement>) => {
-    // Quick-date chips are focus-driven and sit above these actions. Keep them
-    // mounted through mouseup so the pressed button cannot move before click.
+    // Keep focus on the date input while Save/Cancel is pressed so DateField's
+    // blur teardown does not run mid-click.
     event.preventDefault();
 };
 

@@ -443,6 +443,7 @@ export const frOverrides: Record<string, string> = {
         'filters.datePreset.no_date': 'Sans date',
         'quickDate.today': 'Aujourd’hui',
         'quickDate.tomorrow': 'Demain',
+        'quickDate.in2Days': '+2 jours',
         'quickDate.in3Days': '+3 jours',
         'quickDate.nextWeek': 'Semaine prochaine',
         'quickDate.nextMonth': 'Mois prochain',

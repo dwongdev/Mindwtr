@@ -76,6 +76,7 @@ export const trOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': 'Kaydet ve düzenle',
         'quickDate.today': 'Bugün',
         'quickDate.tomorrow': 'Yarın',
+        'quickDate.in2Days': '+2 gün',
         'quickDate.in3Days': '+3 gün',
         'quickDate.nextWeek': 'Gelecek hafta',
         'quickDate.nextMonth': 'Gelecek ay',

@@ -458,6 +458,7 @@ export const viOverrides: Record<string, string> = {
         'filters.datePreset.no_date': 'Không có ngày',
         'quickDate.today': 'Hôm nay',
         'quickDate.tomorrow': 'Ngày mai',
+        'quickDate.in2Days': '+2 ngày',
         'quickDate.in3Days': '+3 ngày',
         'quickDate.nextWeek': 'Tuần tới',
         'quickDate.nextMonth': 'Tháng tới',

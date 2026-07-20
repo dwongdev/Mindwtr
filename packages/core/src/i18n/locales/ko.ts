@@ -75,6 +75,7 @@ export const koOverrides: Record<string, string> = {
         'quickAdd.saveAndEdit': '저장하고 편집',
         'quickDate.today': '오늘',
         'quickDate.tomorrow': '내일',
+        'quickDate.in2Days': '+2일',
         'quickDate.in3Days': '+3일',
         'quickDate.nextWeek': '다음 주',
         'quickDate.nextMonth': '다음 달',
