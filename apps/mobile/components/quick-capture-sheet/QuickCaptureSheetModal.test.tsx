@@ -695,8 +695,13 @@ describe('Quick capture modal composition', () => {
         );
       });
 
+      const input = tree.root.findByType(TextInput);
+      // Return blurs and submits (no newline inserted) when not adding another.
+      expect(input.props.multiline).toBe(true);
+      expect(input.props.submitBehavior).toBe('blurAndSubmit');
+
       act(() => {
-        tree.root.findByType(TextInput).props.onSubmitEditing();
+        input.props.onSubmitEditing();
       });
     } finally {
       Object.defineProperty(Platform, 'OS', {
@@ -762,7 +767,10 @@ describe('Quick capture modal composition', () => {
     });
 
     const input = tree.root.findByType(TextInput);
-    expect(input.props.blurOnSubmit).toBe(false);
+    // Multiline title accepts pasted newlines, but return still submits and,
+    // in add-another mode, keeps focus instead of inserting a newline.
+    expect(input.props.multiline).toBe(true);
+    expect(input.props.submitBehavior).toBe('submit');
 
     act(() => {
       input.props.onSubmitEditing();

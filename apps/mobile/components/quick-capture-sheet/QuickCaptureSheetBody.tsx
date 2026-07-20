@@ -268,8 +268,11 @@ export function QuickCaptureSheetBody({
                   handleSave();
                 }}
                 returnKeyType="done"
-                blurOnSubmit={!addAnother}
-                numberOfLines={1}
+                multiline
+                // Return still submits (and keeps focus in add-another mode)
+                // instead of inserting a newline; pasted multi-line text keeps
+                // its newlines so handleSave's bulk-create path engages.
+                submitBehavior={addAnother ? 'submit' : 'blurAndSubmit'}
                 textAlignVertical="center"
               />
               <TouchableOpacity

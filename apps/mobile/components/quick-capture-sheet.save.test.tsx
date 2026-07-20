@@ -705,6 +705,110 @@ describe('QuickCaptureSheet save handling', () => {
     ]);
   });
 
+  it('defers the import confirmation on iOS until the document picker settles', async () => {
+    vi.useFakeTimers();
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation(vi.fn());
+    documentPickerGetDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ name: 'tasks.txt', uri: 'file://tasks.txt', mimeType: 'text/plain' }],
+    });
+    fileSystemReadAsStringAsync.mockResolvedValue('First imported task\nSecond imported task\n');
+
+    await withPlatform('ios', async () => {
+      let tree!: ReturnType<typeof create>;
+      await act(async () => {
+        tree = create(
+          <QuickCaptureSheet
+            visible
+            openRequestId={1}
+            initialValue=""
+            onClose={vi.fn()}
+          />
+        );
+        await Promise.resolve();
+      });
+
+      const body = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetBody')[0];
+      if (!body) throw new Error('QuickCaptureSheetBody not found');
+
+      await act(async () => {
+        await body.props.handleImportTextFile();
+        await Promise.resolve();
+      });
+
+      // The file is read, but the confirm alert must not fire synchronously
+      // while the picker sheet is still dismissing (iOS swallows it otherwise).
+      expect(fileSystemReadAsStringAsync).toHaveBeenCalledWith('file://tasks.txt');
+      expect(alertSpy).not.toHaveBeenCalled();
+
+      // Just under the dismissal delay it must still be pending — a near-zero
+      // delay (or a reintroduced synchronous call) would have fired by now.
+      await act(async () => {
+        vi.advanceTimersByTime(499);
+        await Promise.resolve();
+      });
+      expect(alertSpy).not.toHaveBeenCalled();
+
+      // Once the ~500ms dismissal window elapses, the confirm fires.
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+        await Promise.resolve();
+      });
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Create 2 tasks?',
+        expect.stringContaining('First imported task'),
+        expect.any(Array),
+      );
+    });
+  });
+
+  it('cancels the deferred iOS import confirmation if the sheet closes first', async () => {
+    vi.useFakeTimers();
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation(vi.fn());
+    documentPickerGetDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ name: 'tasks.txt', uri: 'file://tasks.txt', mimeType: 'text/plain' }],
+    });
+    fileSystemReadAsStringAsync.mockResolvedValue('First imported task\nSecond imported task\n');
+
+    await withPlatform('ios', async () => {
+      let tree!: ReturnType<typeof create>;
+      await act(async () => {
+        tree = create(
+          <QuickCaptureSheet
+            visible
+            openRequestId={1}
+            initialValue=""
+            onClose={vi.fn()}
+          />
+        );
+        await Promise.resolve();
+      });
+
+      const body = tree.root.findAll((node) => String(node.type) === 'QuickCaptureSheetBody')[0];
+      if (!body) throw new Error('QuickCaptureSheetBody not found');
+
+      await act(async () => {
+        await body.props.handleImportTextFile();
+        await Promise.resolve();
+      });
+
+      // Sheet unmounts before the dismissal delay elapses; the pending confirm
+      // timer must be cleared so no stale Alert fires against the closed sheet.
+      await act(async () => {
+        tree.unmount();
+        await Promise.resolve();
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+        await Promise.resolve();
+      });
+
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+  });
+
   it('opens the created task when save and edit is requested', async () => {
     addTask.mockResolvedValueOnce({ success: true, id: 'task-new' });
     const onClose = vi.fn();

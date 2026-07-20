@@ -42,6 +42,9 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     minHeight: 44,
+    // Allow a few lines for pasted multi-line text without blowing up the
+    // sheet; content beyond ~4 lines scrolls within the input.
+    maxHeight: 120,
   },
   scrollArea: {
     // Shrink within the maxHeight sheet so overflowing content scrolls instead of

@@ -182,6 +182,7 @@ export function QuickCaptureSheet({
   const contextOptionsLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const contextOptionsRequestRef = useRef(0);
   const initialFocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const importConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
   const canFocusNewTask = focusNewTask || canStarNewCapture({ focusedCount: getDerivedState().focusedCount, focusTaskLimit });
   const focusNewTaskDisabledReason = formatFocusTaskLimitText(
@@ -209,6 +210,12 @@ export function QuickCaptureSheet({
     if (!initialFocusTimerRef.current) return;
     clearTimeout(initialFocusTimerRef.current);
     initialFocusTimerRef.current = null;
+  }, []);
+
+  const clearImportConfirmTimer = useCallback(() => {
+    if (!importConfirmTimerRef.current) return;
+    clearTimeout(importConfirmTimerRef.current);
+    importConfirmTimerRef.current = null;
   }, []);
 
   const {
@@ -388,9 +395,10 @@ export function QuickCaptureSheet({
   useEffect(() => () => {
     clearAndroidOptionsExpand();
     clearInitialFocusTimer();
+    clearImportConfirmTimer();
     clearContextOptionsLoad();
     contextOptionsRequestRef.current += 1;
-  }, [clearAndroidOptionsExpand, clearContextOptionsLoad, clearInitialFocusTimer]);
+  }, [clearAndroidOptionsExpand, clearContextOptionsLoad, clearImportConfirmTimer, clearInitialFocusTimer]);
 
   useEffect(() => {
     if (!visible) return;
@@ -891,7 +899,19 @@ export function QuickCaptureSheet({
       const text = await FileSystem.readAsStringAsync(asset.uri);
       const lines = splitQuickAddBulkLines(text);
       if (lines.length > 1) {
-        confirmBulkQuickAdd(lines);
+        // iOS swallows an Alert fired while the document-picker sheet is still
+        // dismissing, so defer the bulk-create confirm until dismissal settles.
+        // Track the timer so closing/unmounting the sheet mid-wait cancels it
+        // instead of firing the Alert against stale state.
+        if (Platform.OS === 'ios') {
+          clearImportConfirmTimer();
+          importConfirmTimerRef.current = setTimeout(() => {
+            importConfirmTimerRef.current = null;
+            confirmBulkQuickAdd(lines);
+          }, 500);
+        } else {
+          confirmBulkQuickAdd(lines);
+        }
       } else if (lines.length === 1) {
         setValue(lines[0]);
       }
@@ -904,7 +924,7 @@ export function QuickCaptureSheet({
         durationMs: 4200,
       });
     }
-  }, [confirmBulkQuickAdd, showToast, t]);
+  }, [clearImportConfirmTimer, confirmBulkQuickAdd, showToast, t]);
 
   const pickerProps = {
     areaQuery,
