@@ -180,6 +180,9 @@ def ensure_finish_arg(value: str, after=None) -> None:
 ensure_finish_arg('--socket=pulseaudio', after='--socket=wayland')
 ensure_finish_arg('--talk-name=org.freedesktop.Notifications', after='--share=network')
 ensure_finish_arg('--talk-name=org.kde.StatusNotifierWatcher', after='--talk-name=org.freedesktop.Notifications')
+ensure_finish_arg('--talk-name=org.gnome.evolution.dataserver.Calendar8', after='--talk-name=org.kde.StatusNotifierWatcher')
+ensure_finish_arg('--talk-name=org.gnome.evolution.dataserver.Sources5', after='--talk-name=org.gnome.evolution.dataserver.Calendar8')
+ensure_finish_arg('--talk-name=org.gnome.evolution.dataserver.Subprocess.Backend.*', after='--talk-name=org.gnome.evolution.dataserver.Sources5')
 # org.freedesktop.portal.* talk-names are intentionally not added:
 # portals are allowed by Flatpak by default and Flathub lints manual entries.
 
