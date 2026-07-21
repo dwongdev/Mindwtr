@@ -262,9 +262,14 @@ class SharedSyncRunMachine {
             ? mergeAppData(this.state.preSyncedLocalData, inMemorySnapshot)
             : mergeAppData(await this.storage.readPersistedLocal(), inMemorySnapshot);
         const data = await this.storage.injectExternalCalendars(baseData);
-        this.state.localSnapshotChangeAt = this.store.getLastDataChangeAt();
+        // Stamp with currentChangeAt (captured above, before readPersistedLocal/
+        // injectExternalCalendars yielded) rather than re-reading the change
+        // stamp now: a write landing during those awaits must never be marked
+        // as already covered by `data`, or a later local edit racing the very
+        // first read of a sync cycle is silently dropped instead of requeued (#910).
+        this.state.localSnapshotChangeAt = currentChangeAt;
         this.state.localDataCache = {
-            changeAt: this.state.localSnapshotChangeAt,
+            changeAt: currentChangeAt,
             data,
         };
         return data;

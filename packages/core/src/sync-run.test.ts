@@ -406,6 +406,61 @@ describe('runSharedSyncCycle', () => {
         expect(staleEvents.length).toBeGreaterThan(0);
     });
 
+    it('does not silently drop a local write that lands during the first local read (#910)', async () => {
+        // Reproduces the recurring-task completion race: the cycle's very
+        // first local read (readPersistedLocal, awaited inside
+        // readLocalDataForSyncCycle) is already in flight when the user
+        // completes a recurring task, which both updates the existing task
+        // and spawns a brand-new next-occurrence task. Before the fix, the
+        // snapshot was stamped as "fresh as of" the change stamp read AFTER
+        // the await, so the race was invisible to every later
+        // ensureLocalSnapshotFresh check and the stale, completion-less data
+        // was persisted and pushed back into the live store unchanged.
+        const local = createData([createTask('t-recurring', 'Recurring task')]);
+        let raceMidRead: () => void = () => {
+            throw new Error('Harness mutation was not initialized');
+        };
+        const { harness, hooks, run } = createHarness({
+            local,
+            remote: createData([createTask('t-remote', 'Remote task')]),
+            storage: {
+                readPersistedLocal: vi.fn(async () => {
+                    raceMidRead();
+                    return cloneAppData(harness.persisted);
+                }),
+            },
+        });
+        let raced = false;
+        raceMidRead = () => {
+            if (raced) return;
+            raced = true;
+            harness.inMemory.tasks[0] = {
+                ...harness.inMemory.tasks[0],
+                status: 'done',
+                completedAt: '2026-07-13T10:00:01.000Z',
+                updatedAt: '2026-07-13T10:00:01.000Z',
+            };
+            harness.inMemory.tasks.push(createTask('t-recurring-next', 'Recurring task'));
+            harness.lastDataChangeAt += 1;
+        };
+
+        const result = await run();
+
+        expect(result.success).toBe(true);
+        // Both the completion and the newly spawned recurring follow-up must
+        // survive the cycle instead of being overwritten by a stale merge.
+        expect(harness.persisted.tasks.find((task) => task.id === 't-recurring')?.status).toBe('done');
+        expect(harness.persisted.tasks.some((task) => task.id === 't-recurring-next')).toBe(true);
+        expect(hooks.finalizeSuccess).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tasks: expect.arrayContaining([
+                    expect.objectContaining({ id: 't-recurring-next' }),
+                ]),
+            }),
+            expect.anything(),
+        );
+    });
+
     it('accepts a covered snapshot instead of aborting when the platform hook approves it', async () => {
         const { harness, hooks, io, run } = createHarness({
             remote: createData([createTask('t-remote', 'Remote task')]),
