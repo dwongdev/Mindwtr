@@ -169,3 +169,21 @@ export const STT_MODE_VALUE_SET = new Set<SpeechToTextModeValue>(STT_MODE_VALUES
 
 export const STT_FIELD_STRATEGY_VALUES = Object.keys(STT_FIELD_STRATEGY_VALUE_FLAGS) as SpeechToTextFieldStrategyValue[];
 export const STT_FIELD_STRATEGY_VALUE_SET = new Set<SpeechToTextFieldStrategyValue>(STT_FIELD_STRATEGY_VALUES);
+
+// Single source of truth for which `settings.gtd` fields sync when
+// syncPreferences.gtd is enabled. Both the upload allowlist
+// (sanitizeSettingsForRemote in sync-helpers.ts) and the merge group
+// (mergeSettingsForSync's gtd mergeGroup in sync-merge-settings.ts) derive
+// from this list — a field missing here silently never leaves the device
+// (the naturalLanguageDates bug, #742-era allowlist drift).
+export const GTD_SYNCED_FIELD_KEYS = [
+    'defaultScheduleTime',
+    'defaultAreaMode',
+    'defaultAreaId',
+    'focusTaskLimit',
+    'focusGroupBy',
+    'defaultProjectFlowMode',
+    'naturalLanguageDates',
+] as const satisfies readonly (keyof GtdSettings)[];
+
+export type GtdSyncedFieldKey = (typeof GTD_SYNCED_FIELD_KEYS)[number];

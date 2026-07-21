@@ -1,7 +1,8 @@
-import type { AiSettings, AppData, SavedFilter, SettingsSyncGroup, SettingsSyncPreferences } from './types';
+import type { AiSettings, AppData, GtdSettings, SavedFilter, SettingsSyncGroup, SettingsSyncPreferences } from './types';
 import {
     AI_PROVIDER_VALUE_SET,
     AI_REASONING_EFFORT_VALUE_SET,
+    GTD_SYNCED_FIELD_KEYS,
     SETTINGS_DEFAULT_PROJECT_FLOW_MODE_VALUE_SET,
     SETTINGS_DEFAULT_TASK_AREA_MODE_VALUE_SET,
     SETTINGS_DENSITY_VALUE_SET,
@@ -16,6 +17,7 @@ import {
     STT_FIELD_STRATEGY_VALUE_SET,
     STT_MODE_VALUE_SET,
     STT_PROVIDER_VALUE_SET,
+    type GtdSyncedFieldKey,
 } from './settings-options';
 import { isNonEmptyString, isObjectRecord, isValidTimestamp } from './sync-normalization';
 import { MAX_FOCUS_TASK_LIMIT, MIN_FOCUS_TASK_LIMIT, normalizeFocusTaskLimit } from './focus-utils';
@@ -507,6 +509,17 @@ export const mergeSettingsForSync = (
         if (isSameValue(localValue, incomingValue)) return cloneSettingValue(localValue);
         return cloneSettingValue(incomingWins ? incomingValue : localValue);
     };
+    // Picks the synced subset of gtd fields, driven by GTD_SYNCED_FIELD_KEYS
+    // (settings-options.ts) — the single source of truth shared with the
+    // upload allowlist in sanitizeSettingsForRemote (sync-helpers.ts). Add new
+    // synced gtd fields there, not here.
+    const pickGtdSyncedFields = (gtd: GtdSettings | undefined): Pick<GtdSettings, GtdSyncedFieldKey> => {
+        const picked: Pick<GtdSettings, GtdSyncedFieldKey> = {};
+        for (const key of GTD_SYNCED_FIELD_KEYS) {
+            (picked as Record<GtdSyncedFieldKey, unknown>)[key] = gtd?.[key];
+        }
+        return picked;
+    };
     const mergeRecordFields = <T extends Record<string, unknown>>(localValue: T, incomingValue: T, incomingWins: boolean): T => {
         const mergedValue: Record<string, unknown> = {};
         const localRecord = (localValue ?? {}) as Record<string, unknown>;
@@ -603,67 +616,24 @@ export const mergeSettingsForSync = (
 
     mergeGroup(
         'gtd',
-        {
-            defaultScheduleTime: localSettings.gtd?.defaultScheduleTime,
-            defaultAreaMode: localSettings.gtd?.defaultAreaMode,
-            defaultAreaId: localSettings.gtd?.defaultAreaId,
-            focusTaskLimit: localSettings.gtd?.focusTaskLimit,
-            focusGroupBy: localSettings.gtd?.focusGroupBy,
-            defaultProjectFlowMode: localSettings.gtd?.defaultProjectFlowMode,
-            naturalLanguageDates: localSettings.gtd?.naturalLanguageDates,
-        },
-        {
-            defaultScheduleTime: incomingSettings.gtd?.defaultScheduleTime,
-            defaultAreaMode: incomingSettings.gtd?.defaultAreaMode,
-            defaultAreaId: incomingSettings.gtd?.defaultAreaId,
-            focusTaskLimit: incomingSettings.gtd?.focusTaskLimit,
-            focusGroupBy: incomingSettings.gtd?.focusGroupBy,
-            defaultProjectFlowMode: incomingSettings.gtd?.defaultProjectFlowMode,
-            naturalLanguageDates: incomingSettings.gtd?.naturalLanguageDates,
-        },
+        pickGtdSyncedFields(localSettings.gtd),
+        pickGtdSyncedFields(incomingSettings.gtd),
         (value) => {
-            const nextGtd = { ...(merged.gtd ?? {}) };
-            if (value.defaultScheduleTime === undefined) {
-                delete nextGtd.defaultScheduleTime;
-            } else {
-                nextGtd.defaultScheduleTime = value.defaultScheduleTime;
-            }
-            if (value.defaultAreaMode === undefined) {
-                delete nextGtd.defaultAreaMode;
-            } else {
-                nextGtd.defaultAreaMode = value.defaultAreaMode;
-            }
-            if (value.defaultAreaId === undefined) {
-                delete nextGtd.defaultAreaId;
-            } else {
-                nextGtd.defaultAreaId = value.defaultAreaId;
-            }
-            if (value.focusTaskLimit === undefined) {
-                delete nextGtd.focusTaskLimit;
-            } else {
-                nextGtd.focusTaskLimit = value.focusTaskLimit;
-            }
-            if (value.focusGroupBy === undefined) {
-                delete nextGtd.focusGroupBy;
-            } else {
-                nextGtd.focusGroupBy = value.focusGroupBy;
-            }
-            if (value.defaultProjectFlowMode === undefined) {
-                delete nextGtd.defaultProjectFlowMode;
-            } else {
-                nextGtd.defaultProjectFlowMode = value.defaultProjectFlowMode;
-            }
-            if (value.naturalLanguageDates === undefined) {
-                delete nextGtd.naturalLanguageDates;
-            } else {
-                nextGtd.naturalLanguageDates = value.naturalLanguageDates;
+            const nextGtd = { ...(merged.gtd ?? {}) } as Record<string, unknown>;
+            for (const key of GTD_SYNCED_FIELD_KEYS) {
+                const fieldValue = value[key];
+                if (fieldValue === undefined) {
+                    delete nextGtd[key];
+                } else {
+                    nextGtd[key] = fieldValue;
+                }
             }
             if (Object.keys(nextGtd).length === 0) {
                 if (merged.gtd) {
                     delete merged.gtd;
                 }
             } else {
-                merged.gtd = nextGtd;
+                merged.gtd = nextGtd as GtdSettings;
             }
         },
         (localValue, incomingValue, incomingWins) => mergeRecordFields(localValue, incomingValue, incomingWins)

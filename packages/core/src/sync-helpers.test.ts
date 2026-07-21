@@ -9,7 +9,22 @@ import {
     normalizeWebdavUrl,
     sanitizeAppDataForRemote,
 } from './sync-helpers';
-import type { AppData, Attachment } from './types';
+import { GTD_SYNCED_FIELD_KEYS, type GtdSyncedFieldKey } from './settings-options';
+import { mergeSettingsForSync } from './sync-merge-settings';
+import type { AppData, Attachment, GtdSettings } from './types';
+
+// One representative, distinct-from-default value per gtd synced field, used
+// to drive the allowlist-drift guard test below without hardcoding the field
+// list a second time.
+const GTD_SYNCED_FIELD_SAMPLE_VALUES: Record<GtdSyncedFieldKey, GtdSettings[GtdSyncedFieldKey]> = {
+    defaultScheduleTime: '09:30',
+    defaultAreaMode: 'fixed',
+    defaultAreaId: 'area-1',
+    focusTaskLimit: 5,
+    focusGroupBy: 'project',
+    defaultProjectFlowMode: 'sequential',
+    naturalLanguageDates: false,
+};
 
 const now = '2026-02-19T00:00:00.000Z';
 
@@ -336,6 +351,57 @@ describe('sync-helpers sanitizeAppDataForRemote', () => {
         expect(sanitized.settings.gtd).toBeUndefined();
         expect(sanitized.settings.language).toBe('en');
         expect(sanitized.settings.timeFormat).toBe('24h');
+    });
+
+    // Guard against allowlist drift (this is the second incident — see
+    // naturalLanguageDates below): every field in GTD_SYNCED_FIELD_KEYS must
+    // round-trip through sanitizeAppDataForRemote on its own. A field that is
+    // wired into the merge side (sync-merge-settings.ts) but missing from the
+    // upload allowlist silently never leaves the device.
+    for (const key of GTD_SYNCED_FIELD_KEYS) {
+        it(`uploads the gtd.${key} field in isolation`, () => {
+            const data = createData([]);
+            data.settings = {
+                syncPreferences: { gtd: true },
+                gtd: { [key]: GTD_SYNCED_FIELD_SAMPLE_VALUES[key] },
+            };
+
+            const sanitized = sanitizeAppDataForRemote(data);
+
+            expect(sanitized.settings.gtd).toEqual({ [key]: GTD_SYNCED_FIELD_SAMPLE_VALUES[key] });
+        });
+    }
+
+    it('uploads gtd.naturalLanguageDates: false — false is meaningful and must not be dropped as falsy', () => {
+        const data = createData([]);
+        data.settings = {
+            syncPreferences: { gtd: true },
+            gtd: { naturalLanguageDates: false, focusTaskLimit: 5 },
+        };
+
+        const sanitized = sanitizeAppDataForRemote(data);
+
+        expect(sanitized.settings.gtd).toEqual({ naturalLanguageDates: false, focusTaskLimit: 5 });
+    });
+
+    it('round-trips gtd.naturalLanguageDates: false through sanitize then merge into an older peer', () => {
+        const data = createData([]);
+        data.settings = {
+            syncPreferences: { gtd: true },
+            syncPreferencesUpdatedAt: { gtd: '2026-07-20T00:00:00.000Z' },
+            gtd: { naturalLanguageDates: false },
+        };
+
+        const sanitized = sanitizeAppDataForRemote(data);
+
+        const peerSettings: AppData['settings'] = {
+            gtd: { naturalLanguageDates: true },
+            syncPreferencesUpdatedAt: { gtd: '2026-07-01T00:00:00.000Z' },
+        };
+
+        const merged = mergeSettingsForSync(peerSettings, sanitized.settings);
+
+        expect(merged.gtd?.naturalLanguageDates).toBe(false);
     });
 
     it('sanitizes file attachment URIs while preserving cloud metadata', () => {

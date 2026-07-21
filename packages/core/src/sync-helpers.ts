@@ -1,5 +1,6 @@
-import type { AppData, Attachment } from './types';
+import type { AppData, Attachment, GtdSettings } from './types';
 import { normalizeSavedFilters } from './saved-filters';
+import { GTD_SYNCED_FIELD_KEYS, type GtdSyncedFieldKey } from './settings-options';
 import { SYNC_FILE_NAME } from './sync-service-utils';
 
 const MISSING_ATTACHMENT_TIMESTAMP_SENTINEL = '1970-01-01T00:00:00.000Z';
@@ -194,26 +195,23 @@ export const sanitizeAppDataForRemote = (data: AppData): AppData => {
             next.timeFormat = settings.timeFormat;
         }
 
-        if (prefs.gtd === true) {
-            // This allowlist must stay in step with the gtd group in
-            // mergeSettingsForSync (sync-merge-settings.ts) — a field present in
-            // the merge but missing here silently never leaves the device.
-            if (
-                settings.gtd?.defaultScheduleTime !== undefined
-                || settings.gtd?.defaultAreaMode !== undefined
-                || settings.gtd?.defaultAreaId !== undefined
-                || settings.gtd?.focusTaskLimit !== undefined
-                || settings.gtd?.focusGroupBy !== undefined
-                || settings.gtd?.defaultProjectFlowMode !== undefined
-            ) {
-                next.gtd = {
-                    ...(settings.gtd.defaultScheduleTime !== undefined ? { defaultScheduleTime: settings.gtd.defaultScheduleTime } : {}),
-                    ...(settings.gtd.defaultAreaMode !== undefined ? { defaultAreaMode: settings.gtd.defaultAreaMode } : {}),
-                    ...(settings.gtd.defaultAreaId !== undefined ? { defaultAreaId: settings.gtd.defaultAreaId } : {}),
-                    ...(settings.gtd.focusTaskLimit !== undefined ? { focusTaskLimit: settings.gtd.focusTaskLimit } : {}),
-                    ...(settings.gtd.focusGroupBy !== undefined ? { focusGroupBy: settings.gtd.focusGroupBy } : {}),
-                    ...(settings.gtd.defaultProjectFlowMode !== undefined ? { defaultProjectFlowMode: settings.gtd.defaultProjectFlowMode } : {}),
-                };
+        if (prefs.gtd === true && settings.gtd) {
+            // Driven by GTD_SYNCED_FIELD_KEYS (settings-options.ts) — the single
+            // source of truth shared with the gtd mergeGroup in
+            // mergeSettingsForSync (sync-merge-settings.ts). A field missing from
+            // that list silently never leaves the device (naturalLanguageDates
+            // bug); add new synced gtd fields there, not here.
+            const gtd = settings.gtd;
+            const hasSyncedGtdField = GTD_SYNCED_FIELD_KEYS.some((key) => gtd[key] !== undefined);
+            if (hasSyncedGtdField) {
+                const nextGtd: Pick<GtdSettings, GtdSyncedFieldKey> = {};
+                for (const key of GTD_SYNCED_FIELD_KEYS) {
+                    const value = gtd[key];
+                    if (value !== undefined) {
+                        (nextGtd as Record<GtdSyncedFieldKey, unknown>)[key] = value;
+                    }
+                }
+                next.gtd = nextGtd;
             }
         }
 
