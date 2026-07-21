@@ -1,5 +1,4 @@
-- Arrange Today's Focus by hand and sync its order.
-- Include or exclude contexts and tags, with Any/All matching.
-- Browse and restore archived projects; move completed or archived items in bulk.
-- Control natural-language dates and per-task reminders.
-- Mobile sync credentials are safer, with more reliable capture, notifications, keyboards, recurrence, and large-library storage.
+- Project task sorting now persists and syncs across devices.
+- Large mobile libraries save and sync faster, with clearer failure feedback.
+- Focus grouping, bulk actions, checklist entry, and section next-action prompts are more consistent.
+- iCloud now preserves Focus stars and other on/off task and project settings from iPhone and iPad on Mac.

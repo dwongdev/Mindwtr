@@ -1,5 +1,4 @@
-- Ordne Today's Focus von Hand und synchronisiere die Reihenfolge.
-- Schliesse Kontexte und Tags ein oder aus; Tags unterstuetzen Beliebig/Alle.
-- Durchsuche und stelle archivierte Projekte wieder her; verschiebe erledigte oder archivierte Eintraege gesammelt.
-- Steuere natuerliche Datumsangaben und Erinnerungen pro Aufgabe.
-- Sicherere mobile Sync-Zugangsdaten sowie zuverlaessigere Erfassung, Hinweise, Tastaturen, Wiederholungen und grosse Bibliotheken.
+- Die Sortierung der Aufgaben wird pro Projekt gespeichert und geräteübergreifend synchronisiert.
+- Große mobile Bibliotheken speichern und synchronisieren schneller; Fehler werden klarer gemeldet.
+- Fokus-Gruppen, Sammelaktionen, Checklisten und Abschnitts-Folgeaktionen sind einheitlicher.
+- iCloud behält Fokus-Sterne und weitere Ein/Aus-Einstellungen von iPhone und iPad auf dem Mac bei.

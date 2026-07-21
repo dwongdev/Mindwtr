@@ -1,5 +1,4 @@
-- Classez Today's Focus a la main et synchronisez son ordre.
-- Incluez ou excluez contextes et etiquettes, avec correspondance Au moins un/Tous.
-- Parcourez et restaurez les projets archives; deplacez en lot les elements termines ou archives.
-- Controlez les dates en langage naturel et les rappels par tache.
-- Identifiants de sync mobile mieux proteges; capture, notifications, claviers, repetitions et grandes bibliotheques plus fiables.
+- Le tri des tâches est enregistré par projet et synchronisé entre les appareils.
+- Les grandes bibliothèques mobiles s'enregistrent et se synchronisent plus vite, avec des erreurs plus claires.
+- Les groupes Focus, actions groupées, listes et invites d'action suivante sont plus cohérents.
+- iCloud conserve sur Mac les étoiles Focus et les autres réglages activés depuis l'iPhone ou l'iPad.
