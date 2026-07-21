@@ -285,7 +285,7 @@ describe('ListView', () => {
 
     expect(getByRole('combobox', { name: 'Group' })).toHaveTextContent('Area');
     expect(queryByText('Work')).toBeInTheDocument();
-    expect(queryByText('General')).toBeInTheDocument();
+    expect(queryByText('No Area')).toBeInTheDocument();
   });
 
   it('groups reference tasks by each tag when tag grouping is selected', () => {

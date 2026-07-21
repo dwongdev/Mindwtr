@@ -21,7 +21,7 @@ interface GroupByAreaParams {
     areas: Area[];
     tasks: Task[];
     projectMap: Map<string, Project>;
-    generalLabel: string;
+    noAreaLabel: string;
 }
 
 interface GroupByContextParams {
@@ -64,14 +64,14 @@ export function groupTasksByArea({
     areas,
     tasks,
     projectMap,
-    generalLabel,
+    noAreaLabel,
 }: GroupByAreaParams): TaskGroup[] {
     const activeAreas = [...areas]
         .filter((area) => !area.deletedAt)
         .sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name));
     const validAreaIds = new Set(activeAreas.map((area) => area.id));
     const grouped = new Map<string, Task[]>();
-    const generalTasks: Task[] = [];
+    const noAreaTasks: Task[] = [];
 
     tasks.forEach((task) => {
         const projectAreaId = task.projectId ? projectMap.get(task.projectId)?.areaId : undefined;
@@ -82,15 +82,16 @@ export function groupTasksByArea({
             grouped.set(resolvedAreaId, items);
             return;
         }
-        generalTasks.push(task);
+        noAreaTasks.push(task);
     });
 
     const groups: TaskGroup[] = [];
-    if (generalTasks.length > 0) {
+    if (noAreaTasks.length > 0) {
         groups.push({
+            // id stays 'general' so persisted collapse state survives the label rename
             id: 'general',
-            title: generalLabel,
-            tasks: generalTasks,
+            title: noAreaLabel,
+            tasks: noAreaTasks,
             muted: true,
         });
     }
@@ -429,7 +430,7 @@ export function groupTasks(axis: TaskGroupAxis, { tasks, areas, projectMap, t }:
         case 'status':
             return groupTasksByStatus({ tasks, getStatusLabel: (status) => t(`status.${status}`) });
         case 'area':
-            return groupTasksByArea({ areas, tasks, projectMap, generalLabel: tFallback(t, 'settings.general', 'General') });
+            return groupTasksByArea({ areas, tasks, projectMap, noAreaLabel: tFallback(t, 'taskEdit.noAreaOption', 'No Area') });
         case 'project':
             return groupTasksByProject({ tasks, projectMap, noProjectLabel: tFallback(t, 'taskEdit.noProjectOption', 'No project') });
         case 'priority':

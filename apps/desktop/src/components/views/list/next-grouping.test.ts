@@ -56,10 +56,10 @@ describe('groupTasksByArea', () => {
             areas,
             tasks,
             projectMap,
-            generalLabel: 'General',
+            noAreaLabel: 'No area',
         });
 
-        expect(groups.map((group) => group.title)).toEqual(['General', 'Work', 'Home']);
+        expect(groups.map((group) => group.title)).toEqual(['No area', 'Work', 'Home']);
         expect(groups[0]?.muted).toBe(true);
         expect(groups[1]?.tasks.map((task) => task.id)).toEqual(['t3']);
         expect(groups[2]?.tasks.map((task) => task.id)).toEqual(['t2']);

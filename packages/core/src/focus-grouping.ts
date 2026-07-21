@@ -174,7 +174,7 @@ export function buildFocusTaskGroups({
         case 'area': {
             const projectById = new Map(projects.map((project) => [project.id, project]));
             const areaById = new Map(areas.map((area) => [area.id, area]));
-            const noAreaLabel = resolveText('taskEdit.noAreaOption', 'No area');
+            const noAreaLabel = resolveText('taskEdit.noAreaOption', 'No Area');
             return buildOrderedGroups(tasks, (task) => {
                 const project = task.projectId ? projectById.get(task.projectId) : undefined;
                 const areaId = project?.areaId ?? task.areaId;

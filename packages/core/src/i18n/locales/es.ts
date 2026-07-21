@@ -244,6 +244,7 @@ export const esOverrides: Record<string, string> = {
         'taskEdit.locationPlaceholder': 'p. ej., Oficina',
         'taskEdit.projectLabel': 'Proyecto',
         'taskEdit.noProjectOption': 'Sin Proyecto',
+        'taskEdit.noAreaOption': 'Sin Área',
         'taskEdit.sectionLabel': 'Section',
         'taskEdit.moreOptions': 'Más opciones',
         'taskEdit.hideOptions': 'Ocultar opciones',

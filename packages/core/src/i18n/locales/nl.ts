@@ -499,6 +499,7 @@ export const nlOverrides: Record<string, string> = {
         'captureNotification.title': 'Snelle invoer',
         'captureNotification.text': 'Tik om vast te leggen in je Inbox',
         'captureNotification.channelName': 'Snelle invoer',
+        'taskEdit.noAreaOption': 'Geen gebied',
         'taskEdit.contextsPlaceholder': '@home, @work',
         'taskEdit.tagsPlaceholder': '#urgent, #idea',
         'taskEdit.dateOnly': 'Alleen datum',
