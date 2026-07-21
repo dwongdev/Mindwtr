@@ -76,21 +76,33 @@ const normalizeAttachmentsForContentComparison = (
 
 // Task fields deliberately absent from content comparison: revision/order metadata
 // (CONTENT_DIFF_IGNORED_KEYS) and project-archive bookkeeping (SIGNATURE_OPAQUE_KEYS).
-// A new Task field must be added either here or to the comparable below (compile error otherwise).
-type TaskContentComparisonExcludedKey =
-    | 'rev'
-    | 'revBy'
-    | 'createdAt'
-    | 'updatedAt'
-    | 'purgedAt'
-    | 'order'
-    | 'orderNum'
-    | 'boardOrder'
-    | 'focusOrder'
-    | 'statusBeforeProjectArchive'
-    | 'completedAtBeforeProjectArchive'
-    | 'isFocusedTodayBeforeProjectArchive'
-    | 'projectArchivedAt';
+// A new Task field must be added either here or to the comparable below (compile error
+// otherwise, via the `satisfies Record<Exclude<...>>` below).
+//
+// This list mirrors the 'ignored'/'opaque'-signature fields in
+// TASK_SYNC_FIELD_SCHEMA (task-sync-schema.ts) — task-sync-schema.test.ts pins the two
+// together with a snapshot test, and scripts/check-synced-field-parity.ts imports this
+// array directly. It stays a hand-written `as const` literal (not computed from the JSON
+// schema at runtime) because TypeScript can't narrow a JSON-imported field's `name` to a
+// literal per-entry type, and doing so here would silently turn the `satisfies` guard
+// below into a no-op instead of a real compile-time exhaustiveness check.
+export const TASK_CONTENT_COMPARISON_EXCLUDED_KEYS = [
+    'rev',
+    'revBy',
+    'createdAt',
+    'updatedAt',
+    'purgedAt',
+    'order',
+    'orderNum',
+    'boardOrder',
+    'focusOrder',
+    'statusBeforeProjectArchive',
+    'completedAtBeforeProjectArchive',
+    'isFocusedTodayBeforeProjectArchive',
+    'projectArchivedAt',
+] as const satisfies readonly (keyof Task)[];
+
+type TaskContentComparisonExcludedKey = (typeof TASK_CONTENT_COMPARISON_EXCLUDED_KEYS)[number];
 
 export const normalizeTaskForContentComparison = (task: Task): Record<string, unknown> => {
     const hasRecurrence = task.recurrence !== undefined && task.recurrence !== null;

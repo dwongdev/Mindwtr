@@ -7,6 +7,25 @@ import {
 
 const sorted = (values: Iterable<string>): string[] => Array.from(values).sort();
 
+// Frozen snapshot of the pre-refactor hand-written literals (2026-07-20 generative-schema
+// refactor). CLOUD_TASK_CREATION_ALLOWED_PROP_KEYS and CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS are
+// now derived from TASK_SYNC_FIELD_SCHEMA's cloudWrite flag instead of hand-maintained Sets;
+// this proves the derived output is unchanged. Do not update this list to match a schema
+// change — grow the schema and leave this alone, the same as the schema tests in
+// packages/core/src/task-sync-schema.test.ts.
+const PRE_REFACTOR_CLOUD_TASK_CREATION_ALLOWED_PROP_KEYS = [
+    'status', 'priority', 'taskMode', 'startTime', 'relativeStartOffset', 'dueDate', 'recurrence',
+    'showFutureRecurrence', 'pushCount', 'tags', 'contexts', 'checklist', 'description',
+    'textDirection', 'attachments', 'location', 'projectId', 'sectionId', 'areaId',
+    'isFocusedToday', 'energyLevel', 'assignedTo', 'timeEstimate', 'timeSpentMinutes', 'reviewAt',
+    'suppressMindwtrReminders', 'repeatReminderMinutes',
+];
+
+const PRE_REFACTOR_CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS = [
+    'title', 'order', 'orderNum', 'boardOrder', 'focusOrder',
+    ...PRE_REFACTOR_CLOUD_TASK_CREATION_ALLOWED_PROP_KEYS,
+];
+
 describe('cloud Task schema contract', () => {
     it('keeps creation validation aligned with schema write semantics', () => {
         const expected = TASK_SYNC_FIELD_SCHEMA
@@ -22,5 +41,13 @@ describe('cloud Task schema contract', () => {
             .map((field) => field.name);
 
         expect(sorted(CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS)).toEqual(sorted(expected));
+    });
+
+    it('derives CLOUD_TASK_CREATION_ALLOWED_PROP_KEYS identical to the pre-refactor literal', () => {
+        expect(sorted(CLOUD_TASK_CREATION_ALLOWED_PROP_KEYS)).toEqual(sorted(PRE_REFACTOR_CLOUD_TASK_CREATION_ALLOWED_PROP_KEYS));
+    });
+
+    it('derives CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS identical to the pre-refactor literal', () => {
+        expect(sorted(CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS)).toEqual(sorted(PRE_REFACTOR_CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS));
     });
 });

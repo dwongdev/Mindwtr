@@ -16,6 +16,7 @@ import { logWarn } from './logger';
 import { normalizeSavedFilter, normalizeSavedFilters } from './saved-filters';
 import { normalizeProjectSequentialScope, normalizeProjectTaskSortBy } from './project-utils';
 import { sleep } from './async-utils';
+import { TASK_SQLITE_COLUMNS, TASK_SQLITE_MIGRATION_COLUMNS } from './task-sync-schema';
 
 export interface SqliteClient {
     run(sql: string, params?: unknown[]): Promise<void>;
@@ -199,96 +200,20 @@ const buildSqliteSaveFailureContext = (data: AppData, step: string): Record<stri
     };
 };
 
-export const TASK_SQLITE_COLUMNS = [
-    'id',
-    'title',
-    'status',
-    'priority',
-    'energyLevel',
-    'assignedTo',
-    'taskMode',
-    'startTime',
-    'relativeStartOffset',
-    'dueDate',
-    'recurrence',
-    'showFutureRecurrence',
-    'pushCount',
-    'repeatReminderMinutes',
-    'tags',
-    'contexts',
-    'checklist',
-    'description',
-    'textDirection',
-    'attachments',
-    'location',
-    'projectId',
-    'sectionId',
-    'areaId',
-    'orderNum',
-    'boardOrder',
-    'focusOrder',
-    'isFocusedToday',
-    'timeEstimate',
-    'timeSpentMinutes',
-    'suppressMindwtrReminders',
-    'reviewAt',
-    'completedAt',
-    'statusBeforeProjectArchive',
-    'completedAtBeforeProjectArchive',
-    'isFocusedTodayBeforeProjectArchive',
-    'projectArchivedAt',
-    'rev',
-    'revBy',
-    'createdAt',
-    'updatedAt',
-    'deletedAt',
-    'purgedAt',
-] as const;
+// TASK_SQLITE_COLUMNS and TASK_SQLITE_MIGRATION_COLUMNS are generated from
+// TASK_SYNC_FIELD_SCHEMA in task-sync-schema.ts (see the comment there for why the
+// derivation itself lives in that dependency-free file rather than here). Re-exported here
+// under their existing names/values for this module's existing consumers
+// (index.ts, apps/mcp-server/src/queries.ts).
+export { TASK_SQLITE_COLUMNS, TASK_SQLITE_MIGRATION_COLUMNS };
 
 const TASK_UPSERT_COLUMNS = TASK_SQLITE_COLUMNS;
 
-const TASK_UPSERT_UPDATE_CLAUSE = `title=excluded.title,
-status=excluded.status,
-priority=excluded.priority,
-energyLevel=excluded.energyLevel,
-assignedTo=excluded.assignedTo,
-taskMode=excluded.taskMode,
-startTime=excluded.startTime,
-relativeStartOffset=excluded.relativeStartOffset,
-dueDate=excluded.dueDate,
-recurrence=excluded.recurrence,
-showFutureRecurrence=excluded.showFutureRecurrence,
-pushCount=excluded.pushCount,
-repeatReminderMinutes=excluded.repeatReminderMinutes,
-tags=excluded.tags,
-contexts=excluded.contexts,
-checklist=excluded.checklist,
-description=excluded.description,
-textDirection=excluded.textDirection,
-attachments=excluded.attachments,
-location=excluded.location,
-projectId=excluded.projectId,
-sectionId=excluded.sectionId,
-areaId=excluded.areaId,
-orderNum=excluded.orderNum,
-boardOrder=excluded.boardOrder,
-focusOrder=excluded.focusOrder,
-isFocusedToday=excluded.isFocusedToday,
-timeEstimate=excluded.timeEstimate,
-timeSpentMinutes=excluded.timeSpentMinutes,
-suppressMindwtrReminders=excluded.suppressMindwtrReminders,
-reviewAt=excluded.reviewAt,
-completedAt=excluded.completedAt,
-statusBeforeProjectArchive=excluded.statusBeforeProjectArchive,
-completedAtBeforeProjectArchive=excluded.completedAtBeforeProjectArchive,
-isFocusedTodayBeforeProjectArchive=excluded.isFocusedTodayBeforeProjectArchive,
-projectArchivedAt=excluded.projectArchivedAt,
-rev=excluded.rev,
-revBy=excluded.revBy,
-createdAt=excluded.createdAt,
-updatedAt=excluded.updatedAt,
-deletedAt=excluded.deletedAt,
-purgedAt=excluded.purgedAt
+// `id` is the upsert conflict target, so it's excluded from the SET clause.
+export const TASK_UPSERT_UPDATE_CLAUSE = `${TASK_SQLITE_COLUMNS
+    .filter((column) => column !== 'id')
+    .map((column) => `${column}=excluded.${column}`)
+    .join(',\n')}
 WHERE tasks.rev IS NULL OR tasks.rev <= excluded.rev`;
 
 export const taskToSqliteRow = (task: Task): unknown[] => {
@@ -758,48 +683,7 @@ export class SqliteAdapter {
     private async ensureTaskColumns() {
         const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks)');
         const names = new Set(columns.map((col) => col.name));
-        const definitions: Array<{ name: string; sql: string }> = [
-            { name: 'priority', sql: 'ALTER TABLE tasks ADD COLUMN priority TEXT' },
-            { name: 'energyLevel', sql: 'ALTER TABLE tasks ADD COLUMN energyLevel TEXT' },
-            { name: 'assignedTo', sql: 'ALTER TABLE tasks ADD COLUMN assignedTo TEXT' },
-            { name: 'taskMode', sql: 'ALTER TABLE tasks ADD COLUMN taskMode TEXT' },
-            { name: 'startTime', sql: 'ALTER TABLE tasks ADD COLUMN startTime TEXT' },
-            { name: 'relativeStartOffset', sql: 'ALTER TABLE tasks ADD COLUMN relativeStartOffset TEXT' },
-            { name: 'dueDate', sql: 'ALTER TABLE tasks ADD COLUMN dueDate TEXT' },
-            { name: 'recurrence', sql: 'ALTER TABLE tasks ADD COLUMN recurrence TEXT' },
-            { name: 'showFutureRecurrence', sql: 'ALTER TABLE tasks ADD COLUMN showFutureRecurrence INTEGER' },
-            { name: 'pushCount', sql: 'ALTER TABLE tasks ADD COLUMN pushCount INTEGER' },
-            { name: 'repeatReminderMinutes', sql: 'ALTER TABLE tasks ADD COLUMN repeatReminderMinutes INTEGER' },
-            { name: 'tags', sql: 'ALTER TABLE tasks ADD COLUMN tags TEXT' },
-            { name: 'contexts', sql: 'ALTER TABLE tasks ADD COLUMN contexts TEXT' },
-            { name: 'checklist', sql: 'ALTER TABLE tasks ADD COLUMN checklist TEXT' },
-            { name: 'description', sql: 'ALTER TABLE tasks ADD COLUMN description TEXT' },
-            { name: 'textDirection', sql: 'ALTER TABLE tasks ADD COLUMN textDirection TEXT' },
-            { name: 'attachments', sql: 'ALTER TABLE tasks ADD COLUMN attachments TEXT' },
-            { name: 'location', sql: 'ALTER TABLE tasks ADD COLUMN location TEXT' },
-            { name: 'projectId', sql: 'ALTER TABLE tasks ADD COLUMN projectId TEXT' },
-            { name: 'sectionId', sql: 'ALTER TABLE tasks ADD COLUMN sectionId TEXT' },
-            { name: 'areaId', sql: 'ALTER TABLE tasks ADD COLUMN areaId TEXT' },
-            { name: 'orderNum', sql: 'ALTER TABLE tasks ADD COLUMN orderNum INTEGER' },
-            { name: 'boardOrder', sql: 'ALTER TABLE tasks ADD COLUMN boardOrder INTEGER' },
-            { name: 'focusOrder', sql: 'ALTER TABLE tasks ADD COLUMN focusOrder INTEGER' },
-            { name: 'isFocusedToday', sql: 'ALTER TABLE tasks ADD COLUMN isFocusedToday INTEGER' },
-            { name: 'timeEstimate', sql: 'ALTER TABLE tasks ADD COLUMN timeEstimate TEXT' },
-            { name: 'timeSpentMinutes', sql: 'ALTER TABLE tasks ADD COLUMN timeSpentMinutes INTEGER' },
-            { name: 'suppressMindwtrReminders', sql: 'ALTER TABLE tasks ADD COLUMN suppressMindwtrReminders INTEGER' },
-            { name: 'reviewAt', sql: 'ALTER TABLE tasks ADD COLUMN reviewAt TEXT' },
-            { name: 'completedAt', sql: 'ALTER TABLE tasks ADD COLUMN completedAt TEXT' },
-            { name: 'statusBeforeProjectArchive', sql: 'ALTER TABLE tasks ADD COLUMN statusBeforeProjectArchive TEXT' },
-            { name: 'completedAtBeforeProjectArchive', sql: 'ALTER TABLE tasks ADD COLUMN completedAtBeforeProjectArchive TEXT' },
-            { name: 'isFocusedTodayBeforeProjectArchive', sql: 'ALTER TABLE tasks ADD COLUMN isFocusedTodayBeforeProjectArchive INTEGER' },
-            { name: 'projectArchivedAt', sql: 'ALTER TABLE tasks ADD COLUMN projectArchivedAt TEXT' },
-            { name: 'rev', sql: 'ALTER TABLE tasks ADD COLUMN rev INTEGER' },
-            { name: 'revBy', sql: 'ALTER TABLE tasks ADD COLUMN revBy TEXT' },
-            { name: 'createdAt', sql: 'ALTER TABLE tasks ADD COLUMN createdAt TEXT' },
-            { name: 'updatedAt', sql: 'ALTER TABLE tasks ADD COLUMN updatedAt TEXT' },
-            { name: 'deletedAt', sql: 'ALTER TABLE tasks ADD COLUMN deletedAt TEXT' },
-            { name: 'purgedAt', sql: 'ALTER TABLE tasks ADD COLUMN purgedAt TEXT' },
-        ];
+        const definitions = TASK_SQLITE_MIGRATION_COLUMNS;
         for (const definition of definitions) {
             if (!names.has(definition.name)) {
                 await this.client.run(definition.sql);

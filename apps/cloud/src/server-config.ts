@@ -1,4 +1,9 @@
 import type { Area, Project, Section, Task } from '@mindwtr/core';
+// Relative path, not '@mindwtr/core/task-sync-schema': this file is imported by
+// scripts/check-synced-field-parity.ts, which the native-schema CI job runs without
+// `bun install` (see BEARER_TOKEN_PATTERN below), so a workspace-package import
+// cannot resolve there. A plain relative path always resolves.
+import { TASK_SYNC_FIELD_SCHEMA } from '../../../packages/core/src/task-sync-schema';
 
 type Flags = Record<string, string | boolean>;
 type LogLevel = 'info' | 'warn' | 'error';
@@ -93,43 +98,23 @@ export const ATTACHMENT_PATH_ALLOWLIST = /^[a-zA-Z0-9._/-]+$/;
 export const CLOUD_DATA_LOCK_TTL_MS = 30_000;
 export const CLOUD_DATA_LOCK_REFRESH_MS = 2_000;
 export const CLOUD_DATA_LOCK_WAIT_TIMEOUT_MS = 60_000;
-export const CLOUD_TASK_CREATION_ALLOWED_PROP_KEYS = new Set<keyof Task>([
-    'status',
-    'priority',
-    'taskMode',
-    'startTime',
-    'relativeStartOffset',
-    'dueDate',
-    'recurrence',
-    'showFutureRecurrence',
-    'pushCount',
-    'tags',
-    'contexts',
-    'checklist',
-    'description',
-    'textDirection',
-    'attachments',
-    'location',
-    'projectId',
-    'sectionId',
-    'areaId',
-    'isFocusedToday',
-    'energyLevel',
-    'assignedTo',
-    'timeEstimate',
-    'timeSpentMinutes',
-    'reviewAt',
-    'suppressMindwtrReminders',
-    'repeatReminderMinutes',
-]);
-export const CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS = new Set<keyof Task>([
-    'title',
-    'order',
-    'orderNum',
-    'boardOrder',
-    'focusOrder',
-    ...CLOUD_TASK_CREATION_ALLOWED_PROP_KEYS,
-]);
+// Generated from TASK_SYNC_FIELD_SCHEMA's cloudWrite flag (task-sync-schema.ts): a field
+// with cloudWrite 'create-patch' is writable both at task creation and via patch; 'patch'
+// only via patch (title/order/orderNum/boardOrder/focusOrder — set at creation through
+// their own dedicated params, not this generic prop bag); 'managed' is never
+// client-writable. server-config.test.ts pins both sets to the schema with a snapshot
+// test, and scripts/check-synced-field-parity.ts checks CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS
+// is a superset of the schema's writable fields.
+export const CLOUD_TASK_CREATION_ALLOWED_PROP_KEYS = new Set<keyof Task>(
+    TASK_SYNC_FIELD_SCHEMA
+        .filter((field) => field.cloudWrite === 'create-patch')
+        .map((field) => field.name),
+);
+export const CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS = new Set<keyof Task>(
+    TASK_SYNC_FIELD_SCHEMA
+        .filter((field) => field.cloudWrite === 'create-patch' || field.cloudWrite === 'patch')
+        .map((field) => field.name),
+);
 export const CLOUD_PROJECT_CREATION_ALLOWED_PROP_KEYS = new Set<keyof Project>([
     'status',
     'color',

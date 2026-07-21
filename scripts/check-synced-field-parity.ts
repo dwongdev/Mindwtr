@@ -3,11 +3,23 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+// Every import in this script (and everything it transitively imports) must resolve
+// without `bun install`: the "native-schema" CI job runs `bun run schema:check` on a
+// fresh checkout with no install step. That's why these come from task-sync-schema.ts
+// (TASK_SQLITE_COLUMNS/TASK_SQLITE_MIGRATION_COLUMNS live there, not in sqlite-adapter.ts,
+// specifically so this script can import them — sqlite-adapter.ts transitively pulls in
+// `date-fns` via recurrence.ts/saved-filters.ts and would break this job) and from
+// sync-signatures.ts / server-config.ts, neither of which has a real npm dependency.
 import {
+    TASK_SQLITE_COLUMNS,
+    TASK_SQLITE_MIGRATION_COLUMNS,
     TASK_SYNC_FIELD_SCHEMA,
     TASK_SYNC_SCHEMA_FIXTURE,
 } from '../packages/core/src/task-sync-schema';
-import { normalizeTaskForContentComparison } from '../packages/core/src/sync-signatures';
+import {
+    normalizeTaskForContentComparison,
+    TASK_CONTENT_COMPARISON_EXCLUDED_KEYS,
+} from '../packages/core/src/sync-signatures';
 import { CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS } from '../apps/cloud/src/server-config';
 
 type Entity = 'task' | 'project' | 'section';
@@ -53,9 +65,7 @@ const EXPECTED: Record<Entity, Record<Surface, string[]>> = {
 
 const PATHS = {
     coreTypes: 'packages/core/src/types.ts',
-    coreSqliteAdapter: 'packages/core/src/sqlite-adapter.ts',
     coreSqliteSchema: 'packages/core/src/sqlite-schema.ts',
-    coreSyncSignatures: 'packages/core/src/sync-signatures.ts',
     desktopRustSchema: 'apps/desktop/src-tauri/src/lib.rs',
     desktopRustStorage: 'apps/desktop/src-tauri/src/storage.rs',
     swiftMapper: 'apps/mobile/modules/cloudkit-sync/ios/CloudKitRecordMapper.swift',
@@ -77,12 +87,6 @@ const unique = (fields: string[], label: string): string[] => {
     return fields;
 };
 
-const parseCoreTaskColumns = (source: string): string[] => {
-    const match = source.match(/export const TASK_SQLITE_COLUMNS = \[([\s\S]*?)\] as const;/);
-    if (!match) throw new Error('Could not find TASK_SQLITE_COLUMNS.');
-    return unique(Array.from(match[1].matchAll(/'([^']+)'/g), (entry) => entry[1]), 'TASK_SQLITE_COLUMNS');
-};
-
 const parseCreateTableColumns = (source: string, table: string): string[] => {
     const match = source.match(new RegExp(`CREATE TABLE IF NOT EXISTS ${table} \\(([\\s\\S]*?)\\n\\);`));
     if (!match) throw new Error(`Could not find CREATE TABLE for ${table}.`);
@@ -101,23 +105,22 @@ const parseRustInsertColumns = (source: string, table: string): string[] => {
     return unique(match[1].split(',').map((column) => column.trim()).filter(Boolean), `Rust INSERT ${table}`);
 };
 
-const parseCoreTaskUpdateColumns = (source: string): string[] => {
-    const match = source.match(/const TASK_UPSERT_UPDATE_CLAUSE = \x60([\s\S]*?)\x60;/);
-    if (!match) throw new Error('Could not find TASK_UPSERT_UPDATE_CLAUSE.');
-    return unique(
-        Array.from(match[1].matchAll(/^([A-Za-z][A-Za-z0-9]*)=excluded\./gm), (entry) => entry[1]),
-        'TASK_UPSERT_UPDATE_CLAUSE',
-    );
-};
+// TASK_SQLITE_COLUMNS, TASK_UPSERT_UPDATE_CLAUSE, and the ensureTaskColumns migration
+// list are now generated from TASK_SYNC_FIELD_SCHEMA in sqlite-adapter.ts itself (same
+// module-load pass, same source array), so they can no longer drift from each other
+// independently — imported directly below instead of regex-parsed from source text.
+// TASK_UPSERT_UPDATE_CLAUSE has no standalone check for the same reason: it's built from
+// TASK_SQLITE_COLUMNS by construction (packages/core/src/sqlite-adapter.ts), verified by
+// a snapshot-equality test in task-sync-schema.test.ts.
+const coreTaskUpdateColumns = (): string[] => unique(
+    TASK_SQLITE_COLUMNS.filter((column) => column !== 'id'),
+    'TASK_UPSERT_UPDATE_CLAUSE',
+);
 
-const parseCoreTaskMigrationColumns = (source: string): string[] => {
-    const match = source.match(/private async ensureTaskColumns\(\) \{([\s\S]*?)\n {4}\}/);
-    if (!match) throw new Error('Could not find ensureTaskColumns.');
-    return unique(
-        Array.from(match[1].matchAll(/\{ name: '([^']+)', sql:/g), (entry) => entry[1]),
-        'ensureTaskColumns',
-    );
-};
+const coreTaskMigrationColumns = (): string[] => unique(
+    TASK_SQLITE_MIGRATION_COLUMNS.map((entry) => entry.name),
+    'ensureTaskColumns',
+);
 
 type ParsedTaskField = {
     name: string;
@@ -210,18 +213,6 @@ const parseObjcFields = (source: string, entity: Entity): string[] => {
     const match = source.match(new RegExp(`static const MWFieldSpec ${name}\\[\\] = \\{([\\s\\S]*?)\\n\\};`));
     if (!match) throw new Error(`Could not find ObjC ${name}.`);
     return unique(Array.from(match[1].matchAll(/\{"([^"]+)"/g), (entry) => entry[1]), `ObjC ${name}`);
-};
-
-// TaskContentComparisonExcludedKey is a type (compile-time only), so it can't
-// be imported as a value — regex-parsing its source is the only option, unlike
-// normalizeTaskForContentComparison below which is called directly.
-const parseTaskContentComparisonExcludedKeys = (source: string): string[] => {
-    const match = source.match(/type TaskContentComparisonExcludedKey =([\s\S]*?);/);
-    if (!match) throw new Error('Could not find TaskContentComparisonExcludedKey.');
-    return unique(
-        Array.from(match[1].matchAll(/'([^']+)'/g), (entry) => entry[1]),
-        'TaskContentComparisonExcludedKey',
-    );
 };
 
 const assertSuperset = (label: string, actual: Iterable<string>, required: string[]): string[] => {
@@ -450,9 +441,7 @@ const runNativeTaskMapperFixtureChecks = (): string[] => {
 const failures: string[] = [];
 
 const coreTypes = read(PATHS.coreTypes);
-const coreSqliteAdapter = read(PATHS.coreSqliteAdapter);
 const coreSqliteSchema = read(PATHS.coreSqliteSchema);
-const coreSyncSignatures = read(PATHS.coreSyncSignatures);
 const desktopRustSchema = read(PATHS.desktopRustSchema);
 const desktopRustStorage = read(PATHS.desktopRustStorage);
 const swiftMapper = read(PATHS.swiftMapper);
@@ -471,7 +460,7 @@ failures.push(...compareTaskInterface(coreTypes));
 const syncSignatureComparableKeys = Object.keys(
     normalizeTaskForContentComparison(TASK_SYNC_SCHEMA_FIXTURE),
 );
-const syncSignatureExcludedKeys = parseTaskContentComparisonExcludedKeys(coreSyncSignatures);
+const syncSignatureExcludedKeys: readonly string[] = TASK_CONTENT_COMPARISON_EXCLUDED_KEYS;
 const syncSignatureTaskFieldUnion = Array.from(new Set([
     ...syncSignatureComparableKeys,
     ...syncSignatureExcludedKeys,
@@ -504,15 +493,15 @@ failures.push(...assertSuperset(
     CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS as Iterable<string>,
     requiredCloudTaskPatchFields,
 ));
-failures.push(...compareSet('core TASK_SQLITE_COLUMNS', parseCoreTaskColumns(coreSqliteAdapter), EXPECTED.task.sqlite));
+failures.push(...compareSet('core TASK_SQLITE_COLUMNS', Array.from(TASK_SQLITE_COLUMNS), EXPECTED.task.sqlite));
 failures.push(...compareSet(
     'core TASK_UPSERT_UPDATE_CLAUSE',
-    parseCoreTaskUpdateColumns(coreSqliteAdapter),
+    coreTaskUpdateColumns(),
     EXPECTED.task.sqlite.filter((field) => field !== 'id'),
 ));
 failures.push(...compareSet(
     'core ensureTaskColumns',
-    parseCoreTaskMigrationColumns(coreSqliteAdapter),
+    coreTaskMigrationColumns(),
     EXPECTED.task.sqlite.filter((field) => !['id', 'title', 'status'].includes(field)),
 ));
 failures.push(...compareNativeTaskFieldSpecs(
