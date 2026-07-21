@@ -2,8 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { performance } from 'node:perf_hooks';
 import {
     summarizeTaskLifecycleCounts,
+    buildProjectOrderMap,
     buildTasksByProjectId,
     buildTrashTimeline,
+    compareProjectsByOrder,
+    compareTasksByProjectOrder,
+    compareTasksByProjectThenOrder,
     getCalendarPlanningCandidates,
     sortTasks,
     sortFocusNextActions,
@@ -44,6 +48,92 @@ describe('task-utils', () => {
             expect(timeline.map((item) => (
                 item.type === 'task' ? item.task.id : item.project.id
             ))).toEqual(['same-time-a', 'same-time-b', 'older-task']);
+        });
+    });
+
+    describe('compareProjectsByOrder', () => {
+        it('ranks finite order ascending before title', () => {
+            const a = { id: 'a', title: 'Zed', order: 0 } as Project;
+            const b = { id: 'b', title: 'Alpha', order: 1 } as Project;
+            expect(compareProjectsByOrder(a, b)).toBeLessThan(0);
+        });
+
+        it('sorts projects without an order last, then by title', () => {
+            const ordered = { id: 'a', title: 'Zed', order: 5 } as Project;
+            const noOrderA = { id: 'b', title: 'Alpha' } as Project;
+            const noOrderB = { id: 'c', title: 'Beta' } as Project;
+            expect(compareProjectsByOrder(ordered, noOrderA)).toBeLessThan(0);
+            expect(compareProjectsByOrder(noOrderA, noOrderB)).toBeLessThan(0);
+        });
+    });
+
+    describe('buildProjectOrderMap', () => {
+        it('ranks non-deleted projects by order then title and drops deleted', () => {
+            const projects = [
+                { id: 'later', title: 'B', order: 2 },
+                { id: 'gone', title: 'A', order: 0, deletedAt: '2026-07-01T00:00:00.000Z' },
+                { id: 'first', title: 'A', order: 1 },
+                { id: 'unordered-b', title: 'Beta' },
+                { id: 'unordered-a', title: 'Alpha' },
+            ] as Project[];
+            const map = buildProjectOrderMap(projects);
+            expect(map.has('gone')).toBe(false);
+            expect(map.get('first')).toBe(0);
+            expect(map.get('later')).toBe(1);
+            expect(map.get('unordered-a')).toBe(2);
+            expect(map.get('unordered-b')).toBe(3);
+        });
+    });
+
+    describe('compareTasksByProjectThenOrder', () => {
+        const task = (over: Partial<Task>): Task => ({
+            id: 'id', title: 't', status: 'next', tags: [], contexts: [],
+            createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+            ...over,
+        } as Task);
+
+        it('orders by project rank first', () => {
+            const map = new Map([['p-first', 0], ['p-second', 1]]);
+            const cmp = compareTasksByProjectThenOrder(map);
+            const a = task({ id: 'a', projectId: 'p-second', order: 0 });
+            const b = task({ id: 'b', projectId: 'p-first', order: 9 });
+            expect(cmp(a, b)).toBeGreaterThan(0);
+        });
+
+        it('sorts tasks with no project or unmapped project last', () => {
+            const map = new Map([['p', 0]]);
+            const cmp = compareTasksByProjectThenOrder(map);
+            const inProject = task({ id: 'a', projectId: 'p', order: 5 });
+            const noProject = task({ id: 'b' });
+            const unmapped = task({ id: 'c', projectId: 'other' });
+            expect(cmp(inProject, noProject)).toBeLessThan(0);
+            expect(cmp(inProject, unmapped)).toBeLessThan(0);
+        });
+
+        it('falls back to compareTasksByProjectOrder within the same project rank', () => {
+            const map = new Map([['p', 0]]);
+            const cmp = compareTasksByProjectThenOrder(map);
+            const a = task({ id: 'a', projectId: 'p', order: 1 });
+            const b = task({ id: 'b', projectId: 'p', order: 2 });
+            expect(cmp(a, b)).toBe(compareTasksByProjectOrder(a, b));
+            expect(cmp(a, b)).toBeLessThan(0);
+        });
+
+        it('uses createdAt as the tie-break when order is absent', () => {
+            const map = new Map([['p', 0]]);
+            const cmp = compareTasksByProjectThenOrder(map);
+            const earlier = task({ id: 'a', projectId: 'p', createdAt: '2026-01-01T00:00:00.000Z' });
+            const later = task({ id: 'b', projectId: 'p', createdAt: '2026-02-01T00:00:00.000Z' });
+            expect(cmp(earlier, later)).toBeLessThan(0);
+        });
+
+        it('sorts tasks with a missing createdAt last within a project rank', () => {
+            const map = new Map([['p', 0]]);
+            const cmp = compareTasksByProjectThenOrder(map);
+            const dated = task({ id: 'a', projectId: 'p', createdAt: '2026-01-01T00:00:00.000Z' });
+            const undatedTask = task({ id: 'b', projectId: 'p' });
+            (undatedTask as { createdAt?: string }).createdAt = undefined;
+            expect(cmp(dated, undatedTask)).toBeLessThan(0);
         });
     });
 

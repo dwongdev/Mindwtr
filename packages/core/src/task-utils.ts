@@ -276,6 +276,46 @@ export function compareTasksByProjectOrder<T extends SequentialTaskOrderFields>(
     return aCreated - bCreated;
 }
 
+// Ranks projects the way the sidebar and project-grouped views arrange them:
+// manual order first (projects without one sort last), title as the tie-break.
+export function compareProjectsByOrder(
+    a: Pick<Project, 'order' | 'title'>,
+    b: Pick<Project, 'order' | 'title'>,
+): number {
+    const aOrder = Number.isFinite(a.order) ? (a.order as number) : Number.POSITIVE_INFINITY;
+    const bOrder = Number.isFinite(b.order) ? (b.order as number) : Number.POSITIVE_INFINITY;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return a.title.localeCompare(b.title);
+}
+
+// Builds the projectId -> rank map that project-grouped views sort tasks by.
+// Deleted projects are dropped; the survivors are ranked by compareProjectsByOrder.
+export function buildProjectOrderMap(
+    projects: readonly (Pick<Project, 'id' | 'order' | 'title'> & Partial<Pick<Project, 'deletedAt'>>)[],
+): Map<string, number> {
+    const map = new Map<string, number>();
+    [...projects]
+        .filter((project) => !project.deletedAt)
+        .sort(compareProjectsByOrder)
+        .forEach((project, index) => map.set(project.id, index));
+    return map;
+}
+
+// Orders tasks first by their project's rank in the given order map (tasks with
+// no project, or in a project missing from the map, sort last), then by
+// compareTasksByProjectOrder within a project. This is the combined default
+// order the Next and Board views render.
+export function compareTasksByProjectThenOrder(
+    orderMap: ReadonlyMap<string, number>,
+): <T extends SequentialTaskOrderFields & Pick<Task, 'projectId'>>(a: T, b: T) => number {
+    return (a, b) => {
+        const aProjectOrder = a.projectId ? (orderMap.get(a.projectId) ?? Number.POSITIVE_INFINITY) : Number.POSITIVE_INFINITY;
+        const bProjectOrder = b.projectId ? (orderMap.get(b.projectId) ?? Number.POSITIVE_INFINITY) : Number.POSITIVE_INFINITY;
+        if (aProjectOrder !== bProjectOrder) return aProjectOrder - bProjectOrder;
+        return compareTasksByProjectOrder(a, b);
+    };
+}
+
 function getSequentialTaskOrderKey<T extends SequentialTaskOrderFields>(task: T, hasOrder: boolean): number {
     const taskOrder = Number.isFinite(task.order)
         ? (task.order as number)

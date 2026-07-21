@@ -19,7 +19,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { TaskItem } from '../TaskItem';
 import { ErrorBoundary } from '../ErrorBoundary';
-import { shallow, useTaskStore, sortTasksBy, sortTasksByBoardOrder, safeParseDate, translateWithFallback, isTaskInActiveProject, createTaskFilterPredicate, hasActiveFilterCriteria, getUsedTaskTokens, SAVED_FILTER_NO_PROJECT_ID } from '@mindwtr/core';
+import { shallow, useTaskStore, sortTasksBy, sortTasksByBoardOrder, buildProjectOrderMap, compareTasksByProjectThenOrder, getSequentialFirstTaskIds, translateWithFallback, isTaskInActiveProject, createTaskFilterPredicate, hasActiveFilterCriteria, getUsedTaskTokens, SAVED_FILTER_NO_PROJECT_ID } from '@mindwtr/core';
 import { resolveBoardDragEnd } from './board-view-dnd';
 import type { Task, TaskStatus, FilterCriteria } from '@mindwtr/core';
 import type { TaskSortBy } from '@mindwtr/core';
@@ -243,19 +243,7 @@ export function BoardView() {
                 .sort((a, b) => a.title.localeCompare(b.title)),
         [projects, resolvedAreaFilter, areaById]
     );
-    const projectOrderMap = React.useMemo(() => {
-        const sorted = [...projects]
-            .filter((project) => !project.deletedAt)
-            .sort((a, b) => {
-                const aOrder = Number.isFinite(a.order) ? (a.order as number) : Number.POSITIVE_INFINITY;
-                const bOrder = Number.isFinite(b.order) ? (b.order as number) : Number.POSITIVE_INFINITY;
-                if (aOrder !== bOrder) return aOrder - bOrder;
-                return a.title.localeCompare(b.title);
-            });
-        const map = new Map<string, number>();
-        sorted.forEach((project, index) => map.set(project.id, index));
-        return map;
-    }, [projects]);
+    const projectOrderMap = React.useMemo(() => buildProjectOrderMap(projects), [projects]);
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -344,63 +332,15 @@ export function BoardView() {
         return perf.measure('sequentialProjectFirstTasks', () => {
             if (!computeSequential) return new Set<string>();
             if (sequentialProjectIds.size === 0) return new Set<string>();
-            const tasksByProject = new Map<string, Task[]>();
-            for (const task of filteredTasks) {
-                if (task.deletedAt || task.status !== 'next' || !task.projectId) continue;
-                if (!sequentialProjectIds.has(task.projectId)) continue;
-                const list = tasksByProject.get(task.projectId) ?? [];
-                list.push(task);
-                tasksByProject.set(task.projectId, list);
-            }
-
-            const firstTaskIds: string[] = [];
-            tasksByProject.forEach((tasksForProject) => {
-                const hasOrder = tasksForProject.some((task) =>
-                    Number.isFinite(task.order) || Number.isFinite(task.orderNum)
-                );
-                let firstTaskId: string | null = null;
-                let bestKey = Number.POSITIVE_INFINITY;
-                tasksForProject.forEach((task) => {
-                    const taskOrder = Number.isFinite(task.order)
-                        ? (task.order as number)
-                        : Number.isFinite(task.orderNum)
-                            ? (task.orderNum as number)
-                            : Number.POSITIVE_INFINITY;
-                    const key = hasOrder
-                        ? taskOrder
-                        : new Date(task.createdAt).getTime();
-                    if (!firstTaskId || key < bestKey) {
-                        firstTaskId = task.id;
-                        bestKey = key;
-                    }
-                });
-                if (firstTaskId) firstTaskIds.push(firstTaskId);
-            });
-            return new Set(firstTaskIds);
+            const nextTasks = filteredTasks.filter((task) => !task.deletedAt && task.status === 'next');
+            return getSequentialFirstTaskIds(nextTasks, sequentialProjectIds);
         });
     }, [computeSequential, filteredTasks, sequentialProjectIds]);
 
-    const sortByProjectOrder = React.useCallback((items: Task[]) => {
-        return [...items].sort((a, b) => {
-            const aProjectOrder = a.projectId ? (projectOrderMap.get(a.projectId) ?? Number.POSITIVE_INFINITY) : Number.POSITIVE_INFINITY;
-            const bProjectOrder = b.projectId ? (projectOrderMap.get(b.projectId) ?? Number.POSITIVE_INFINITY) : Number.POSITIVE_INFINITY;
-            if (aProjectOrder !== bProjectOrder) return aProjectOrder - bProjectOrder;
-            const aOrder = Number.isFinite(a.order)
-                ? (a.order as number)
-                : Number.isFinite(a.orderNum)
-                    ? (a.orderNum as number)
-                    : Number.POSITIVE_INFINITY;
-            const bOrder = Number.isFinite(b.order)
-                ? (b.order as number)
-                : Number.isFinite(b.orderNum)
-                    ? (b.orderNum as number)
-                    : Number.POSITIVE_INFINITY;
-            if (aOrder !== bOrder) return aOrder - bOrder;
-            const aCreated = safeParseDate(a.createdAt)?.getTime() ?? 0;
-            const bCreated = safeParseDate(b.createdAt)?.getTime() ?? 0;
-            return aCreated - bCreated;
-        });
-    }, [projectOrderMap]);
+    const sortByProjectOrder = React.useCallback(
+        (items: Task[]) => [...items].sort(compareTasksByProjectThenOrder(projectOrderMap)),
+        [projectOrderMap],
+    );
 
     const getColumnTasks = React.useCallback((status: TaskStatus) => {
         let list = filteredTasks.filter((task) => task.status === status);

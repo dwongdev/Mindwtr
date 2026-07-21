@@ -1,4 +1,4 @@
-import { DEFAULT_AREA_COLOR, tFallback } from '@mindwtr/core';
+import { compareProjectsByOrder, DEFAULT_AREA_COLOR, tFallback } from '@mindwtr/core';
 import type { Area, Project, Task, TaskEnergyLevel, TaskPriority, TaskStatus } from '@mindwtr/core';
 import { getContextColor } from '../../../lib/context-color';
 
@@ -273,12 +273,7 @@ export function groupTasksByProject({
     const sortedProjects = [...grouped.keys()]
         .map((projectId) => projectMap.get(projectId))
         .filter((project): project is Project => Boolean(project))
-        .sort((a, b) => {
-            const aOrder = Number.isFinite(a.order) ? (a.order as number) : Number.POSITIVE_INFINITY;
-            const bOrder = Number.isFinite(b.order) ? (b.order as number) : Number.POSITIVE_INFINITY;
-            if (aOrder !== bOrder) return aOrder - bOrder;
-            return a.title.localeCompare(b.title);
-        });
+        .sort(compareProjectsByOrder);
 
     sortedProjects.forEach((project) => {
         const projectTasks = grouped.get(project.id) ?? [];

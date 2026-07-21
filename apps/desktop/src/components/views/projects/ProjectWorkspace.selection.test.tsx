@@ -269,15 +269,16 @@ describe('ProjectWorkspace Select mode', () => {
     it('renders a newly created save-and-edit task outside the initial virtualized project rows', () => {
         const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
         const scrollIntoView = vi.fn();
-        const existingTasks = Array.from({ length: 130 }, (_, index) => (
-            task(`task-${index}`, `Task ${index}`, {
-                createdAt: `2026-05-12T00:${String(index).padStart(2, '0')}:00.000Z`,
-                updatedAt: `2026-05-12T00:${String(index).padStart(2, '0')}:00.000Z`,
-            })
-        ));
+        const existingTasks = Array.from({ length: 130 }, (_, index) => {
+            const timestamp = new Date(Date.UTC(2026, 4, 12, 0, 0, 0) + index * 60_000).toISOString();
+            return task(`task-${index}`, `Task ${index}`, {
+                createdAt: timestamp,
+                updatedAt: timestamp,
+            });
+        });
         const createdTask = task('task-created', 'New project task', {
-            createdAt: '2026-05-12T02:10:00.000Z',
-            updatedAt: '2026-05-12T02:10:00.000Z',
+            createdAt: '2026-05-12T03:00:00.000Z',
+            updatedAt: '2026-05-12T03:00:00.000Z',
         });
         const tasks = [...existingTasks, createdTask];
         act(() => {

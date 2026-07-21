@@ -6,6 +6,7 @@ import {
     buildBulkOrganizeTaskUpdates,
     buildBulkTaskTokenUpdates,
     collectBulkTaskTokens,
+    compareTasksByProjectOrder,
     getSequentialProjectTaskCues,
     type Area,
     type BulkOrganizeTaskUpdateInput,
@@ -554,25 +555,7 @@ export function ProjectWorkspace({
         if (projectTaskSortBy !== 'default') {
             return sortTasksBy(items, projectTaskSortBy);
         }
-        const sorted = [...items];
-        const hasOrder = sorted.some((task) => Number.isFinite(task.order) || Number.isFinite(task.orderNum));
-        sorted.sort((a, b) => {
-            if (hasOrder) {
-                const aOrder = Number.isFinite(a.order)
-                    ? (a.order as number)
-                    : Number.isFinite(a.orderNum)
-                        ? (a.orderNum as number)
-                        : Number.POSITIVE_INFINITY;
-                const bOrder = Number.isFinite(b.order)
-                    ? (b.order as number)
-                    : Number.isFinite(b.orderNum)
-                        ? (b.orderNum as number)
-                        : Number.POSITIVE_INFINITY;
-                if (aOrder !== bOrder) return aOrder - bOrder;
-            }
-            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        });
-        return sorted;
+        return [...items].sort(compareTasksByProjectOrder);
     }, [projectTaskSortBy]);
 
     const sortedProjectTasks = useMemo(() => {

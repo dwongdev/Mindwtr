@@ -3,6 +3,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { HelpCircle } from 'lucide-react';
 import {
     buildBulkOrganizeTaskUpdates,
+    buildProjectOrderMap,
+    compareTasksByProjectThenOrder,
     createTaskFilterPredicate,
     DEFAULT_AREA_COLOR,
     formatTimeEstimateLabel,
@@ -17,7 +19,6 @@ import {
     getDefaultTaskAreaMode,
     getPersonOptionNames,
     resolveDefaultNewTaskAreaId,
-    safeParseDate,
     selectionsFromCriteria,
     shallow,
     shouldShowTaskForStart,
@@ -319,41 +320,12 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
         allTags,
     });
 
-    const projectOrderMap = useMemo(() => {
-        const sorted = [...projects]
-            .filter((project) => !project.deletedAt)
-            .sort((a, b) => {
-                const aOrder = Number.isFinite(a.order) ? (a.order as number) : Number.POSITIVE_INFINITY;
-                const bOrder = Number.isFinite(b.order) ? (b.order as number) : Number.POSITIVE_INFINITY;
-                if (aOrder !== bOrder) return aOrder - bOrder;
-                return a.title.localeCompare(b.title);
-            });
-        const map = new Map<string, number>();
-        sorted.forEach((project, index) => map.set(project.id, index));
-        return map;
-    }, [projects]);
+    const projectOrderMap = useMemo(() => buildProjectOrderMap(projects), [projects]);
 
-    const sortByProjectOrder = useCallback((items: Task[]) => {
-        return [...items].sort((a, b) => {
-            const aProjectOrder = a.projectId ? (projectOrderMap.get(a.projectId) ?? Number.POSITIVE_INFINITY) : Number.POSITIVE_INFINITY;
-            const bProjectOrder = b.projectId ? (projectOrderMap.get(b.projectId) ?? Number.POSITIVE_INFINITY) : Number.POSITIVE_INFINITY;
-            if (aProjectOrder !== bProjectOrder) return aProjectOrder - bProjectOrder;
-            const aOrder = Number.isFinite(a.order)
-                ? (a.order as number)
-                : Number.isFinite(a.orderNum)
-                    ? (a.orderNum as number)
-                    : Number.POSITIVE_INFINITY;
-            const bOrder = Number.isFinite(b.order)
-                ? (b.order as number)
-                : Number.isFinite(b.orderNum)
-                    ? (b.orderNum as number)
-                    : Number.POSITIVE_INFINITY;
-            if (aOrder !== bOrder) return aOrder - bOrder;
-            const aCreated = safeParseDate(a.createdAt)?.getTime() ?? 0;
-            const bCreated = safeParseDate(b.createdAt)?.getTime() ?? 0;
-            return aCreated - bCreated;
-        });
-    }, [projectOrderMap]);
+    const sortByProjectOrder = useCallback(
+        (items: Task[]) => [...items].sort(compareTasksByProjectThenOrder(projectOrderMap)),
+        [projectOrderMap],
+    );
 
     // For sequential projects, get only the first task to show in Next view
 

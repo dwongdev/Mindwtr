@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Calendar, Check, CheckSquare, ChevronLeft, X, type LucideIcon } from 'lucide-react';
 import {
+    getSequentialFirstTaskIds,
     getUsedTaskTokens,
     formatFocusTaskLimitText,
     isDueForReview,
@@ -113,38 +114,13 @@ export function DailyReviewGuideModal({ onClose }: DailyReviewGuideModalProps) {
         () => new Set(projects.filter((project) => project.isSequential && !project.deletedAt).map((project) => project.id)),
         [projects],
     );
-    const sequentialFirstTaskIds = useMemo(() => {
-        const tasksByProject = new Map<string, Task[]>();
-        activeTasks.forEach((task) => {
-            if (task.status !== 'next' || !task.projectId) return;
-            if (!sequentialProjectIds.has(task.projectId)) return;
-            const list = tasksByProject.get(task.projectId) ?? [];
-            list.push(task);
-            tasksByProject.set(task.projectId, list);
-        });
-        const firstIds: string[] = [];
-        tasksByProject.forEach((tasksForProject: Task[]) => {
-            const hasOrder = tasksForProject.some((task) => Number.isFinite(task.order) || Number.isFinite(task.orderNum));
-            let firstTaskId: string | null = null;
-            let bestKey = Number.POSITIVE_INFINITY;
-            tasksForProject.forEach((task) => {
-                const taskOrder = Number.isFinite(task.order)
-                    ? (task.order as number)
-                    : Number.isFinite(task.orderNum)
-                        ? (task.orderNum as number)
-                        : Number.POSITIVE_INFINITY;
-                const key = hasOrder
-                    ? taskOrder
-                    : new Date(task.createdAt).getTime();
-                if (!firstTaskId || key < bestKey) {
-                    firstTaskId = task.id;
-                    bestKey = key;
-                }
-            });
-            if (firstTaskId) firstIds.push(firstTaskId);
-        });
-        return new Set(firstIds);
-    }, [activeTasks, sequentialProjectIds]);
+    const sequentialFirstTaskIds = useMemo(
+        () => getSequentialFirstTaskIds(
+            activeTasks.filter((task) => task.status === 'next'),
+            sequentialProjectIds,
+        ),
+        [activeTasks, sequentialProjectIds],
+    );
 
     const focusCandidates = useMemo(() => {
         const now = new Date();

@@ -372,8 +372,11 @@ export type {
 } from './sync-fast-sync';
 
 export {
+    buildProjectOrderMap,
     buildTaskUpdatesFromSpeechResult,
     buildTrashTimeline,
+    compareProjectsByOrder,
+    compareTasksByProjectThenOrder,
     FOCUS_NEXT_DUE_SOON_WINDOW_DAYS,
     FOCUS_ELIGIBILITY_ACTIVE_STATUSES,
     getCalendarPlanningCandidates,
