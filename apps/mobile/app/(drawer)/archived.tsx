@@ -11,6 +11,7 @@ import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { openContextsScreen, openProjectScreen } from '@/lib/task-meta-navigation';
 import { TaskEditModal } from '@/components/task-edit-modal';
 import { CompletedAtPicker } from '@/components/completed-at-picker';
+import { useTaskListSelection } from '@/components/use-task-list-selection';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Archive } from 'lucide-react-native';
 
@@ -237,8 +238,10 @@ export default function ArchivedScreen() {
         deleteTask,
         updateProject,
         deleteProject,
+        restoreTask,
         batchMoveTasks,
         batchDeleteTasks,
+        batchUpdateTasks,
         highlightTaskId,
         setHighlightTask,
     } = useTaskStore((state) => ({
@@ -248,16 +251,16 @@ export default function ArchivedScreen() {
         deleteTask: state.deleteTask,
         updateProject: state.updateProject,
         deleteProject: state.deleteProject,
+        restoreTask: state.restoreTask,
         batchMoveTasks: state.batchMoveTasks,
         batchDeleteTasks: state.batchDeleteTasks,
+        batchUpdateTasks: state.batchUpdateTasks,
         highlightTaskId: state.highlightTaskId,
         setHighlightTask: state.setHighlightTask,
     }), shallow);
     const { t } = useLanguage();
     const [segment, setSegment] = useState<ArchiveSegment>('tasks');
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-    const [selectionMode, setSelectionMode] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     const tc = useThemeColors();
     const { areaById, resolvedAreaFilter } = useMobileAreaFilter();
@@ -287,7 +290,33 @@ export default function ArchivedScreen() {
         () => selectedTaskId ? _allTasks.find((task) => task.id === selectedTaskId && !task.deletedAt) ?? null : null,
         [_allTasks, selectedTaskId],
     );
-    const selectedIdsArray = useMemo(() => Array.from(selectedIds), [selectedIds]);
+    const tasksById = useMemo(
+        () => archivedTasks.reduce((acc, task) => {
+            acc[task.id] = task;
+            return acc;
+        }, {} as Record<string, Task>),
+        [archivedTasks],
+    );
+    const restoreActionLabel = tFallback(t, 'trash.restoreToInbox', 'Restore');
+    const {
+        exitSelectionMode,
+        handleBatchDelete,
+        multiSelectedIds,
+        selectedIdsArray,
+        selectionMode,
+        setMultiSelectedIds,
+        setSelectionMode,
+        toggleMultiSelect,
+    } = useTaskListSelection({
+        batchDeleteTasks,
+        batchMoveTasks,
+        batchUpdateTasks,
+        restoreActionLabel,
+        restoreTask,
+        t,
+        tasksById,
+    });
+    const selectedIds = multiSelectedIds;
     const listExtraData = useMemo(
         () => ({ highlightTaskId, selectedIds, selectionMode }),
         [highlightTaskId, selectedIds, selectionMode],
@@ -317,11 +346,11 @@ export default function ArchivedScreen() {
 
     useEffect(() => {
         const visibleIds = new Set(archivedTasks.map((task) => task.id));
-        setSelectedIds((previous) => {
+        setMultiSelectedIds((previous) => {
             const next = new Set(Array.from(previous).filter((id) => visibleIds.has(id)));
             return next.size === previous.size ? previous : next;
         });
-    }, [archivedTasks]);
+    }, [archivedTasks, setMultiSelectedIds]);
 
     const handleOpenTask = useCallback((taskId: string) => {
         setSelectedTaskId(taskId);
@@ -336,24 +365,9 @@ export default function ArchivedScreen() {
         updateTask(taskId, { status: 'inbox' });
     }, [updateTask]);
 
-    const exitSelectionMode = useCallback(() => {
-        setSelectionMode(false);
-        setSelectedIds(new Set());
-    }, []);
-
-    const toggleTaskSelection = useCallback((taskId: string) => {
-        setSelectionMode(true);
-        setSelectedIds((previous) => {
-            const next = new Set(previous);
-            if (next.has(taskId)) next.delete(taskId);
-            else next.add(taskId);
-            return next;
-        });
-    }, []);
-
     const selectAllTasks = useCallback(() => {
-        setSelectedIds(new Set(archivedTasks.map((task) => task.id)));
-    }, [archivedTasks]);
+        setMultiSelectedIds(new Set(archivedTasks.map((task) => task.id)));
+    }, [archivedTasks, setMultiSelectedIds]);
 
     const handleBulkRestore = useCallback(async () => {
         if (selectedIdsArray.length === 0) return;
@@ -366,25 +380,6 @@ export default function ArchivedScreen() {
         await batchMoveTasks(selectedIdsArray, 'done');
         exitSelectionMode();
     }, [batchMoveTasks, exitSelectionMode, selectedIdsArray]);
-
-    const handleBulkDelete = useCallback(() => {
-        if (selectedIdsArray.length === 0) return;
-        Alert.alert(
-            t('bulk.confirmDeleteTitle') || t('common.delete'),
-            t('bulk.confirmDeleteBody') || 'Delete selected tasks?',
-            [
-                { text: t('common.cancel') || 'Cancel', style: 'cancel' },
-                {
-                    text: t('common.delete') || 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        await batchDeleteTasks(selectedIdsArray);
-                        exitSelectionMode();
-                    },
-                },
-            ],
-        );
-    }, [batchDeleteTasks, exitSelectionMode, selectedIdsArray, t]);
 
     const [completedAtTaskId, setCompletedAtTaskId] = useState<string | null>(null);
     const completedAtTask = useMemo(
@@ -467,7 +462,7 @@ export default function ArchivedScreen() {
             onRestore={() => handleRestore(item.id)}
             onDelete={() => handleDelete(item.id)}
             onEditCompletedAt={() => setCompletedAtTaskId(item.id)}
-            onToggleSelect={() => toggleTaskSelection(item.id)}
+            onToggleSelect={() => toggleMultiSelect(item.id)}
             completedLabel={t('list.done') || 'Completed'}
             editCompletedAtLabel={tFallback(t, 'task.editCompletedAt', 'Edit completion time')}
             selectLabel={tFallback(t, 'bulk.select', 'Select')}
@@ -477,7 +472,7 @@ export default function ArchivedScreen() {
             isSelected={selectedIds.has(item.id)}
             isHighlighted={item.id === highlightTaskId}
         />
-    ), [tc, handleDelete, handleOpenTask, handleRestore, highlightTaskId, selectedIds, selectionMode, t, toggleTaskSelection]);
+    ), [tc, handleDelete, handleOpenTask, handleRestore, highlightTaskId, selectedIds, selectionMode, t, toggleMultiSelect]);
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
@@ -572,7 +567,7 @@ export default function ArchivedScreen() {
                                 </Text>
                             </Pressable>
                             <Pressable
-                                onPress={handleBulkDelete}
+                                onPress={handleBatchDelete}
                                 disabled={selectedIds.size === 0}
                                 accessibilityRole="button"
                                 accessibilityLabel={tFallback(t, 'common.delete', 'Delete')}

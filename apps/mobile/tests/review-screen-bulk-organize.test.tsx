@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => {
   const batchDeleteTasks = vi.fn(async () => undefined);
   const updateTask = vi.fn(async () => undefined);
   const deleteTask = vi.fn(async () => undefined);
+  const restoreTask = vi.fn(async () => undefined);
   const modalPropsSpy = vi.fn();
 
   return {
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => {
     batchUpdateTasks,
     deleteTask,
     modalPropsSpy,
+    restoreTask,
     updateTask,
     storeState: {
       tasks: [] as Task[],
@@ -31,6 +33,7 @@ const mocks = vi.hoisted(() => {
       batchMoveTasks,
       batchUpdateTasks,
       deleteTask,
+      restoreTask,
       updateTask,
     },
   };
@@ -57,6 +60,10 @@ vi.mock('@react-navigation/native', () => ({
 
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: 0, left: 0, right: 0, top: 0 }),
+}));
+
+vi.mock('../contexts/toast-context', () => ({
+  useToast: () => ({ showToast: vi.fn(), dismissToast: vi.fn() }),
 }));
 
 vi.mock('../contexts/theme-context', () => ({

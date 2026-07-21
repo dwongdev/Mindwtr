@@ -4,11 +4,10 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   DEFAULT_AREA_COLOR,
-  buildBulkOrganizeTaskUpdates,
   useTaskStore,
   sortTasksBy,
   shallow,
-  type BulkOrganizeTaskUpdateInput,
+  tFallback,
   type Task,
   type TaskStatus,
   type TaskSortBy,
@@ -28,14 +27,16 @@ import { TaskEditModal } from '@/components/task-edit-modal';
 import { SwipeableTaskItem } from '@/components/swipeable-task-item';
 import { buildReviewTaskGroups, getReviewOverviewTasks } from '@/components/review/review-task-groups';
 import { TaskListBulkOrganizeModal } from '@/components/task-list/TaskListBulkOrganizeModal';
+import { useTaskListSelection } from '@/components/use-task-list-selection';
 
 export default function ReviewScreen() {
   const router = useRouter();
-  const { tasks, projects, updateTask, deleteTask, batchMoveTasks, batchDeleteTasks, batchUpdateTasks, settings } = useTaskStore((state) => ({
+  const { tasks, projects, updateTask, deleteTask, restoreTask, batchMoveTasks, batchDeleteTasks, batchUpdateTasks, settings } = useTaskStore((state) => ({
     tasks: state.tasks,
     projects: state.projects,
     updateTask: state.updateTask,
     deleteTask: state.deleteTask,
+    restoreTask: state.restoreTask,
     batchMoveTasks: state.batchMoveTasks,
     batchDeleteTasks: state.batchDeleteTasks,
     batchUpdateTasks: state.batchUpdateTasks,
@@ -47,13 +48,8 @@ export default function ReviewScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewPickerVisible, setReviewPickerVisible] = useState(false);
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
-  const [tagModalVisible, setTagModalVisible] = useState(false);
-  const [tagInput, setTagInput] = useState('');
   const [moveModalVisible, setMoveModalVisible] = useState(false);
   const [bulkOrganizeVisible, setBulkOrganizeVisible] = useState(false);
-  const [bulkOrganizeApplying, setBulkOrganizeApplying] = useState(false);
   const [expandedAreaIds, setExpandedAreaIds] = useState<Set<string>>(new Set());
   const [expandedReviewProjectIds, setExpandedReviewProjectIds] = useState<Set<string>>(new Set());
 
@@ -74,19 +70,38 @@ export default function ReviewScreen() {
     }, {} as Record<string, Task>);
   }, [tasks]);
 
-  const selectedIdsArray = useMemo(() => Array.from(multiSelectedIds), [multiSelectedIds]);
-  const hasSelection = selectedIdsArray.length > 0;
-
-  const exitSelectionMode = useCallback(() => {
-    setSelectionMode(false);
-    setMultiSelectedIds(new Set());
-  }, []);
+  const restoreActionLabel = tFallback(t, 'trash.restoreToInbox', 'Restore');
+  const {
+    bulkActionLoading,
+    exitSelectionMode,
+    handleBatchAddTag,
+    handleBatchDelete,
+    handleBatchMove,
+    handleBatchOrganize,
+    hasSelection,
+    multiSelectedIds,
+    selectedIdsArray,
+    selectionMode,
+    setTagInput,
+    setTagModalVisible,
+    tagInput,
+    tagModalVisible,
+    toggleMultiSelect,
+  } = useTaskListSelection({
+    batchDeleteTasks,
+    batchMoveTasks,
+    batchUpdateTasks,
+    restoreActionLabel,
+    restoreTask,
+    t,
+    tasksById,
+  });
 
   useEffect(() => {
     if (selectionMode && multiSelectedIds.size === 0) {
-      setSelectionMode(false);
+      exitSelectionMode();
     }
-  }, [selectionMode, multiSelectedIds]);
+  }, [exitSelectionMode, multiSelectedIds, selectionMode]);
 
   useFocusEffect(
     useCallback(() => {
@@ -126,28 +141,6 @@ export default function ReviewScreen() {
     reviewPickerVisible,
   ]);
 
-  const toggleMultiSelect = useCallback((taskId: string) => {
-    if (!selectionMode) setSelectionMode(true);
-    setMultiSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(taskId)) next.delete(taskId);
-      else next.add(taskId);
-      return next;
-    });
-  }, [selectionMode]);
-
-  const handleBatchMove = useCallback(async (newStatus: TaskStatus) => {
-    if (!hasSelection) return;
-    await batchMoveTasks(selectedIdsArray, newStatus);
-    exitSelectionMode();
-  }, [batchMoveTasks, selectedIdsArray, hasSelection, exitSelectionMode]);
-
-  const handleBatchDelete = useCallback(async () => {
-    if (!hasSelection) return;
-    await batchDeleteTasks(selectedIdsArray);
-    exitSelectionMode();
-  }, [batchDeleteTasks, selectedIdsArray, hasSelection, exitSelectionMode]);
-
   const handleBatchShare = useCallback(async () => {
     if (!hasSelection) return;
     const selectedTasks = selectedIdsArray.map((id) => tasksById[id]).filter(Boolean);
@@ -173,36 +166,6 @@ export default function ReviewScreen() {
       void logError(error, { scope: 'review', extra: { message: 'Share failed' } });
     }
   }, [hasSelection, selectedIdsArray, tasksById, exitSelectionMode]);
-
-  const handleBatchAddTag = useCallback(async () => {
-    const input = tagInput.trim();
-    if (!hasSelection || !input) return;
-    const tag = input.startsWith('#') ? input : `#${input}`;
-    await batchUpdateTasks(selectedIdsArray.map((id) => {
-      const task = tasksById[id];
-      const existingTags = task?.tags || [];
-      const nextTags = Array.from(new Set([...existingTags, tag]));
-      return { id, updates: { tags: nextTags } };
-    }));
-    setTagInput('');
-    setTagModalVisible(false);
-    exitSelectionMode();
-  }, [batchUpdateTasks, selectedIdsArray, tasksById, tagInput, hasSelection, exitSelectionMode]);
-
-  const handleBatchOrganize = useCallback(async (input: BulkOrganizeTaskUpdateInput) => {
-    if (!hasSelection || bulkOrganizeApplying) return;
-    const updates = buildBulkOrganizeTaskUpdates(selectedIdsArray, tasksById, input);
-    if (updates.length === 0) return;
-
-    setBulkOrganizeApplying(true);
-    try {
-      await batchUpdateTasks(updates);
-      setBulkOrganizeVisible(false);
-      exitSelectionMode();
-    } finally {
-      setBulkOrganizeApplying(false);
-    }
-  }, [batchUpdateTasks, bulkOrganizeApplying, exitSelectionMode, hasSelection, selectedIdsArray, tasksById]);
 
   const bulkStatuses: TaskStatus[] = ['inbox', 'next', 'waiting', 'someday', 'done', 'reference'];
 
@@ -362,12 +325,12 @@ export default function ReviewScreen() {
           <View style={styles.bulkActions}>
             <TouchableOpacity
               onPress={() => setBulkOrganizeVisible(true)}
-              disabled={!hasSelection || bulkOrganizeApplying}
+              disabled={!hasSelection || bulkActionLoading}
               style={[
                 styles.bulkActionButton,
                 {
                   backgroundColor: tc.tint,
-                  opacity: hasSelection && !bulkOrganizeApplying ? 1 : 0.5,
+                  opacity: hasSelection && !bulkActionLoading ? 1 : 0.5,
                 },
               ]}
             >
@@ -672,10 +635,13 @@ export default function ReviewScreen() {
 
       <TaskListBulkOrganizeModal
         areas={sortedAreas}
-        isApplying={bulkOrganizeApplying}
-        onApply={handleBatchOrganize}
+        isApplying={bulkActionLoading}
+        onApply={async (input) => {
+          await handleBatchOrganize(input);
+          setBulkOrganizeVisible(false);
+        }}
         onClose={() => {
-          if (!bulkOrganizeApplying) setBulkOrganizeVisible(false);
+          if (!bulkActionLoading) setBulkOrganizeVisible(false);
         }}
         projects={projects}
         selectedCount={selectedIdsArray.length}

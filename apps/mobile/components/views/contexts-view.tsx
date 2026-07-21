@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import {
@@ -19,6 +18,7 @@ import {
   buildBulkTaskTokenUpdates,
   collectBulkTaskTokens,
   isTaskInActiveProject,
+  tFallback,
   type Task,
   type TaskSortBy,
   type TaskStatus,
@@ -43,6 +43,7 @@ import {
   taskHasContextOrTag,
   taskMatchesContextOrTagFilter,
 } from './contexts-view-filter-utils';
+import { useTaskListSelection } from '../use-task-list-selection';
 
 type BulkTokenPickerState = {
   field: 'tags' | 'contexts';
@@ -55,6 +56,7 @@ export function ContextsView() {
     projects,
     updateTask,
     deleteTask,
+    restoreTask,
     batchMoveTasks,
     batchDeleteTasks,
     batchUpdateTasks,
@@ -64,6 +66,7 @@ export function ContextsView() {
     projects: state.projects,
     updateTask: state.updateTask,
     deleteTask: state.deleteTask,
+    restoreTask: state.restoreTask,
     batchMoveTasks: state.batchMoveTasks,
     batchDeleteTasks: state.batchDeleteTasks,
     batchUpdateTasks: state.batchUpdateTasks,
@@ -75,10 +78,6 @@ export function ContextsView() {
   const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkActionLoading, setBulkActionLoading] = useState(false);
-  const [bulkActionLabel, setBulkActionLabel] = useState('');
   const [bulkTokenPicker, setBulkTokenPicker] = useState<BulkTokenPickerState>(null);
 
   const tc = useThemeColors();
@@ -133,7 +132,13 @@ export function ContextsView() {
     ])),
     [contextSourceTasks]
   );
-  const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
+  const tasksById = useMemo(
+    () => tasks.reduce((acc, task) => {
+      acc[task.id] = task;
+      return acc;
+    }, {} as Record<string, Task>),
+    [tasks],
+  );
 
   const activeTasks = contextSourceTasks;
   const hasContext = taskHasContextOrTag;
@@ -147,8 +152,29 @@ export function ContextsView() {
 
   const sortBy = (settings?.taskSortBy ?? 'default') as TaskSortBy;
   const sortedTasks = sortTasksBy(filteredTasks, sortBy);
-  const selectedIdsArray = useMemo(() => Array.from(multiSelectedIds), [multiSelectedIds]);
-  const hasSelection = selectedIdsArray.length > 0;
+  const restoreActionLabel = tFallback(t, 'trash.restoreToInbox', 'Restore');
+  const {
+    bulkActionLabel,
+    bulkActionLoading,
+    exitSelectionMode,
+    handleBatchDelete,
+    handleBatchMove,
+    hasSelection,
+    multiSelectedIds,
+    runBulkAction,
+    selectedIdsArray,
+    selectionMode,
+    setMultiSelectedIds,
+    toggleMultiSelect,
+  } = useTaskListSelection({
+    batchDeleteTasks,
+    batchMoveTasks,
+    batchUpdateTasks,
+    restoreActionLabel,
+    restoreTask,
+    t,
+    tasksById,
+  });
   const removableTagOptions = useMemo(
     () => collectBulkTaskTokens(selectedIdsArray, tasksById, 'tags'),
     [selectedIdsArray, tasksById]
@@ -170,23 +196,6 @@ export function ContextsView() {
     updateTask(taskId, updates);
   };
 
-  const exitSelectionMode = () => {
-    setSelectionMode(false);
-    setMultiSelectedIds(new Set());
-  };
-
-  const toggleMultiSelect = (taskId: string) => {
-    if (!selectionMode) {
-      setSelectionMode(true);
-    }
-    setMultiSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(taskId)) next.delete(taskId);
-      else next.add(taskId);
-      return next;
-    });
-  };
-
   useEffect(() => {
     setMultiSelectedIds((prev) => {
       const visibleIds = new Set(sortedTasks.map((task) => task.id));
@@ -194,64 +203,13 @@ export function ContextsView() {
       if (next.size === prev.size) return prev;
       return next;
     });
-  }, [sortedTasks]);
+  }, [setMultiSelectedIds, sortedTasks]);
 
   useEffect(() => {
     if (selectionMode && multiSelectedIds.size === 0) {
-      setSelectionMode(false);
-    }
-  }, [multiSelectedIds.size, selectionMode]);
-
-  const runBulkAction = async (label: string, action: () => Promise<void>) => {
-    if (bulkActionLoading) return;
-    setBulkActionLabel(label);
-    setBulkActionLoading(true);
-    try {
-      await action();
-    } finally {
-      setBulkActionLoading(false);
-      setBulkActionLabel('');
-    }
-  };
-
-  const handleBatchMove = async (newStatus: TaskStatus) => {
-    if (!hasSelection || bulkActionLoading) return;
-    await runBulkAction(t('bulk.moveTo'), async () => {
-      await batchMoveTasks(selectedIdsArray, newStatus);
       exitSelectionMode();
-      showToast({
-        title: t('common.done'),
-        message: `${selectedIdsArray.length} ${t('common.tasks')}`,
-        tone: 'success',
-      });
-    });
-  };
-
-  const handleBatchDelete = () => {
-    if (!hasSelection || bulkActionLoading) return;
-    Alert.alert(
-      t('bulk.confirmDeleteTitle') || t('common.delete'),
-      t('bulk.confirmDeleteBody') || t('list.confirmBatchDelete'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: () => {
-            void runBulkAction(t('common.delete'), async () => {
-              await batchDeleteTasks(selectedIdsArray);
-              exitSelectionMode();
-              showToast({
-                title: t('common.done'),
-                message: `${selectedIdsArray.length} ${t('common.tasks')}`,
-                tone: 'success',
-              });
-            });
-          },
-        },
-      ]
-    );
-  };
+    }
+  }, [exitSelectionMode, multiSelectedIds.size, selectionMode]);
 
   const removeTagLabelRaw = t('bulk.removeTag');
   const removeTagLabel = removeTagLabelRaw === 'bulk.removeTag' ? 'Remove tag' : removeTagLabelRaw;

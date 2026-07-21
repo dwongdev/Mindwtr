@@ -8,8 +8,10 @@ const mocks = vi.hoisted(() => {
   const alert = vi.fn();
   const batchDeleteTasks = vi.fn();
   const batchMoveTasks = vi.fn();
+  const batchUpdateTasks = vi.fn(async () => undefined);
   const deleteTask = vi.fn();
   const updateTask = vi.fn();
+  const restoreTask = vi.fn(async () => undefined);
   const purgeTask = vi.fn();
   const updateProject = vi.fn();
   const deleteProject = vi.fn();
@@ -18,8 +20,10 @@ const mocks = vi.hoisted(() => {
     alert,
     batchDeleteTasks,
     batchMoveTasks,
+    batchUpdateTasks,
     deleteTask,
     updateTask,
+    restoreTask,
     purgeTask,
     updateProject,
     deleteProject,
@@ -29,8 +33,10 @@ const mocks = vi.hoisted(() => {
       projects: [] as any[],
       batchDeleteTasks,
       batchMoveTasks,
+      batchUpdateTasks,
       deleteTask,
       updateTask,
+      restoreTask,
       purgeTask,
       updateProject,
       deleteProject,
@@ -69,14 +75,21 @@ vi.mock('react-native', async () => {
   };
 });
 
-vi.mock('@mindwtr/core', () => ({
-  shallow: Object.is,
-  useTaskStore: () => mocks.storeState,
-  getInlineMarkdownPreview: vi.fn((markdown: string) => (markdown || '').split('\n')[0] ?? ''),
-  safeFormatDate: vi.fn(() => 'May 12, 2026, 8:30 AM'),
-  taskMatchesAreaFilter: vi.fn(() => true),
-  projectMatchesAreaFilter: vi.fn(() => true),
-  tFallback: (t: (key: string) => string, key: string, fallback: string) => t(key) || fallback,
+vi.mock('@mindwtr/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@mindwtr/core')>();
+  return {
+    ...actual,
+    shallow: Object.is,
+    useTaskStore: () => mocks.storeState,
+    getInlineMarkdownPreview: vi.fn((markdown: string) => (markdown || '').split('\n')[0] ?? ''),
+    safeFormatDate: vi.fn(() => 'May 12, 2026, 8:30 AM'),
+    taskMatchesAreaFilter: vi.fn(() => true),
+    projectMatchesAreaFilter: vi.fn(() => true),
+  };
+});
+
+vi.mock('@/contexts/toast-context', () => ({
+  useToast: () => ({ showToast: vi.fn(), dismissToast: vi.fn() }),
 }));
 
 vi.mock('@react-native-community/datetimepicker', () => ({
