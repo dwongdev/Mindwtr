@@ -159,15 +159,14 @@ describe('buildFocusTaskGroups', () => {
     });
 
     describe('person axis', () => {
-        it('sorts named people alphabetically; unassigned sorts with the others by label', () => {
+        it('sorts named people alphabetically and keeps unassigned last', () => {
             const tasks = [
                 makeTask({ id: 'a', assignedTo: 'Zed' }),
                 makeTask({ id: 'b' }),
                 makeTask({ id: 'c', assignedTo: 'Ann' }),
             ];
             const groups = build('person', { tasks });
-            // All named people carry no sortOrder, so ordering is purely by label.
-            expect(keys(groups)).toEqual(['person:ann', 'person:none', 'person:zed']);
+            expect(keys(groups)).toEqual(['person:ann', 'person:zed', 'person:none']);
             const unassigned = groups.find((group) => group.key === 'person:none');
             expect(unassigned?.muted).toBe(true);
         });

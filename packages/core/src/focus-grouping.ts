@@ -223,8 +223,10 @@ export function buildFocusTaskGroups({
             return buildOrderedGroups(tasks, (task) => {
                 const name = task.assignedTo?.trim();
                 return name
-                    ? { key: `person:${name.toLowerCase()}`, label: name }
+                    ? { key: `person:${name.toLowerCase()}`, label: name, sortOrder: 0 }
                     : {
+                        // Unassigned sorts after every named person (decided
+                        // 2026-07-21, matching desktop).
                         key: 'person:none',
                         label: resolveText('people.unassigned', 'Unassigned'),
                         muted: true,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Area, Project, Task } from '@mindwtr/core';
-import { groupTasksByArea, groupTasksByContext, groupTasksByProject, groupTasksByTag } from './next-grouping';
+import { groupTasksByArea, groupTasksByContext, groupTasksByPerson, groupTasksByProject, groupTasksByTag } from './next-grouping';
 
 const baseTask = (overrides: Partial<Task>): Task => ({
     id: 'task-base',
@@ -63,6 +63,21 @@ describe('groupTasksByArea', () => {
         expect(groups[0]?.muted).toBe(true);
         expect(groups[1]?.tasks.map((task) => task.id)).toEqual(['t3']);
         expect(groups[2]?.tasks.map((task) => task.id)).toEqual(['t2']);
+    });
+});
+
+describe('groupTasksByPerson', () => {
+    it('sorts named people alphabetically and keeps the Unassigned group last', () => {
+        const tasks = [
+            baseTask({ id: 't1', title: 'For Zoe', assignedTo: 'Zoe' }),
+            baseTask({ id: 't2', title: 'Nobody yet' }),
+            baseTask({ id: 't3', title: 'For Ana', assignedTo: 'Ana' }),
+        ];
+
+        const groups = groupTasksByPerson({ tasks, unassignedLabel: 'Unassigned' });
+
+        expect(groups.map((group) => group.title)).toEqual(['Ana', 'Zoe', 'Unassigned']);
+        expect(groups[2]).toMatchObject({ id: 'person:none', muted: true });
     });
 });
 
