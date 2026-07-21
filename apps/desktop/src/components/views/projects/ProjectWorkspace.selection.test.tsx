@@ -69,6 +69,13 @@ vi.mock('./ProjectNotesSection', () => ({
     ProjectNotesSection: () => null,
 }));
 
+// The workspace now reads store data/actions through useProjectWorkspaceStore.
+// Tests seed that hook instead of passing store slices as props.
+const storeHolder = vi.hoisted(() => ({ current: null as unknown }));
+vi.mock('./useProjectWorkspaceStore', () => ({
+    useProjectWorkspaceStore: () => storeHolder.current,
+}));
+
 const translations: Record<string, string> = {
     'bulk.addContext': 'Add context',
     'bulk.addTag': 'Add tag',
@@ -149,67 +156,111 @@ const task = (id: string, title: string, overrides: Partial<Task> = {}): Task =>
 type ProjectWorkspaceProps = ComponentProps<typeof ProjectWorkspace>;
 
 const defaultProps: ProjectWorkspaceProps = {
-    addSection: vi.fn(),
-    allTasks: [],
-    allTokens: [],
-    areaById: new Map(),
-    areas: [],
-    batchDeleteTasks: vi.fn(),
-    batchMoveTasks: vi.fn(),
-    batchUpdateTasks: vi.fn(),
-    deleteProject: vi.fn(),
-    deleteSection: vi.fn(),
     highlightTaskId: null,
     isAreaCreating: false,
     isCreatingProject: false,
     language: 'en',
-    noAreaId: '__none__',
     onDuplicateProject: vi.fn(),
     onManageAreas: vi.fn(),
     onRequestQuickArea: vi.fn(),
     onToggleShowCompletedTasks: vi.fn(),
-    projects: [project],
-    reorderProjectTasks: vi.fn(),
-    reorderSections: vi.fn(),
     requestConfirmation: vi.fn(),
-    restoreProject: vi.fn(),
-    taskDragEndRef: { current: null },
-    sections: [],
-    selectedProject: project,
     selectedProjectId: project.id,
-    setHighlightTask: vi.fn(),
-    setSelectedProjectId: vi.fn(),
     showCompletedTasks: false,
-    showToast: vi.fn(),
-    sortedAreas: [],
     t,
-    undoNotificationsEnabled: true,
-    updateProject: vi.fn(),
-    updateSection: vi.fn(),
-    updateTask: vi.fn(),
+    taskDragEndRef: { current: null },
 };
 
-const renderWorkspace = (overrides: Partial<ProjectWorkspaceProps> = {}) => render(
-    <ProjectWorkspace
-        {...defaultProps}
-        {...overrides}
-    />
-);
+// Store keys the workspace now reads through useProjectWorkspaceStore; render
+// helpers route these overrides to the seeded store instead of to props.
+const STORE_OVERRIDE_KEYS = new Set([
+    'projects', 'sections', 'areas', 'allTasks', 'undoNotificationsEnabled',
+    'addSection', 'updateSection', 'deleteSection', 'reorderSections', 'reorderProjectTasks',
+    'updateProject', 'deleteProject', 'restoreProject', 'updateTask',
+    'batchMoveTasks', 'batchDeleteTasks', 'batchUpdateTasks', 'setHighlightTask',
+    'allTokens', 'selectedProjectTasks', 'sortedAreas', 'areaById', 'noAreaId',
+]);
 
-const renderWorkspaceWithKeybindings = (overrides: Partial<ProjectWorkspaceProps> = {}) => render(
-    <LanguageProvider>
-        <KeybindingProvider currentView="projects" onNavigate={vi.fn()}>
-            <ProjectWorkspace
-                {...defaultProps}
-                {...overrides}
-            />
-        </KeybindingProvider>
-    </LanguageProvider>
-);
+const makeStore = (overrides: Record<string, unknown> = {}) => {
+    const allTasks = (overrides.allTasks as Task[] | undefined) ?? [];
+    return {
+        projects: [project],
+        sections: [],
+        areas: [],
+        allTasks,
+        undoNotificationsEnabled: true,
+        addSection: vi.fn(),
+        updateSection: vi.fn(),
+        deleteSection: vi.fn(),
+        reorderSections: vi.fn(),
+        reorderProjectTasks: vi.fn(),
+        updateProject: vi.fn(),
+        deleteProject: vi.fn(),
+        restoreProject: vi.fn(),
+        updateTask: vi.fn(),
+        batchMoveTasks: vi.fn(),
+        batchDeleteTasks: vi.fn(),
+        batchUpdateTasks: vi.fn(),
+        setHighlightTask: vi.fn(),
+        allTokens: [] as string[],
+        // Mirrors getDerivedState().tasksByProjectId in prod: the project's tasks.
+        selectedProjectTasks: allTasks,
+        sortedAreas: [],
+        areaById: new Map(),
+        noAreaId: '__none__',
+        ...overrides,
+    };
+};
+
+const seedStore = (overrides: Record<string, unknown> = {}) => {
+    storeHolder.current = makeStore(overrides);
+};
+
+const splitOverrides = (overrides: Record<string, unknown>) => {
+    const store: Record<string, unknown> = {};
+    const props: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(overrides)) {
+        if (key === 'selectedProject') {
+            // The workspace derives selectedProject from projects + selectedProjectId.
+            store.projects = [value];
+            continue;
+        }
+        if (STORE_OVERRIDE_KEYS.has(key)) store[key] = value;
+        else props[key] = value;
+    }
+    return { store, props };
+};
+
+const renderWorkspace = (overrides: Record<string, unknown> = {}) => {
+    const { store, props } = splitOverrides(overrides);
+    seedStore(store);
+    return render(
+        <ProjectWorkspace
+            {...defaultProps}
+            {...(props as Partial<ProjectWorkspaceProps>)}
+        />
+    );
+};
+
+const renderWorkspaceWithKeybindings = (overrides: Record<string, unknown> = {}) => {
+    const { store, props } = splitOverrides(overrides);
+    seedStore(store);
+    return render(
+        <LanguageProvider>
+            <KeybindingProvider currentView="projects" onNavigate={vi.fn()}>
+                <ProjectWorkspace
+                    {...defaultProps}
+                    {...(props as Partial<ProjectWorkspaceProps>)}
+                />
+            </KeybindingProvider>
+        </LanguageProvider>
+    );
+};
 
 describe('ProjectWorkspace Select mode', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        seedStore();
         useUiStore.setState({ editingTaskId: null });
     });
 

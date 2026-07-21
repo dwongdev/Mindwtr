@@ -133,8 +133,6 @@ function loadCollapsedAreas(): Record<string, boolean> {
     }
 }
 
-const EMPTY_PROJECT_TASKS: readonly Task[] = [];
-
 function saveCollapsedAreas(state: Record<string, boolean>) {
     if (typeof window === 'undefined') return;
     try {
@@ -149,40 +147,22 @@ export function ProjectsView() {
     const {
         projects,
         tasks,
-        sections,
         areas,
         addArea,
         updateArea,
         deleteArea,
         reorderAreas,
         reorderProjects,
-        reorderSections,
-        reorderProjectTasks,
         addProject,
         updateProject,
-        deleteProject,
-        restoreProject,
         duplicateProject,
         updateTask,
-        batchMoveTasks,
-        batchDeleteTasks,
-        batchUpdateTasks,
-        addSection,
-        updateSection,
-        deleteSection,
         toggleProjectFocus,
         allTasks,
         highlightTaskId,
-        setHighlightTask,
         settings,
-        getDerivedState,
         focusedProjectCount,
     } = useProjectsViewStore();
-    const { allContexts, allTags, tasksByProjectId } = getDerivedState();
-    const allTokens = useMemo(
-        () => Array.from(new Set([...allContexts, ...allTags])).sort(),
-        [allContexts, allTags],
-    );
     const { t, language } = useLanguage();
     const selectedProjectId = useUiStore((state) => state.projectView.selectedProjectId);
     const setProjectView = useUiStore((state) => state.setProjectView);
@@ -752,10 +732,6 @@ export function ProjectsView() {
     };
 
     const selectedProject = projects.find(p => p.id === selectedProjectId);
-    const selectedProjectTasks = useMemo(
-        () => (selectedProjectId ? tasksByProjectId.get(selectedProjectId) ?? EMPTY_PROJECT_TASKS : EMPTY_PROJECT_TASKS),
-        [selectedProjectId, tasksByProjectId]
-    );
 
     useEffect(() => {
         if (selectedProject?.status === 'archived') {
@@ -878,49 +854,23 @@ export function ProjectsView() {
                     )}
 
                     <ProjectWorkspace
-                        addSection={addSection}
-                        allTasks={allTasks}
-                        allTokens={allTokens}
-                        areaById={areaById}
-                        areas={areas}
-                        deleteProject={deleteProject}
-                        deleteSection={deleteSection}
                         highlightTaskId={highlightTaskId}
                         isAreaCreating={isAreaCreating}
                         isCreatingProject={isCreatingProject}
                         language={language}
-                        noAreaId={NO_AREA}
                         onDuplicateProject={handleDuplicateProject}
                         onManageAreas={() => setShowAreaManager(true)}
                         onRequestQuickArea={(projectId) => {
                             setPendingAreaAssignProjectId(projectId);
                             setShowQuickAreaPrompt(true);
                         }}
-                        projects={projects}
-                        reorderSections={reorderSections}
-                        reorderProjectTasks={reorderProjectTasks}
                         requestConfirmation={requestConfirmation}
-                        restoreProject={restoreProject}
-                        sections={sections}
-                        selectedProject={selectedProject}
                         selectedProjectId={selectedProjectId}
-                        selectedProjectTasks={selectedProjectTasks}
-                        setHighlightTask={setHighlightTask}
-                        setSelectedProjectId={setSelectedProjectId}
                         showCompletedTasks={showCompletedProjectTasks}
-                        showToast={showToast}
-                        sortedAreas={sortedAreas}
                         t={t}
                         projectsSidebarCollapsed={projectsSidebarEffectivelyCollapsed}
                         onToggleProjectsSidebar={toggleProjectsSidebarCollapsed}
                         onToggleShowCompletedTasks={() => setShowCompletedProjectTasks((prev) => !prev)}
-                        undoNotificationsEnabled={settings?.undoNotificationsEnabled !== false}
-                        batchMoveTasks={batchMoveTasks}
-                        batchDeleteTasks={batchDeleteTasks}
-                        batchUpdateTasks={batchUpdateTasks}
-                        updateProject={updateProject}
-                        updateSection={updateSection}
-                        updateTask={updateTask}
                         taskDragEndRef={taskDragEndRef}
                     />
                 </div>

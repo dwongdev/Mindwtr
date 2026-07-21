@@ -8,13 +8,11 @@ import {
     collectBulkTaskTokens,
     compareTasksByProjectOrder,
     getSequentialProjectTaskCues,
-    type Area,
     type BulkOrganizeTaskUpdateInput,
     type Project,
     type ProjectSequenceTaskCue,
     type RangeSelectionOptions,
     type Section,
-    type StoreActionResult,
     type TaskSortBy,
     type TaskStatus,
     generateUUID,
@@ -42,6 +40,7 @@ import { cn } from '../../../lib/utils';
 import { reportError } from '../../../lib/report-error';
 import { useProjectAttachmentActions } from './useProjectAttachmentActions';
 import { useProjectSectionActions } from './useProjectSectionActions';
+import { useProjectWorkspaceStore } from './useProjectWorkspaceStore';
 import { ProjectDetailsHeader } from './ProjectDetailsHeader';
 import { ProjectDetailsFields } from './ProjectDetailsFields';
 import { ProjectNotesSection } from './ProjectNotesSection';
@@ -259,80 +258,47 @@ function ProjectTaskRows({ tasks, renderTask, scrollRef, pinnedTaskId }: Project
     );
 }
 
-type ShowToast = (
-    message: string,
-    tone?: 'success' | 'error' | 'info',
-    durationMs?: number,
-    action?: { label: string; onClick: () => void }
-) => void;
-
 type BulkTokenPickerState = {
     field: 'tags' | 'contexts';
     action: 'add' | 'remove';
 } | null;
 
+// The workspace reads its store data and actions itself (useProjectWorkspaceStore
+// + useUiStore); only genuinely wrapper-owned state stays a prop. Store slices
+// re-threaded through ProjectsView were removed (arch review 2026-07-20 #8).
 type ProjectWorkspaceProps = {
-    addSection: (projectId: string, title: string) => Promise<unknown> | unknown;
-    allTasks: Task[];
-    allTokens: string[];
-    areaById: Map<string, Area>;
-    areas: Area[];
-    deleteProject: (projectId: string) => Promise<StoreActionResult | void> | StoreActionResult | void;
-    deleteSection: (sectionId: string) => Promise<StoreActionResult | void> | StoreActionResult | void;
+    // Cross-view navigation highlight — set from other views, cleared here.
     highlightTaskId: string | null;
+    // Area-creation-in-progress flag; drives the shared workspace loading banner.
     isAreaCreating: boolean;
+    // Project-creation-in-progress flag; drives the shared loading banner.
     isCreatingProject: boolean;
+    // App language (React context); threaded so tests keep translation control.
     language: string;
-    noAreaId: string;
+    // Duplicate-then-select action; also wired to the sidebar in ProjectsView.
     onDuplicateProject: (projectId: string) => Promise<void> | void;
+    // Opens the AreaManagerModal, whose open/close state lives in ProjectsView.
     onManageAreas: () => void;
+    // Opens the quick-area prompt, whose state lives in ProjectsView.
     onRequestQuickArea: (projectId: string) => void;
+    // Setter for the persisted showCompletedTasks view state (localStorage).
     onToggleShowCompletedTasks: () => void;
-    projects: Project[];
-    reorderProjectTasks: (
-        projectId: string,
-        taskIds: string[],
-        sectionId?: string | null,
-    ) => Promise<unknown> | unknown;
-    reorderSections: (
-        projectId: string,
-        sectionIds: string[],
-    ) => Promise<unknown> | unknown;
+    // The confirm-dialog host is rendered by ProjectsView.
     requestConfirmation: (options: ConfirmationRequestOptions) => Promise<boolean>;
-    restoreProject: (projectId: string) => Promise<StoreActionResult | void> | StoreActionResult | void;
-    sections: Section[];
-    selectedProject: Project | undefined;
+    // Selection identity — owned by ProjectsView (UI store + reset effects).
     selectedProjectId: string | null;
-    selectedProjectTasks?: readonly Task[];
-    setHighlightTask: (taskId: string | null) => void;
-    setSelectedProjectId: (taskId: string | null) => void;
+    // Persisted view state (localStorage) owned by ProjectsView.
     showCompletedTasks: boolean;
-    showToast: ShowToast;
-    sortedAreas: Area[];
+    // Translator (React context); threaded so tests keep translation control.
     t: (key: string) => string;
+    // Wrapper layout state.
     projectsSidebarCollapsed?: boolean;
+    // Toggles wrapper layout state.
     onToggleProjectsSidebar?: () => void;
-    // The Projects view owns the shared DndContext; the workspace registers its
-    // in-list drag-end handling here so the view can delegate non-sidebar drops.
+    // ADR 0023: the Projects view owns the shared DndContext; the workspace
+    // registers its in-list drag-end handling here so the view can delegate
+    // non-sidebar drops.
     taskDragEndRef: RefObject<((event: DragEndEvent) => void) | null>;
-    undoNotificationsEnabled: boolean;
-    batchMoveTasks: (taskIds: string[], newStatus: TaskStatus) => Promise<unknown> | unknown;
-    batchDeleteTasks: (taskIds: string[]) => Promise<unknown> | unknown;
-    batchUpdateTasks: (
-        updates: Array<{ id: string; updates: Partial<Task> }>
-    ) => Promise<unknown> | unknown;
-    updateProject: (
-        projectId: string,
-        updates: Partial<Project>,
-    ) => Promise<StoreActionResult | void> | StoreActionResult | void;
-    updateSection: (
-        sectionId: string,
-        updates: Partial<Section>,
-    ) => Promise<StoreActionResult | void> | StoreActionResult | void;
-    updateTask: (
-        taskId: string,
-        updates: Partial<Task>,
-    ) => Promise<StoreActionResult | void> | StoreActionResult | void;
 };
 
 export function shouldShowProjectWorkspaceTask(
@@ -349,48 +315,57 @@ export function shouldShowProjectWorkspaceTask(
 }
 
 export function ProjectWorkspace({
-    addSection,
-    allTasks,
-    allTokens,
-    areaById,
-    areas,
-    deleteProject,
-    deleteSection,
     highlightTaskId,
     isAreaCreating,
     isCreatingProject,
     language,
-    noAreaId,
     onDuplicateProject,
     onManageAreas,
     onRequestQuickArea,
     onToggleShowCompletedTasks,
-    projects,
-    reorderSections,
-    reorderProjectTasks,
     requestConfirmation,
-    restoreProject,
-    sections,
-    selectedProject,
     selectedProjectId,
-    selectedProjectTasks,
-    setHighlightTask,
-    setSelectedProjectId,
     showCompletedTasks,
-    showToast,
-    sortedAreas,
     t,
     projectsSidebarCollapsed = false,
     onToggleProjectsSidebar,
     taskDragEndRef,
-    undoNotificationsEnabled,
-    batchMoveTasks,
-    batchDeleteTasks,
-    batchUpdateTasks,
-    updateProject,
-    updateSection,
-    updateTask,
 }: ProjectWorkspaceProps) {
+    const {
+        projects,
+        sections,
+        areas,
+        allTasks,
+        undoNotificationsEnabled,
+        addSection,
+        updateSection,
+        deleteSection,
+        reorderSections,
+        reorderProjectTasks,
+        updateProject,
+        deleteProject,
+        restoreProject,
+        updateTask,
+        batchMoveTasks,
+        batchDeleteTasks,
+        batchUpdateTasks,
+        setHighlightTask,
+        allTokens,
+        selectedProjectTasks,
+        sortedAreas,
+        areaById,
+        noAreaId,
+    } = useProjectWorkspaceStore(selectedProjectId);
+    const showToast = useUiStore((state) => state.showToast);
+    const setProjectView = useUiStore((state) => state.setProjectView);
+    const setSelectedProjectId = useCallback(
+        (value: string | null) => setProjectView({ selectedProjectId: value }),
+        [setProjectView],
+    );
+    const selectedProject = useMemo(
+        () => projects.find((project) => project.id === selectedProjectId),
+        [projects, selectedProjectId],
+    );
     const [showNotesPreview, setShowNotesPreview] = useState(true);
     const [showSectionPrompt, setShowSectionPrompt] = useState(false);
     const [sectionDraft, setSectionDraft] = useState('');
