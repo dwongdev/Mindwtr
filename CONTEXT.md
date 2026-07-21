@@ -55,7 +55,23 @@ _Avoid_: filter state, active filters
 Turning quick-add input into a new inbox task. A capture is never dropped: a `+Project` naming only an archived project behaves like an unknown name and creates a fresh project. Parsed tokens are untrusted (validated against assignable projects); the capturing surface's own context (its current project, pickers) is trusted.
 _Avoid_: quick task, note
 
+### Bulk actions
+
+**Bulk selection**:
+The multi-select mode over a task list and the batch actions it enables. Every destructive bulk action confirms first; bulk soft-deletes offer an undo that restores tasks with their status intact. A bulk action that the store rejects reports an error — never a false success. On mobile the shared selection module owns this; Trash legitimately stays outside it (it selects tasks and projects together).
+_Avoid_: multi-select mode, batch mode
+
+### Startup prompts
+
+**Startup prompt**:
+A dialog the desktop app may show once conditions allow at launch — announcement, update reminder, donation ask. Prompts open one at a time in priority order behind a shared gate (settings hydrated, onboarding settled, no close prompt, no external-sync change); dismissals are remembered per session or persistently. Adding a prompt means adding one descriptor to the queue.
+_Avoid_: popup, modal nag
+
 ### Syncing
+
+**Sync field descriptor**:
+The per-entity table (task, project, section) that declares every synced field once — column, SQL order and type, cloud writability — and generates the TypeScript synced-field lists (SQLite columns, upsert clauses, migration lists, cloud allowlists) at load. Native Swift/ObjC/Rust copies and CREATE TABLEs stay literal, guarded by the parity check, whose import chain must stay free of external dependencies. Adding a synced field starts at the descriptor.
+_Avoid_: schema copy, field list
 
 **Sync run**:
 One execution of the shared sync cycle state machine (`runSharedSyncCycle` in core, ADR 0014): flush, backend setup, unchanged-skip checks, attachment phases, the merge cycle, cleanup, fast-sync bookkeeping, and error/requeue handling. Desktop and mobile supply transport, storage, and notification ports; deliberate platform differences are policy switches on the run, never re-implemented phases.
