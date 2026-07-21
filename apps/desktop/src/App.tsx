@@ -113,6 +113,7 @@ import {
     PROMPT_TEST_CONTROLS_ENABLED,
     subscribePromptTest,
 } from './lib/prompt-test-controls';
+import { useStartupPromptQueue, type StartupPromptDescriptor } from './hooks/use-startup-prompt-queue';
 import { useUiStore } from './store/ui-store';
 import { useObsidianStore } from './store/obsidian-store';
 import type { SettingsOnboardingHintPage, SettingsPage } from './components/views/SettingsView';
@@ -239,14 +240,7 @@ function App() {
     const [desktopOnboardingBusy, setDesktopOnboardingBusy] = useState(false);
     const [desktopOnboardingError, setDesktopOnboardingError] = useState<string | null>(null);
     const [desktopOnboardingGateSettled, setDesktopOnboardingGateSettled] = useState(false);
-    const [announcementOpen, setAnnouncementOpen] = useState(false);
-    const [announcementDismissedInSession, setAnnouncementDismissedInSession] = useState(false);
-    const [donationPromptOpen, setDonationPromptOpen] = useState(false);
-    const [donationDismissedInSession, setDonationDismissedInSession] = useState(false);
-    const [donationPromptAllowed, setDonationPromptAllowed] = useState<boolean | null>(null);
     const [desktopInstallSource, setDesktopInstallSource] = useState<InstallSource | null>(null);
-    const [updateReminderOpen, setUpdateReminderOpen] = useState(false);
-    const [updateReminderDismissedInSession, setUpdateReminderDismissedInSession] = useState(false);
     const [updateReminderInfo, setUpdateReminderInfo] = useState<DesktopUpdateReminderInfo | null>(null);
     const [testAnnouncement, setTestAnnouncement] = useState<AppAnnouncement | null>(null);
     const [, startTransition] = useTransition();
@@ -290,6 +284,121 @@ function App() {
     const startObsidianWatcher = useObsidianStore((state) => state.startWatcher);
     const stopObsidianWatcher = useObsidianStore((state) => state.stopWatcher);
     const activeAnnouncement = testAnnouncement ?? ACTIVE_APP_ANNOUNCEMENT;
+
+    // Startup prompts share one gate and open one at a time. The descriptors
+    // below carry each prompt's own eligibility/present logic; the queue owns
+    // precedence (announcement > update > donation), the startup delays, and
+    // session dismissal. See use-startup-prompt-queue.ts.
+    const startupPromptsEnabled = !(
+        import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test'
+    );
+    const startupPromptGateOpen = (
+        hasHydratedSettings
+        && !isLoading
+        && desktopOnboardingGateSettled
+        && !desktopOnboardingOpen
+        && !closePromptOpen
+        && !externalSyncChange
+    );
+    const startupPromptDescriptors = useMemo<StartupPromptDescriptor[]>(() => [
+        {
+            // Maintainer announcement: highest precedence; when one is configured
+            // it also blocks the donation/update prompts (see their isEligible).
+            id: 'announcement',
+            priority: 30,
+            delayMs: 250,
+            isEligible: () => {
+                const announcement = ACTIVE_APP_ANNOUNCEMENT;
+                if (!shouldShowAppAnnouncement(announcement, null)) return false;
+                let dismissedValue: string | null = null;
+                try {
+                    dismissedValue = window.localStorage.getItem(getAnnouncementDismissalStorageKey(announcement.id));
+                } catch {
+                    dismissedValue = null;
+                }
+                return shouldShowAppAnnouncement(announcement, dismissedValue);
+            },
+            present: () => true,
+        },
+        {
+            // Update reminder: records the check on selection, then confirms an
+            // update actually exists before opening (declines otherwise).
+            id: 'update-reminder',
+            priority: 20,
+            delayMs: 1750,
+            isEligible: () => {
+                if (!desktopInstallSource) return false;
+                if (!isDesktopUpdateReminderAllowed(desktopInstallSource)) return false;
+                if (ACTIVE_APP_ANNOUNCEMENT) return false;
+                const promptState = readLocalUserPromptState();
+                return shouldCheckUpdateReminder({ nowMs: Date.now(), promptState, updateReminderAllowed: true });
+            },
+            onSelect: () => {
+                updateLocalUserPromptState((state) => recordUpdateReminderChecked(state, Date.now()));
+            },
+            present: async () => {
+                if (!desktopInstallSource) return false;
+                const { getVersion } = await import('@tauri-apps/api/app');
+                const currentVersion = await getVersion();
+                const info = await checkForUpdates(currentVersion, { installSource: desktopInstallSource });
+                if (!info.hasUpdate) return false;
+                if (!isUpdateReminderVersionTrusted(desktopInstallSource, info.source)) return false;
+                const latestPromptState = readLocalUserPromptState();
+                if (!shouldShowUpdateReminder({
+                    nowMs: Date.now(),
+                    promptState: latestPromptState,
+                    updateReminderAllowed: true,
+                    currentVersion: info.currentVersion,
+                    latestVersion: info.latestVersion,
+                    latestReleasedAt: info.latestReleasedAt,
+                })) {
+                    return false;
+                }
+                updateLocalUserPromptState((state) => recordUpdateReminderShown(state, Date.now()));
+                const updateTarget = getDesktopUpdateTarget(desktopInstallSource);
+                setUpdateReminderInfo({
+                    currentVersion: info.currentVersion,
+                    latestVersion: info.latestVersion,
+                    latestReleasedAt: info.latestReleasedAt,
+                    releaseUrl: updateTarget.url,
+                    actionLabel: updateTarget.label,
+                });
+                return true;
+            },
+            onError: (error, phase) => {
+                const step = phase === 'select'
+                    ? 'recordUpdateReminderChecked'
+                    : phase === 'present'
+                        ? 'checkUpdateReminder'
+                        : 'readUpdateReminderState';
+                void logError(error, { scope: 'prompt-state', step });
+            },
+        },
+        {
+            // Donation ask: lowest precedence; suppressed whenever an announcement
+            // is configured or an update reminder is showing (via the queue).
+            id: 'donation',
+            priority: 10,
+            delayMs: DONATION_PROMPT_STARTUP_DELAY_MS,
+            isEligible: () => {
+                if (ACTIVE_APP_ANNOUNCEMENT) return false;
+                if (!isDesktopDonationPromptAllowed(desktopInstallSource)) return false;
+                const promptState = readLocalUserPromptState();
+                return shouldShowDonationPrompt({ nowMs: Date.now(), promptState, donationAllowed: true });
+            },
+            present: () => true,
+            onError: (error) => {
+                void logError(error, { scope: 'prompt-state', step: 'readDonationPromptState' });
+            },
+        },
+    ], [desktopInstallSource]);
+    const startupPromptQueue = useStartupPromptQueue({
+        enabled: startupPromptsEnabled,
+        gateOpen: startupPromptGateOpen,
+        descriptors: startupPromptDescriptors,
+        signals: [desktopInstallSource],
+    });
+    const startupPromptOpenId = startupPromptQueue.openId;
 
     const setClosePromptRememberValue = useCallback((next: boolean) => {
         closePromptRememberRef.current = next;
@@ -1111,7 +1220,7 @@ function App() {
     const dismissAppAnnouncement = useCallback(() => {
         if (testAnnouncement) {
             setTestAnnouncement(null);
-            setAnnouncementOpen(false);
+            startupPromptQueue.closeAll();
             return;
         }
         const announcement = ACTIVE_APP_ANNOUNCEMENT;
@@ -1125,9 +1234,8 @@ function App() {
                 // Keep the in-memory dismissal for this session when localStorage is unavailable.
             }
         }
-        setAnnouncementDismissedInSession(true);
-        setAnnouncementOpen(false);
-    }, [testAnnouncement]);
+        startupPromptQueue.dismiss('announcement');
+    }, [startupPromptQueue, testAnnouncement]);
 
     const openAnnouncementUrl = useCallback(async (url: string) => {
         const nextUrl = url.trim();
@@ -1164,9 +1272,8 @@ function App() {
     }, [dismissAppAnnouncement, handleViewChange, openAnnouncementUrl]);
 
     const dismissDonationPrompt = useCallback(() => {
-        setDonationDismissedInSession(true);
-        setDonationPromptOpen(false);
-    }, []);
+        startupPromptQueue.dismiss('donation');
+    }, [startupPromptQueue]);
 
     const handleDonationPromptAction = useCallback((action: AppAnnouncementAction) => {
         dismissDonationPrompt();
@@ -1201,9 +1308,8 @@ function App() {
                 void logError(error, { scope: 'prompt-state', step: 'dismissUpdateReminder' });
             }
         }
-        setUpdateReminderDismissedInSession(true);
-        setUpdateReminderOpen(false);
-    }, [updateReminderInfo?.latestVersion, updateReminderInfo?.testOnly]);
+        startupPromptQueue.dismiss('update-reminder');
+    }, [startupPromptQueue, updateReminderInfo?.latestVersion, updateReminderInfo?.testOnly]);
 
     const handleUpdateReminderAction = useCallback((action: AppAnnouncementAction) => {
         dismissUpdateReminder();
@@ -1220,9 +1326,7 @@ function App() {
         if (!PROMPT_TEST_CONTROLS_ENABLED) return;
         let disposed = false;
         const closePromptSurfaces = () => {
-            setAnnouncementOpen(false);
-            setDonationPromptOpen(false);
-            setUpdateReminderOpen(false);
+            startupPromptQueue.closeAll();
             setTestAnnouncement(null);
         };
 
@@ -1230,18 +1334,18 @@ function App() {
             closePromptSurfaces();
             if (kind === 'announcement') {
                 setTestAnnouncement(PROMPT_TEST_ANNOUNCEMENT);
-                setAnnouncementOpen(true);
+                startupPromptQueue.forceOpen('announcement');
                 return;
             }
             if (kind === 'donation') {
-                setDonationPromptOpen(true);
+                startupPromptQueue.forceOpen('donation');
                 return;
             }
             if (kind === 'review') {
                 const reviewAnnouncement = buildPromptTestReviewAnnouncement(desktopInstallSource);
                 if (!reviewAnnouncement) return;
                 setTestAnnouncement(reviewAnnouncement);
-                setAnnouncementOpen(true);
+                startupPromptQueue.forceOpen('announcement');
                 return;
             }
             const openUpdateTest = async () => {
@@ -1262,7 +1366,7 @@ function App() {
                     actionLabel: updateTarget.label,
                     testOnly: true,
                 });
-                setUpdateReminderOpen(true);
+                startupPromptQueue.forceOpen('update-reminder');
             };
             void openUpdateTest();
         });
@@ -1270,44 +1374,7 @@ function App() {
             disposed = true;
             unsubscribe();
         };
-    }, [desktopInstallSource]);
-
-    useEffect(() => {
-        if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return;
-        if (
-            announcementDismissedInSession
-            || !hasHydratedSettings
-            || isLoading
-            || !desktopOnboardingGateSettled
-            || desktopOnboardingOpen
-            || closePromptOpen
-            || externalSyncChange
-        ) {
-            return;
-        }
-
-        const announcement = ACTIVE_APP_ANNOUNCEMENT;
-        if (!shouldShowAppAnnouncement(announcement, null)) return;
-
-        let dismissedValue: string | null = null;
-        try {
-            dismissedValue = window.localStorage.getItem(getAnnouncementDismissalStorageKey(announcement.id));
-        } catch {
-            dismissedValue = null;
-        }
-        if (!shouldShowAppAnnouncement(announcement, dismissedValue)) return;
-
-        const timer = window.setTimeout(() => setAnnouncementOpen(true), 250);
-        return () => window.clearTimeout(timer);
-    }, [
-        announcementDismissedInSession,
-        closePromptOpen,
-        desktopOnboardingGateSettled,
-        desktopOnboardingOpen,
-        externalSyncChange,
-        hasHydratedSettings,
-        isLoading,
-    ]);
+    }, [desktopInstallSource, startupPromptQueue]);
 
     useEffect(() => {
         if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return;
@@ -1328,12 +1395,10 @@ function App() {
                 if (cancelled) return;
                 const normalized = normalizeInstallSource(installSource);
                 setDesktopInstallSource(normalized);
-                setDonationPromptAllowed(isDesktopDonationPromptAllowed(normalized));
             })
             .catch((error) => {
                 if (!cancelled) {
                     setDesktopInstallSource('unknown');
-                    setDonationPromptAllowed(false);
                 }
                 void logError(error, { scope: 'prompt-state', step: 'resolveDonationInstallSource' });
             });
@@ -1341,146 +1406,6 @@ function App() {
             cancelled = true;
         };
     }, []);
-
-    useEffect(() => {
-        if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return;
-        if (
-            donationDismissedInSession
-            || donationPromptOpen
-            || updateReminderOpen
-            || donationPromptAllowed !== true
-            || ACTIVE_APP_ANNOUNCEMENT
-            || announcementOpen
-            || !hasHydratedSettings
-            || isLoading
-            || !desktopOnboardingGateSettled
-            || desktopOnboardingOpen
-            || closePromptOpen
-            || externalSyncChange
-        ) {
-            return;
-        }
-
-        const nowMs = Date.now();
-        let promptState: ReturnType<typeof readLocalUserPromptState>;
-        try {
-            promptState = readLocalUserPromptState();
-        } catch (error) {
-            setDonationDismissedInSession(true);
-            void logError(error, { scope: 'prompt-state', step: 'readDonationPromptState' });
-            return;
-        }
-        if (!shouldShowDonationPrompt({ nowMs, promptState, donationAllowed: true })) return;
-
-        const timer = window.setTimeout(() => {
-            setDonationPromptOpen(true);
-        }, DONATION_PROMPT_STARTUP_DELAY_MS);
-        return () => window.clearTimeout(timer);
-    }, [
-        announcementOpen,
-        closePromptOpen,
-        desktopOnboardingGateSettled,
-        desktopOnboardingOpen,
-        donationDismissedInSession,
-        donationPromptAllowed,
-        donationPromptOpen,
-        externalSyncChange,
-        hasHydratedSettings,
-        isLoading,
-        updateReminderOpen,
-    ]);
-
-    useEffect(() => {
-        if (import.meta.env.MODE === 'test' || import.meta.env.VITEST || process.env.NODE_ENV === 'test') return;
-        if (
-            updateReminderDismissedInSession
-            || updateReminderOpen
-            || !desktopInstallSource
-            || !isDesktopUpdateReminderAllowed(desktopInstallSource)
-            || ACTIVE_APP_ANNOUNCEMENT
-            || announcementOpen
-            || donationPromptOpen
-            || !hasHydratedSettings
-            || isLoading
-            || !desktopOnboardingGateSettled
-            || desktopOnboardingOpen
-            || closePromptOpen
-            || externalSyncChange
-        ) {
-            return;
-        }
-
-        const nowMs = Date.now();
-        let promptState: ReturnType<typeof readLocalUserPromptState>;
-        try {
-            promptState = readLocalUserPromptState();
-        } catch (error) {
-            setUpdateReminderDismissedInSession(true);
-            void logError(error, { scope: 'prompt-state', step: 'readUpdateReminderState' });
-            return;
-        }
-        if (!shouldCheckUpdateReminder({ nowMs, promptState, updateReminderAllowed: true })) return;
-        try {
-            updateLocalUserPromptState((state) => recordUpdateReminderChecked(state, nowMs));
-        } catch (error) {
-            setUpdateReminderDismissedInSession(true);
-            void logError(error, { scope: 'prompt-state', step: 'recordUpdateReminderChecked' });
-            return;
-        }
-
-        let cancelled = false;
-        const timer = window.setTimeout(() => {
-            const check = async () => {
-                const { getVersion } = await import('@tauri-apps/api/app');
-                const currentVersion = await getVersion();
-                const info = await checkForUpdates(currentVersion, { installSource: desktopInstallSource });
-                if (cancelled || !info.hasUpdate) return;
-                if (!isUpdateReminderVersionTrusted(desktopInstallSource, info.source)) return;
-                const latestPromptState = readLocalUserPromptState();
-                if (!shouldShowUpdateReminder({
-                    nowMs: Date.now(),
-                    promptState: latestPromptState,
-                    updateReminderAllowed: true,
-                    currentVersion: info.currentVersion,
-                    latestVersion: info.latestVersion,
-                    latestReleasedAt: info.latestReleasedAt,
-                })) {
-                    return;
-                }
-                updateLocalUserPromptState((state) => recordUpdateReminderShown(state, Date.now()));
-                if (cancelled) return;
-                const updateTarget = getDesktopUpdateTarget(desktopInstallSource);
-                setUpdateReminderInfo({
-                    currentVersion: info.currentVersion,
-                    latestVersion: info.latestVersion,
-                    latestReleasedAt: info.latestReleasedAt,
-                    releaseUrl: updateTarget.url,
-                    actionLabel: updateTarget.label,
-                });
-                setUpdateReminderOpen(true);
-            };
-            check().catch((error) => {
-                if (!cancelled) setUpdateReminderDismissedInSession(true);
-                void logError(error, { scope: 'prompt-state', step: 'checkUpdateReminder' });
-            });
-        }, 1750);
-        return () => {
-            cancelled = true;
-            window.clearTimeout(timer);
-        };
-    }, [
-        announcementOpen,
-        closePromptOpen,
-        desktopInstallSource,
-        desktopOnboardingGateSettled,
-        desktopOnboardingOpen,
-        donationPromptOpen,
-        externalSyncChange,
-        hasHydratedSettings,
-        isLoading,
-        updateReminderDismissedInSession,
-        updateReminderOpen,
-    ]);
 
     const LoadingFallback = ({ view }: { view: string }) => {
         useEffect(() => {
@@ -1581,7 +1506,7 @@ function App() {
                     <AppAnnouncementModal
                         announcement={activeAnnouncement}
                         isOpen={
-                            announcementOpen
+                            startupPromptOpenId === 'announcement'
                             && !desktopOnboardingOpen
                             && !closePromptOpen
                             && !externalSyncChange
@@ -1592,8 +1517,7 @@ function App() {
                     <AppAnnouncementModal
                         announcement={donationPromptAnnouncement}
                         isOpen={
-                            donationPromptOpen
-                            && !announcementOpen
+                            startupPromptOpenId === 'donation'
                             && !desktopOnboardingOpen
                             && !closePromptOpen
                             && !externalSyncChange
@@ -1605,9 +1529,7 @@ function App() {
                     <AppAnnouncementModal
                         announcement={updateReminderInfo ? buildUpdateReminderAnnouncement(updateReminderInfo) : null}
                         isOpen={
-                            updateReminderOpen
-                            && !announcementOpen
-                            && !donationPromptOpen
+                            startupPromptOpenId === 'update-reminder'
                             && !desktopOnboardingOpen
                             && !closePromptOpen
                             && !externalSyncChange
