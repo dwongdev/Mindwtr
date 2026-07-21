@@ -645,9 +645,11 @@ export const createSettingsActions = ({
             markCoreStartupPhase('core.fetch_data.flush_pending_save.skipped', { reason: 'no_pending_work' });
         }
         if (options?.silent) {
-            set({ error: null });
+            set((state) => state.error === null ? state : { error: null });
         } else {
-            set({ isLoading: true, error: null });
+            set((state) => state.isLoading && state.error === null
+                ? state
+                : { isLoading: true, error: null });
         }
         if (get().editLockCount > 0) {
             if (!options?.silent) {
@@ -1134,6 +1136,7 @@ export const createSettingsActions = ({
             let projectsReplaced = 0;
             let settingsReused = false;
             let visibleTasksReused = false;
+            let stateUpdateSkipped = false;
             const setStateStartedAt = Date.now();
             await measureCoreStartupPhase('core.fetch_data.zustand_set_state', async () => {
                 set((state) => {
@@ -1141,7 +1144,7 @@ export const createSettingsActions = ({
                     if (state.lastDataChangeAt > fetchStartedAt) {
                         skippedDueToConcurrentLocalChange = true;
                         setProducerMs = Date.now() - producerStartedAt;
-                        return options?.silent ? {} : { isLoading: false };
+                        return options?.silent || !state.isLoading ? state : { isLoading: false };
                     }
                     const nextTasks = reconcileEntityCollection(state._allTasks, state._tasksById, allTasks);
                     const nextProjects = reconcileEntityCollection(state._allProjects, state._projectsById, allProjects);
@@ -1158,6 +1161,41 @@ export const createSettingsActions = ({
                     projectsReplaced = nextProjects.replacedCount;
                     settingsReused = settingsForState === state.settings;
                     visibleTasksReused = visibleTasks === state.tasks;
+                    const nextLastDataChangeAt =
+                        didAutoArchive
+                            || didPromoteScheduled
+                            || didCompleteTasksForArchivedProjects
+                            || didArchiveSectionsForArchivedProjects
+                            || didClearDeletedProjectArchiveMetadata
+                            || didRepairEntityReferences
+                            || didTombstoneCleanup
+                            || didPeopleMigration
+                            ? getNextDataChangeAt(state.lastDataChangeAt)
+                            : state.lastDataChangeAt;
+                    if (
+                        visibleTasks === state.tasks
+                        && visibleProjects === state.projects
+                        && visibleSections === state.sections
+                        && visibleAreas === state.areas
+                        && visiblePeople === state.people
+                        && settingsForState === state.settings
+                        && nextTasks.items === state._allTasks
+                        && nextProjects.items === state._allProjects
+                        && nextSections.items === state._allSections
+                        && nextAreas.items === state._allAreas
+                        && nextPeople.items === state._allPeople
+                        && nextTasks.byId === state._tasksById
+                        && nextProjects.byId === state._projectsById
+                        && nextSections.byId === state._sectionsById
+                        && nextAreas.byId === state._areasById
+                        && nextPeople.byId === state._peopleById
+                        && state.isLoading === false
+                        && nextLastDataChangeAt === state.lastDataChangeAt
+                    ) {
+                        stateUpdateSkipped = true;
+                        setProducerMs = Date.now() - producerStartedAt;
+                        return state;
+                    }
                     setProducerMs = Date.now() - producerStartedAt;
                     return {
                         tasks: visibleTasks,
@@ -1177,17 +1215,7 @@ export const createSettingsActions = ({
                         _areasById: nextAreas.byId,
                         _peopleById: nextPeople.byId,
                         isLoading: false,
-                        lastDataChangeAt:
-                            didAutoArchive
-                                || didPromoteScheduled
-                                || didCompleteTasksForArchivedProjects
-                                || didArchiveSectionsForArchivedProjects
-                                || didClearDeletedProjectArchiveMetadata
-                                || didRepairEntityReferences
-                                || didTombstoneCleanup
-                                || didPeopleMigration
-                                ? getNextDataChangeAt(state.lastDataChangeAt)
-                                : state.lastDataChangeAt,
+                        lastDataChangeAt: nextLastDataChangeAt,
                     };
                 });
             });
@@ -1220,6 +1248,7 @@ export const createSettingsActions = ({
                         projectsReplaced,
                         settingsReused,
                         visibleTasksReused,
+                        stateUpdateSkipped,
                         preloaded: Boolean(options?.preloadedData),
                         taskCount: allTasks.length,
                         liveTasks: lifecycle.live,

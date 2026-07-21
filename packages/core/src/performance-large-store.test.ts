@@ -383,6 +383,97 @@ describePerf('large-store performance budgets', () => {
         });
     });
 
+    it('keeps an unchanged 50k-task preloaded refresh subscriber-free and within budget', async () => {
+        const fixture = createLargeStoreFixture(50_000);
+        const areas = Array.from({ length: 5 }, (_, index) => ({
+            id: `area-${index}`,
+            name: `Area ${index}`,
+            order: index,
+            createdAt: BASE_ISO,
+            updatedAt: BASE_ISO,
+            rev: 1,
+            revBy: 'perf-suite',
+        }));
+        const settings = {
+            deviceId: 'perf-suite',
+            migrations: {
+                version: 9999,
+                lastAutoArchiveAt: NOW.toISOString(),
+                lastTombstoneCleanupAt: NOW.toISOString(),
+            },
+            gtd: {
+                taskEditor: { defaultsVersion: 9999 },
+                focusGroupByDefaultsVersion: 1,
+            },
+        };
+        resetForTests();
+        setStorageAdapter({
+            getData: async () => ({
+                tasks: fixture.tasks,
+                projects: fixture.projects,
+                sections: fixture.sections,
+                areas,
+                people: [],
+                settings,
+            }),
+            saveData: async () => undefined,
+        });
+        useTaskStore.setState({
+            tasks: [],
+            projects: [],
+            sections: [],
+            areas: [],
+            people: [],
+            settings: {},
+            isLoading: false,
+            error: null,
+            _allTasks: [],
+            _allProjects: [],
+            _allSections: [],
+            _allAreas: [],
+            _allPeople: [],
+            _tasksById: new Map(),
+            _projectsById: new Map(),
+            _sectionsById: new Map(),
+            _areasById: new Map(),
+            _peopleById: new Map(),
+            lastDataChangeAt: 0,
+        });
+
+        let unsubscribe = () => undefined;
+        try {
+            await useTaskStore.getState().fetchData({ silent: true });
+            await flushPendingSave();
+            const loaded = useTaskStore.getState();
+            let subscriberCalls = 0;
+            unsubscribe = useTaskStore.subscribe(() => {
+                subscriberCalls += 1;
+            });
+
+            const startedAt = performance.now();
+            await loaded.fetchData({
+                silent: true,
+                preloadedData: {
+                    tasks: loaded._allTasks,
+                    projects: loaded._allProjects,
+                    sections: loaded._allSections,
+                    areas: loaded._allAreas,
+                    people: loaded._allPeople,
+                    settings: loaded.settings,
+                },
+            });
+            const durationMs = performance.now() - startedAt;
+
+            expect(subscriberCalls).toBe(0);
+            expect(useTaskStore.getState()).toBe(loaded);
+            expectWithinBudget('Unchanged preloaded refresh', 50_000, durationMs, 2_000);
+        } finally {
+            unsubscribe();
+            await flushPendingSave();
+            resetForTests();
+        }
+    });
+
     it('persists one task through the incremental path on a 50k-task store', async () => {
         const fixture = createLargeStoreFixture(50_000);
         let saveDataCalls = 0;

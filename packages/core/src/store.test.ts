@@ -1953,6 +1953,53 @@ describe('TaskStore', () => {
         expect(state._allTasks.map((task) => task.id).sort()).toEqual(['task-deleted', 'task-live']);
     });
 
+    it('does not notify subscribers when a silent preloaded refresh is unchanged', async () => {
+        const nowIso = '2026-07-21T12:00:00.000Z';
+        vi.setSystemTime(new Date(nowIso));
+        mockStorage.getData = vi.fn().mockResolvedValue({
+            tasks: [createStoreTask('task-1', { status: 'next' })],
+            projects: [createStoreProject('project-1')],
+            sections: [],
+            areas: [createStoreArea('area-1')],
+            people: [],
+            settings: {
+                deviceId: 'device-a',
+                migrations: {
+                    version: 9999,
+                    lastAutoArchiveAt: nowIso,
+                    lastTombstoneCleanupAt: nowIso,
+                },
+                gtd: {
+                    taskEditor: { defaultsVersion: 9999 },
+                    focusGroupByDefaultsVersion: 1,
+                },
+            },
+        });
+
+        await useTaskStore.getState().fetchData({ silent: true });
+        const loaded = useTaskStore.getState();
+        const listener = vi.fn();
+        const unsubscribe = useTaskStore.subscribe(listener);
+        try {
+            await loaded.fetchData({
+                silent: true,
+                preloadedData: {
+                    tasks: loaded._allTasks,
+                    projects: loaded._allProjects,
+                    sections: loaded._allSections,
+                    areas: loaded._allAreas,
+                    people: loaded._allPeople,
+                    settings: loaded.settings,
+                },
+            });
+
+            expect(listener).not.toHaveBeenCalled();
+            expect(useTaskStore.getState()).toBe(loaded);
+        } finally {
+            unsubscribe();
+        }
+    });
+
     it('does not overwrite same-millisecond task completions made during an in-flight fetch', async () => {
         const fixedNow = new Date('2026-03-22T10:00:00.000Z').getTime();
         vi.setSystemTime(fixedNow);
