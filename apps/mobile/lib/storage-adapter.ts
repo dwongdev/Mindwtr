@@ -345,11 +345,10 @@ const saveStartupJsonBackup = async (
 // safety net) only needs to land once every JSON_BACKUP_MIN_INTERVAL_MS while
 // saves keep arriving; an AppState background/inactive transition flushes it
 // immediately so the AsyncStorage copy stays close to fresh across process
-// death (#766). Widget refresh is unaffected by the throttle: home-screen and
-// lock-screen widgets get their own pending slot and short coalesce timer so
-// they don't freeze for minutes while the backup is held back.
+// death (#766).
 const JSON_BACKUP_COALESCE_MS = 1_000;
 const JSON_BACKUP_MIN_INTERVAL_MS = 5 * 60_000;
+const WIDGET_REFRESH_MIN_INTERVAL_MS = JSON_BACKUP_MIN_INTERVAL_MS;
 
 type PendingJsonBackup = {
     data: AppData;
@@ -443,10 +442,9 @@ const flushPendingStartupJsonBackup = async (): Promise<void> => {
     }
 };
 
-// The widget render is decoupled from the throttled JSON backup (#766): it
-// keeps its own pending slot, short trailing coalesce, and serialized writer
-// so home-screen/lock-screen widgets stay fresh per save burst even while the
-// JSON backup itself is held back for up to JSON_BACKUP_MIN_INTERVAL_MS.
+// Widget renders use the same foreground throttle shape as the JSON backup,
+// but flush as soon as the app leaves the foreground and the widget becomes
+// visible. Hosts without AppState keep the short trailing coalesce.
 type PendingWidgetRefresh = {
     data: AppData;
     phasePrefix: string;
@@ -456,35 +454,59 @@ type PendingWidgetRefresh = {
 let pendingWidgetRefresh: PendingWidgetRefresh | null = null;
 let widgetRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 let widgetRefreshWriter: Promise<void> = Promise.resolve();
+let widgetRefreshInFlight = false;
+let lastWidgetRefreshEndedAtMs = 0;
 
-const writePendingWidgetRefresh = async (): Promise<void> => {
-    const pending = pendingWidgetRefresh;
-    if (!pending) return;
-    pendingWidgetRefresh = null;
-    const widgetStartedAt = Date.now();
-    try {
-        await measureStartupPhase(`${pending.phasePrefix}.widget_update`, async () =>
-            updateMobileWidgetFromData(pending.data)
-        );
-    } catch (error) {
-        logStorageWarn('[Widgets] Failed to update mobile widget after backup', error);
-    }
-    const widgetMs = Date.now() - widgetStartedAt;
-    if (widgetMs >= SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS) {
-        logStorageInfo('[Storage] Slow widget refresh', {
-            widgetMs: String(widgetMs),
-            coalescedRefreshes: String(pending.coalescedRefreshes),
-        });
-    }
+const isAppForegroundActive = (): boolean => (
+    Platform.OS !== 'web'
+    && (AppState as unknown as { currentState?: string } | undefined)?.currentState === 'active'
+);
+
+const computeWidgetRefreshDelayMs = (): number => {
+    if (!isAppForegroundActive()) return JSON_BACKUP_COALESCE_MS;
+    const remainingMs = lastWidgetRefreshEndedAtMs + WIDGET_REFRESH_MIN_INTERVAL_MS - Date.now();
+    return Math.min(Math.max(remainingMs, JSON_BACKUP_COALESCE_MS), WIDGET_REFRESH_MIN_INTERVAL_MS);
 };
 
-const drainWidgetRefreshQueue = (): Promise<void> => {
+const armWidgetRefreshTimer = (): void => {
+    if (widgetRefreshTimer || widgetRefreshInFlight || !pendingWidgetRefresh) return;
+    widgetRefreshTimer = setTimeout(() => {
+        widgetRefreshTimer = null;
+        void writeNextWidgetRefresh().catch((error) => {
+            logStorageWarn('[Widgets] Deferred widget refresh failed', error);
+        });
+    }, computeWidgetRefreshDelayMs());
+};
+
+const writeNextWidgetRefresh = (): Promise<void> => {
     widgetRefreshWriter = widgetRefreshWriter
         .catch(() => undefined)
         .then(async () => {
-            while (pendingWidgetRefresh) {
-                await writePendingWidgetRefresh();
+            const pending = pendingWidgetRefresh;
+            if (!pending) return;
+            pendingWidgetRefresh = null;
+            widgetRefreshInFlight = true;
+            const throttled = isAppForegroundActive();
+            const widgetStartedAt = Date.now();
+            try {
+                await measureStartupPhase(`${pending.phasePrefix}.widget_update`, async () =>
+                    updateMobileWidgetFromData(pending.data)
+                );
+            } catch (error) {
+                logStorageWarn('[Widgets] Failed to update mobile widget after backup', error);
+            } finally {
+                lastWidgetRefreshEndedAtMs = Date.now();
+                widgetRefreshInFlight = false;
             }
+            const widgetMs = lastWidgetRefreshEndedAtMs - widgetStartedAt;
+            if (widgetMs >= SQLITE_SLOW_WRITE_LOG_THRESHOLD_MS) {
+                logStorageInfo('[Storage] Slow widget refresh', {
+                    widgetMs: String(widgetMs),
+                    coalescedRefreshes: String(pending.coalescedRefreshes),
+                    throttled: String(throttled),
+                });
+            }
+            armWidgetRefreshTimer();
         });
     return widgetRefreshWriter;
 };
@@ -495,21 +517,21 @@ const scheduleWidgetRefresh = (data: AppData, phasePrefix: string): void => {
         phasePrefix,
         coalescedRefreshes: (pendingWidgetRefresh?.coalescedRefreshes ?? 0) + 1,
     };
-    if (widgetRefreshTimer) return;
-    widgetRefreshTimer = setTimeout(() => {
-        widgetRefreshTimer = null;
-        void drainWidgetRefreshQueue().catch((error) => {
-            logStorageWarn('[Widgets] Deferred widget refresh failed', error);
-        });
-    }, JSON_BACKUP_COALESCE_MS);
+    armWidgetRefreshTimer();
 };
 
 const flushPendingWidgetRefresh = async (): Promise<void> => {
-    if (widgetRefreshTimer) {
-        clearTimeout(widgetRefreshTimer);
-        widgetRefreshTimer = null;
+    while (pendingWidgetRefresh || widgetRefreshInFlight) {
+        if (widgetRefreshTimer) {
+            clearTimeout(widgetRefreshTimer);
+            widgetRefreshTimer = null;
+        }
+        if (pendingWidgetRefresh) {
+            await writeNextWidgetRefresh();
+        } else {
+            await widgetRefreshWriter.catch(() => undefined);
+        }
     }
-    await drainWidgetRefreshQueue();
 };
 
 const scheduleStartupJsonBackup = (
@@ -543,6 +565,9 @@ const registerBackgroundFlushListener = (): void => {
         if (nextState !== 'background' && nextState !== 'inactive') return;
         flushPendingStartupJsonBackup().catch((error) => {
             logStorageWarn('[Storage] Failed to flush JSON backup on app background', error);
+        });
+        flushPendingWidgetRefresh().catch((error) => {
+            logStorageWarn('[Storage] Failed to flush widget refresh on app background', error);
         });
     });
 };
@@ -1113,6 +1138,8 @@ export const __mobileStorageTestUtils = {
         }
         pendingWidgetRefresh = null;
         widgetRefreshWriter = Promise.resolve();
+        widgetRefreshInFlight = false;
+        lastWidgetRefreshEndedAtMs = 0;
         initializeSqliteState = initSqliteState;
         clearPreferJsonBackup();
     },

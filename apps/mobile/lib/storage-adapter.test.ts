@@ -8,6 +8,7 @@ const {
   sqliteAdapterSaveTask,
   updateMobileWidgetFromDataMock,
   appStateListeners,
+  appStateCurrentState,
 } = vi.hoisted(() => ({
   asyncStorageMock: {
     getItem: vi.fn(),
@@ -23,6 +24,7 @@ const {
   sqliteAdapterSaveTask: vi.fn(),
   updateMobileWidgetFromDataMock: vi.fn(),
   appStateListeners: [] as Array<(state: string) => void>,
+  appStateCurrentState: { value: undefined as string | undefined },
 }));
 
 vi.mock('expo-constants', () => ({
@@ -45,7 +47,9 @@ vi.mock('react-native', async () => {
       OPSQLite: { install: vi.fn(() => true) },
     },
     AppState: {
-      currentState: 'active',
+      get currentState() {
+        return appStateCurrentState.value;
+      },
       addEventListener: vi.fn((_event: string, listener: (state: string) => void) => {
         appStateListeners.push(listener);
         return { remove: vi.fn() };
@@ -74,11 +78,46 @@ vi.mock('./startup-profiler', () => ({
   measureStartupPhase: vi.fn(async (_name: string, work: () => Promise<unknown>) => work()),
 }));
 
+const makeWidgetTask = (id: string): Task => ({
+  id,
+  title: `Task ${id}`,
+  status: 'next',
+  tags: [],
+  contexts: [],
+  createdAt: '2026-06-15T00:00:00.000Z',
+  updatedAt: '2026-06-15T00:00:00.000Z',
+});
+
+const makeWidgetSnapshot = (task: Task): AppData => ({
+  tasks: [task],
+  projects: [],
+  sections: [],
+  areas: [],
+  people: [],
+  settings: {},
+});
+
+const setupForegroundWidgetStorage = async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-06-30T00:00:00.000Z'));
+  appStateCurrentState.value = 'active';
+  const { mobileStorage, __mobileStorageTestUtils } = await import('./storage-adapter');
+  if (!mobileStorage.saveTask) {
+    throw new Error('Expected mobile storage to support saveTask');
+  }
+  __mobileStorageTestUtils.setSqliteStateForTests({
+    adapter: { saveTask: sqliteAdapterSaveTask },
+    client: {},
+  });
+  return { saveTask: mobileStorage.saveTask, testUtils: __mobileStorageTestUtils };
+};
+
 describe('mobile storage adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
     appStateListeners.length = 0;
+    appStateCurrentState.value = undefined;
     asyncStorageMock.getItem.mockResolvedValue(null);
     asyncStorageMock.setItem.mockResolvedValue(undefined);
     sqliteAdapterSaveTask.mockResolvedValue(undefined);
@@ -520,6 +559,87 @@ describe('mobile storage adapter', () => {
       expect(backupWrites).toBe(1);
       expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(5);
       expect(updateMobileWidgetFromDataMock.mock.calls.length).toBeGreaterThan(backupWrites);
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 10_000);
+
+  it('throttles foreground widget refreshes to one render per 5 minutes with the newest payload (#766)', async () => {
+    try {
+      const { saveTask, testUtils } = await setupForegroundWidgetStorage();
+
+      const first = makeWidgetTask('widget-first');
+      await saveTask(first, makeWidgetSnapshot(first));
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(1);
+
+      const second = makeWidgetTask('widget-second');
+      await saveTask(second, makeWidgetSnapshot(second));
+      await vi.advanceTimersByTimeAsync(2_000);
+      await testUtils.flushPendingStartupJsonBackup();
+
+      expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(1);
+
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(2);
+      expect(updateMobileWidgetFromDataMock).toHaveBeenLastCalledWith(makeWidgetSnapshot(second));
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 10_000);
+
+  it('flushes the newest throttled widget refresh when the app moves to background (#766)', async () => {
+    try {
+      const { saveTask } = await setupForegroundWidgetStorage();
+
+      const first = makeWidgetTask('widget-first');
+      await saveTask(first, makeWidgetSnapshot(first));
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(1);
+
+      const second = makeWidgetTask('widget-second');
+      const newest = makeWidgetTask('widget-newest');
+      await saveTask(second, makeWidgetSnapshot(second));
+      await saveTask(newest, makeWidgetSnapshot(newest));
+      expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(1);
+
+      appStateCurrentState.value = 'background';
+      appStateListeners.forEach((listener) => listener('background'));
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(2);
+      expect(updateMobileWidgetFromDataMock).toHaveBeenLastCalledWith(makeWidgetSnapshot(newest));
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 10_000);
+
+  it('re-arms a foreground widget refresh queued during an in-flight render and flushes it on demand (#766)', async () => {
+    try {
+      let resolveFirstWidgetRefresh!: () => void;
+      updateMobileWidgetFromDataMock.mockImplementationOnce(() => new Promise<void>((resolve) => {
+        resolveFirstWidgetRefresh = resolve;
+      }));
+      const { saveTask, testUtils } = await setupForegroundWidgetStorage();
+
+      const first = makeWidgetTask('widget-first');
+      await saveTask(first, makeWidgetSnapshot(first));
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(1);
+
+      const second = makeWidgetTask('widget-second');
+      await saveTask(second, makeWidgetSnapshot(second));
+      resolveFirstWidgetRefresh();
+      await vi.advanceTimersByTimeAsync(0);
+      await testUtils.flushPendingStartupJsonBackup();
+
+      expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(1);
+
+      await testUtils.flushPendingWidgetRefresh();
+      expect(updateMobileWidgetFromDataMock).toHaveBeenCalledTimes(2);
+      expect(updateMobileWidgetFromDataMock).toHaveBeenLastCalledWith(makeWidgetSnapshot(second));
     } finally {
       vi.useRealTimers();
     }
