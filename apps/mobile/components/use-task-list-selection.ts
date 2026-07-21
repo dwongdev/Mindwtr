@@ -25,6 +25,17 @@ type ToggleMultiSelectOptions = {
   visibleTaskIds?: readonly string[];
 };
 
+// Core batch actions (batchDeleteTasks/batchUpdateTasks/…) are all-or-nothing:
+// on a bad input (e.g. an id removed by a sync merge between opening the confirm
+// Alert and tapping it) they return `{ success: false }` WITHOUT throwing. Turn
+// that into a throw so runBulkAction's catch shows the error toast and the
+// caller never reaches its exitSelectionMode()/success-toast lines.
+function assertBulkActionSucceeded(result: void | StoreActionResult): void {
+  if (result && result.success === false) {
+    throw new Error(result.error ?? '');
+  }
+}
+
 export function useTaskListSelection({
   batchDeleteTasks,
   batchMoveTasks,
@@ -98,7 +109,7 @@ export function useTaskListSelection({
   const handleBatchMove = useCallback(async (newStatus: TaskStatus) => {
     if (!hasSelection || bulkActionLoading) return;
     await runBulkAction(t('bulk.moveTo'), async () => {
-      await batchMoveTasks(selectedIdsArray, newStatus);
+      assertBulkActionSucceeded(await batchMoveTasks(selectedIdsArray, newStatus));
       exitSelectionMode();
       showToast({
         title: t('common.done'),
@@ -121,7 +132,7 @@ export function useTaskListSelection({
           onPress: async () => {
             const deletedIds = [...selectedIdsArray];
             await runBulkAction(t('common.delete'), async () => {
-              await batchDeleteTasks(deletedIds);
+              assertBulkActionSucceeded(await batchDeleteTasks(deletedIds));
               exitSelectionMode();
               showToast({
                 title: t('common.done'),
@@ -146,12 +157,12 @@ export function useTaskListSelection({
     if (!hasSelection || !input || bulkActionLoading) return;
     const tag = input.startsWith('#') ? input : `#${input}`;
     await runBulkAction(t('bulk.addTag'), async () => {
-      await batchUpdateTasks(selectedIdsArray.map((id) => {
+      assertBulkActionSucceeded(await batchUpdateTasks(selectedIdsArray.map((id) => {
         const task = tasksById[id];
         const existingTags = task?.tags || [];
         const nextTags = Array.from(new Set([...existingTags, tag]));
         return { id, updates: { tags: nextTags } };
-      }));
+      })));
       setTagInput('');
       setTagModalVisible(false);
       exitSelectionMode();
@@ -168,7 +179,7 @@ export function useTaskListSelection({
     const updates = buildBulkOrganizeTaskUpdates(selectedIdsArray, tasksById, input);
     if (updates.length === 0) return;
     await runBulkAction(tFallback(t, 'bulk.organize', 'Bulk organize'), async () => {
-      await batchUpdateTasks(updates);
+      assertBulkActionSucceeded(await batchUpdateTasks(updates));
       exitSelectionMode();
       showToast({
         title: t('common.done'),
