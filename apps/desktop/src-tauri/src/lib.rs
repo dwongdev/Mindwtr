@@ -51,6 +51,7 @@ mod autostart;
 mod config;
 mod email_capture;
 mod install;
+mod linux_calendar;
 mod local_api;
 mod logging;
 mod obsidian_paths;
@@ -79,6 +80,11 @@ use email_capture::{
 use install::{
     check_microsoft_store_update, diagnostics_enabled, get_install_source, get_linux_distro,
     is_flatpak, is_niri_session, is_windows_store_install,
+};
+use linux_calendar::{
+    create_linux_calendar_event, delete_linux_calendar_event, ensure_linux_mindwtr_calendar,
+    get_linux_calendar_events, get_linux_calendar_permission_status, get_linux_writable_calendars,
+    request_linux_calendar_permission, update_linux_calendar_event,
 };
 use local_api::{
     get_local_api_server_status, set_local_api_server_config, start_configured_local_api_server,
@@ -596,9 +602,26 @@ struct MacOsCalendarEventPayload {
     title: String,
     start: String,
     end: String,
+    start_date: Option<String>,
+    end_date: Option<String>,
     all_day: bool,
     notes: Option<String>,
     location: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct LinuxCalendarIcsSource {
+    source_id: String,
+    ics: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct LinuxCalendarReadResult {
+    permission: String,
+    calendars: Vec<ExternalCalendarSubscription>,
+    ics_sources: Vec<LinuxCalendarIcsSource>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -1562,6 +1585,14 @@ pub fn run() {
             create_macos_calendar_event,
             update_macos_calendar_event,
             delete_macos_calendar_event,
+            get_linux_calendar_permission_status,
+            request_linux_calendar_permission,
+            get_linux_calendar_events,
+            get_linux_writable_calendars,
+            ensure_linux_mindwtr_calendar,
+            create_linux_calendar_event,
+            update_linux_calendar_event,
+            delete_linux_calendar_event,
             get_calendar_sync_entry,
             upsert_calendar_sync_entry,
             delete_calendar_sync_entry,

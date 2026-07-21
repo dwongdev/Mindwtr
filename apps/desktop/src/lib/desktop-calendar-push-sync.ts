@@ -1,8 +1,8 @@
 /**
- * One-way macOS Apple Calendar push for desktop.
+ * One-way system-calendar push for desktop.
  *
  * This mirrors the mobile calendar-push lifecycle: scheduled/due tasks become
- * EventKit events, while completed/archived/deleted/undated tasks remove their
+ * system calendar events, while completed/archived/deleted/undated tasks remove their
  * pushed event. Task-to-event IDs are stored in the local SQLite calendar_sync
  * table through Tauri commands.
  */
@@ -215,7 +215,7 @@ async function resolveCalendarPushTarget(): Promise<CalendarPushTarget | null> {
             };
         }
         await dependencies.setTargetCalendarId(null);
-        void logWarn('Selected macOS calendar push target is unavailable; falling back to Mindwtr calendar', {
+        void logWarn('Selected system calendar push target is unavailable; falling back to Mindwtr calendar', {
             scope: 'calendar-push',
             extra: { calendarId: selectedId },
         });
@@ -230,6 +230,10 @@ function buildAllDayBoundary(date: Date, dayOffset = 0): Date {
     boundary.setHours(0, 0, 0, 0);
     boundary.setDate(boundary.getDate() + dayOffset);
     return boundary;
+}
+
+function formatLocalDateOnly(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function formatProjectedRecurrenceEventDate(task: Task): string {
@@ -287,11 +291,15 @@ function buildEventDetails(task: Task, target: CalendarPushTarget): SystemCalend
         };
     }
 
+    const allDayStart = buildAllDayBoundary(startDate);
+    const allDayEnd = buildAllDayBoundary(startDate, 1);
     return {
         calendarId: target.id,
         title,
-        start: buildAllDayBoundary(startDate).toISOString(),
-        end: buildAllDayBoundary(startDate, 1).toISOString(),
+        start: allDayStart.toISOString(),
+        end: allDayEnd.toISOString(),
+        startDate: formatLocalDateOnly(allDayStart),
+        endDate: formatLocalDateOnly(allDayEnd),
         allDay: true,
         notes,
         location,
@@ -324,7 +332,7 @@ function createCalendarPushRunPorts(target: CalendarPushTarget): CalendarPushRun
             if (isMissingCalendarEventResult(result)) {
                 return { status: 'missing' };
             }
-            void logWarn('Failed to update macOS calendar event; keeping local sync mapping for retry', {
+            void logWarn('Failed to update system calendar event; keeping local sync mapping for retry', {
                 scope: 'calendar-push',
                 extra: {
                     taskId: entry.taskId,
@@ -337,7 +345,7 @@ function createCalendarPushRunPorts(target: CalendarPushTarget): CalendarPushRun
         deleteEvent: async (entry) => {
             const result = await dependencies.deleteEvent(entry.calendarEventId);
             if (result.ok || isMissingCalendarEventResult(result)) return;
-            void logWarn('Failed to delete macOS calendar event; keeping local sync mapping for retry', {
+            void logWarn('Failed to delete system calendar event; keeping local sync mapping for retry', {
                 scope: 'calendar-push',
                 extra: {
                     taskId: entry.taskId,
@@ -384,7 +392,7 @@ const runFullDesktopCalendarPushSyncUnsafe = async (): Promise<void> => {
         ports: createCalendarPushRunPorts(target),
         concurrency: CALENDAR_SYNC_CONCURRENCY,
     });
-    void logInfo('Full macOS calendar push sync complete', {
+    void logInfo('Full system calendar push sync complete', {
         scope: 'calendar-push',
         extra: {
             total: String(result.total),

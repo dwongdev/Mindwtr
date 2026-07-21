@@ -36,10 +36,10 @@ type UseCalendarSettingsOptions = {
     showSaved: () => void;
     settings: AppData['settings'] | undefined;
     updateSettings: (updates: Partial<AppData['settings']>) => Promise<void>;
-    isMac: boolean;
+    supportsSystemCalendar: boolean;
 };
 
-export function useCalendarSettings({ showSaved, settings, updateSettings, isMac }: UseCalendarSettingsOptions) {
+export function useCalendarSettings({ showSaved, settings, updateSettings, supportsSystemCalendar }: UseCalendarSettingsOptions) {
     const [externalCalendars, setExternalCalendars] = useState<ExternalCalendarSubscription[]>([]);
     const [newCalendarName, setNewCalendarName] = useState('');
     const [newCalendarUrl, setNewCalendarUrl] = useState('');
@@ -71,13 +71,13 @@ export function useCalendarSettings({ showSaved, settings, updateSettings, isMac
     }, [settings?.externalCalendars]);
 
     const refreshSystemCalendarPermission = useCallback(async () => {
-        if (!isMac) {
+        if (!supportsSystemCalendar) {
             setSystemCalendarPermission('unsupported');
             return;
         }
         const status = await getSystemCalendarPermissionStatus();
         setSystemCalendarPermission(status);
-    }, [isMac]);
+    }, [supportsSystemCalendar]);
 
     useEffect(() => {
         void refreshSystemCalendarPermission();
@@ -93,7 +93,7 @@ export function useCalendarSettings({ showSaved, settings, updateSettings, isMac
     }, [refreshSystemCalendarPermission]);
 
     const refreshCalendarPushTargets = useCallback(async () => {
-        if (!isMac) {
+        if (!supportsSystemCalendar) {
             setCalendarPushTargets([]);
             return;
         }
@@ -101,15 +101,15 @@ export function useCalendarSettings({ showSaved, settings, updateSettings, isMac
         try {
             setCalendarPushTargets(await getDesktopCalendarPushTargetCalendars());
         } catch (error) {
-            reportError('Failed to load macOS calendar push targets', error);
+            reportError('Failed to load system calendar push targets', error);
             setCalendarError(String(error));
         } finally {
             setCalendarPushLoading(false);
         }
-    }, [isMac]);
+    }, [supportsSystemCalendar]);
 
     useEffect(() => {
-        if (!isMac) {
+        if (!supportsSystemCalendar) {
             setCalendarPushEnabledState(false);
             setCalendarPushTargetCalendarIdState(null);
             setCalendarPushTargets([]);
@@ -127,7 +127,7 @@ export function useCalendarSettings({ showSaved, settings, updateSettings, isMac
             })
             .catch((error) => {
                 if (!cancelled) {
-                    reportError('Failed to load macOS calendar push settings', error);
+                    reportError('Failed to load system calendar push settings', error);
                     setCalendarError(String(error));
                 }
             });
@@ -135,7 +135,7 @@ export function useCalendarSettings({ showSaved, settings, updateSettings, isMac
         return () => {
             cancelled = true;
         };
-    }, [isMac, refreshCalendarPushTargets]);
+    }, [supportsSystemCalendar, refreshCalendarPushTargets]);
 
     const persistCalendars = useCallback(async (next: ExternalCalendarSubscription[]) => {
         setCalendarError(null);
@@ -213,17 +213,17 @@ export function useCalendarSettings({ showSaved, settings, updateSettings, isMac
     }, [externalCalendars, persistCalendars]);
 
     const handleRequestSystemCalendarPermission = useCallback(async () => {
-        if (!isMac) return;
+        if (!supportsSystemCalendar) return;
         const status = await requestSystemCalendarPermission();
         setSystemCalendarPermission(status);
         if (status === 'granted') {
             await refreshCalendarPushTargets();
             showSaved();
         }
-    }, [isMac, refreshCalendarPushTargets, showSaved]);
+    }, [refreshCalendarPushTargets, showSaved, supportsSystemCalendar]);
 
     const handleToggleCalendarPush = useCallback(async (enabled: boolean) => {
-        if (!isMac) return;
+        if (!supportsSystemCalendar) return;
         setCalendarError(null);
 
         if (!enabled) {
@@ -242,7 +242,7 @@ export function useCalendarSettings({ showSaved, settings, updateSettings, isMac
                 setSystemCalendarPermission(status);
             }
             if (status !== 'granted') {
-                setCalendarError('Apple Calendar access is required to push tasks.');
+                setCalendarError('System calendar access is required to push tasks.');
                 return;
             }
 
@@ -250,20 +250,20 @@ export function useCalendarSettings({ showSaved, settings, updateSettings, isMac
             setCalendarPushEnabledState(ok);
             await refreshCalendarPushTargets();
             if (!ok) {
-                setCalendarError('Could not create or find a writable Apple Calendar target.');
+                setCalendarError('Could not create or find a writable system calendar target.');
                 return;
             }
             showSaved();
         } catch (error) {
-            reportError('Failed to update macOS calendar push setting', error);
+            reportError('Failed to update system calendar push setting', error);
             setCalendarError(String(error));
         } finally {
             setCalendarPushLoading(false);
         }
-    }, [isMac, refreshCalendarPushTargets, showSaved, systemCalendarPermission]);
+    }, [refreshCalendarPushTargets, showSaved, supportsSystemCalendar, systemCalendarPermission]);
 
     const handleCalendarPushTargetChange = useCallback(async (calendarId: string | null) => {
-        if (!isMac) return;
+        if (!supportsSystemCalendar) return;
         const nextId = calendarId?.trim() || null;
         setCalendarError(null);
         setCalendarPushTargetCalendarIdState(nextId);
@@ -275,10 +275,10 @@ export function useCalendarSettings({ showSaved, settings, updateSettings, isMac
             }
             showSaved();
         } catch (error) {
-            reportError('Failed to update macOS calendar push target', error);
+            reportError('Failed to update system calendar push target', error);
             setCalendarError(String(error));
         }
-    }, [calendarPushEnabled, isMac, showSaved]);
+    }, [calendarPushEnabled, showSaved, supportsSystemCalendar]);
 
     const handleRefreshCalendarPushTargets = useCallback(async () => {
         await refreshCalendarPushTargets();

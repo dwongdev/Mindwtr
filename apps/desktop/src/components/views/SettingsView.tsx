@@ -1144,7 +1144,12 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
     handleToggleCalendarPush,
     handleCalendarPushTargetChange,
     handleRefreshCalendarPushTargets,
-  } = useCalendarSettings({ showSaved, settings, updateSettings, isMac });
+  } = useCalendarSettings({
+    showSaved,
+    settings,
+    updateSettings,
+    supportsSystemCalendar: isMac || isLinux,
+  });
   const syncPreferences = settings?.syncPreferences ?? {};
   const handleUpdateSyncPreferences = useCallback(
     (updates: Partial<NonNullable<AppData["settings"]["syncPreferences"]>>) => {
@@ -1257,7 +1262,7 @@ export function SettingsView({ initialPage, onboardingHintPage, onResumeOnboardi
           newCalendarUrl={newCalendarUrl}
           calendarError={calendarError}
           externalCalendars={externalCalendars}
-          showSystemCalendarSection={isMac}
+          showSystemCalendarSection={isMac || isLinux}
           systemCalendarPermission={systemCalendarPermission}
           calendarPushEnabled={calendarPushEnabled}
           calendarPushTargetCalendarId={calendarPushTargetCalendarId}

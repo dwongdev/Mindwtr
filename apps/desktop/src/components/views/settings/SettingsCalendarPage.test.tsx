@@ -53,6 +53,18 @@ describe('SettingsCalendarPage', () => {
         expect(onChooseLocalCalendarFile).toHaveBeenCalledTimes(1);
     });
 
+    it('does not offer a permission action when system calendars are unsupported', () => {
+        const { queryByRole } = render(
+            <SettingsCalendarPage
+                {...baseProps}
+                showSystemCalendarSection
+                systemCalendarPermission="unsupported"
+            />,
+        );
+
+        expect(queryByRole('button', { name: 'Request access' })).not.toBeInTheDocument();
+    });
+
     it('changes an external calendar color from the swatches', () => {
         const onCalendarColorChange = vi.fn();
         const { getByRole } = render(

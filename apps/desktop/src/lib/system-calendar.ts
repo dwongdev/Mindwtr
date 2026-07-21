@@ -1,4 +1,4 @@
-import type { ExternalCalendarEvent, ExternalCalendarSubscription } from '@mindwtr/core';
+import { parseIcs, type ExternalCalendarEvent, type ExternalCalendarSubscription } from '@mindwtr/core';
 import { isTauriRuntime } from './runtime';
 import { reportError } from './report-error';
 
@@ -17,18 +17,29 @@ export type SystemCalendarEventDetails = {
     title: string;
     start: string;
     end: string;
+    startDate?: string;
+    endDate?: string;
     allDay: boolean;
     notes?: string;
     location?: string;
 };
 
-type MacOsCalendarReadResult = {
+type SystemCalendarReadResult = {
     permission: SystemCalendarPermissionStatus;
     calendars: ExternalCalendarSubscription[];
     events: ExternalCalendarEvent[];
 };
 
-type MacOsCalendarEventWriteResult = {
+type LinuxCalendarReadResult = {
+    permission: SystemCalendarPermissionStatus;
+    calendars: ExternalCalendarSubscription[];
+    icsSources?: Array<{
+        sourceId: string;
+        ics: string[];
+    }>;
+};
+
+type NativeCalendarEventWriteResult = {
     ok?: boolean;
     eventId?: string;
     error?: string;
@@ -40,7 +51,7 @@ export type SystemCalendarEventWriteResult = {
     error?: string;
 };
 
-const UNSUPPORTED_RESULT: MacOsCalendarReadResult = {
+const UNSUPPORTED_RESULT: SystemCalendarReadResult = {
     permission: 'unsupported',
     calendars: [],
     events: [],
@@ -53,10 +64,14 @@ const normalizePermissionStatus = (value: unknown): SystemCalendarPermissionStat
     return 'denied';
 };
 
-const isMacOsEnvironment = (): boolean => {
-    if (typeof navigator === 'undefined') return false;
+export type SystemCalendarPlatform = 'macos' | 'linux';
+
+export const getSystemCalendarPlatform = (): SystemCalendarPlatform | null => {
+    if (typeof navigator === 'undefined') return null;
     const source = `${navigator.platform || ''} ${navigator.userAgent || ''}`.toLowerCase();
-    return source.includes('mac');
+    if (source.includes('mac')) return 'macos';
+    if (source.includes('linux')) return 'linux';
+    return null;
 };
 
 async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -65,41 +80,62 @@ async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): 
 }
 
 export async function getSystemCalendarPermissionStatus(): Promise<SystemCalendarPermissionStatus> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) return 'unsupported';
+    const platform = getSystemCalendarPlatform();
+    if (!isTauriRuntime() || !platform) return 'unsupported';
     try {
-        const status = await tauriInvoke<string>('get_macos_calendar_permission_status');
+        const command = platform === 'macos'
+            ? 'get_macos_calendar_permission_status'
+            : 'get_linux_calendar_permission_status';
+        const status = await tauriInvoke<string>(command);
         return normalizePermissionStatus(status);
     } catch (error) {
-        reportError('Failed to read macOS calendar permission status', error);
+        reportError('Failed to read system calendar permission status', error);
         return 'denied';
     }
 }
 
 export async function requestSystemCalendarPermission(): Promise<SystemCalendarPermissionStatus> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) return 'unsupported';
+    const platform = getSystemCalendarPlatform();
+    if (!isTauriRuntime() || !platform) return 'unsupported';
     try {
-        const status = await tauriInvoke<string>('request_macos_calendar_permission');
+        const command = platform === 'macos'
+            ? 'request_macos_calendar_permission'
+            : 'request_linux_calendar_permission';
+        const status = await tauriInvoke<string>(command);
         return normalizePermissionStatus(status);
     } catch (error) {
-        reportError('Failed to request macOS calendar permission', error);
+        reportError('Failed to request system calendar permission', error);
         return 'denied';
     }
 }
 
-export async function fetchSystemCalendarEvents(rangeStart: Date, rangeEnd: Date): Promise<MacOsCalendarReadResult> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) return UNSUPPORTED_RESULT;
+export async function fetchSystemCalendarEvents(rangeStart: Date, rangeEnd: Date): Promise<SystemCalendarReadResult> {
+    const platform = getSystemCalendarPlatform();
+    if (!isTauriRuntime() || !platform) return UNSUPPORTED_RESULT;
     try {
-        const payload = await tauriInvoke<MacOsCalendarReadResult>('get_macos_calendar_events', {
+        const command = platform === 'macos' ? 'get_macos_calendar_events' : 'get_linux_calendar_events';
+        const payload = await tauriInvoke<SystemCalendarReadResult | LinuxCalendarReadResult>(command, {
             rangeStart: rangeStart.toISOString(),
             rangeEnd: rangeEnd.toISOString(),
         });
+        const events = platform === 'linux'
+            ? ((payload as LinuxCalendarReadResult).icsSources ?? []).flatMap((source) => (
+                Array.isArray(source.ics)
+                    ? source.ics.flatMap((ics) => parseIcs(ics, {
+                        sourceId: source.sourceId,
+                        rangeStart,
+                        rangeEnd,
+                    }))
+                    : []
+            ))
+            : (payload as SystemCalendarReadResult).events;
         return {
             permission: normalizePermissionStatus(payload?.permission),
             calendars: Array.isArray(payload?.calendars) ? payload.calendars : [],
-            events: Array.isArray(payload?.events) ? payload.events : [],
+            events: Array.isArray(events) ? events : [],
         };
     } catch (error) {
-        reportError('Failed to read macOS EventKit events', error);
+        reportError('Failed to read system calendar events', error);
         return {
             permission: 'denied',
             calendars: [],
@@ -126,32 +162,40 @@ const sanitizePushTarget = (target: SystemCalendarPushTarget): SystemCalendarPus
 };
 
 export async function getSystemCalendarPushTargets(): Promise<SystemCalendarPushTarget[]> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) return [];
+    const platform = getSystemCalendarPlatform();
+    if (!isTauriRuntime() || !platform) return [];
     try {
-        const targets = await tauriInvoke<SystemCalendarPushTarget[]>('get_macos_writable_calendars');
+        const command = platform === 'macos'
+            ? 'get_macos_writable_calendars'
+            : 'get_linux_writable_calendars';
+        const targets = await tauriInvoke<SystemCalendarPushTarget[]>(command);
         return Array.isArray(targets)
             ? targets.map(sanitizePushTarget).filter((target): target is SystemCalendarPushTarget => Boolean(target))
             : [];
     } catch (error) {
-        reportError('Failed to read writable macOS calendars', error);
+        reportError('Failed to read writable system calendars', error);
         return [];
     }
 }
 
 export async function ensureSystemMindwtrCalendar(storedCalendarId?: string | null): Promise<SystemCalendarPushTarget | null> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) return null;
+    const platform = getSystemCalendarPlatform();
+    if (!isTauriRuntime() || !platform) return null;
     try {
-        const target = await tauriInvoke<SystemCalendarPushTarget | null>('ensure_macos_mindwtr_calendar', {
+        const command = platform === 'macos'
+            ? 'ensure_macos_mindwtr_calendar'
+            : 'ensure_linux_mindwtr_calendar';
+        const target = await tauriInvoke<SystemCalendarPushTarget | null>(command, {
             storedCalendarId: storedCalendarId?.trim() || null,
         });
         return target ? sanitizePushTarget(target) : null;
     } catch (error) {
-        reportError('Failed to create Mindwtr macOS calendar', error);
+        reportError('Failed to create Mindwtr system calendar', error);
         return null;
     }
 }
 
-const normalizeWriteResult = (result: MacOsCalendarEventWriteResult | null | undefined): SystemCalendarEventWriteResult => {
+const normalizeWriteResult = (result: NativeCalendarEventWriteResult | null | undefined): SystemCalendarEventWriteResult => {
     const eventId = typeof result?.eventId === 'string' ? result.eventId.trim() : '';
     const error = typeof result?.error === 'string' && result.error.trim().length > 0
         ? result.error.trim()
@@ -164,14 +208,16 @@ const normalizeWriteResult = (result: MacOsCalendarEventWriteResult | null | und
 };
 
 export async function createSystemCalendarEventResult(details: SystemCalendarEventDetails): Promise<SystemCalendarEventWriteResult> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) {
+    const platform = getSystemCalendarPlatform();
+    if (!isTauriRuntime() || !platform) {
         return { ok: false, eventId: null, error: 'unsupported' };
     }
     try {
-        const result = await tauriInvoke<MacOsCalendarEventWriteResult>('create_macos_calendar_event', { details });
+        const command = platform === 'macos' ? 'create_macos_calendar_event' : 'create_linux_calendar_event';
+        const result = await tauriInvoke<NativeCalendarEventWriteResult>(command, { details });
         return normalizeWriteResult(result);
     } catch (error) {
-        reportError('Failed to create macOS calendar event', error);
+        reportError('Failed to create system calendar event', error);
         return { ok: false, eventId: null, error: error instanceof Error ? error.message : String(error) };
     }
 }
@@ -185,14 +231,16 @@ export async function updateSystemCalendarEventResult(
     eventId: string,
     details: SystemCalendarEventDetails
 ): Promise<SystemCalendarEventWriteResult> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) {
+    const platform = getSystemCalendarPlatform();
+    if (!isTauriRuntime() || !platform) {
         return { ok: false, eventId: null, error: 'unsupported' };
     }
     try {
-        const result = await tauriInvoke<MacOsCalendarEventWriteResult>('update_macos_calendar_event', { eventId, details });
+        const command = platform === 'macos' ? 'update_macos_calendar_event' : 'update_linux_calendar_event';
+        const result = await tauriInvoke<NativeCalendarEventWriteResult>(command, { eventId, details });
         return normalizeWriteResult(result);
     } catch (error) {
-        reportError('Failed to update macOS calendar event', error);
+        reportError('Failed to update system calendar event', error);
         return { ok: false, eventId: null, error: error instanceof Error ? error.message : String(error) };
     }
 }
@@ -203,14 +251,16 @@ export async function updateSystemCalendarEvent(eventId: string, details: System
 }
 
 export async function deleteSystemCalendarEventResult(eventId: string): Promise<SystemCalendarEventWriteResult> {
-    if (!isTauriRuntime() || !isMacOsEnvironment()) {
+    const platform = getSystemCalendarPlatform();
+    if (!isTauriRuntime() || !platform) {
         return { ok: false, eventId: null, error: 'unsupported' };
     }
     try {
-        const result = await tauriInvoke<MacOsCalendarEventWriteResult>('delete_macos_calendar_event', { eventId });
+        const command = platform === 'macos' ? 'delete_macos_calendar_event' : 'delete_linux_calendar_event';
+        const result = await tauriInvoke<NativeCalendarEventWriteResult>(command, { eventId });
         return normalizeWriteResult(result);
     } catch (error) {
-        reportError('Failed to delete macOS calendar event', error);
+        reportError('Failed to delete system calendar event', error);
         return { ok: false, eventId: null, error: error instanceof Error ? error.message : String(error) };
     }
 }

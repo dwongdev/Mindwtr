@@ -3037,6 +3037,7 @@ dependencies = [
  "hound",
  "imap",
  "keyring",
+ "libloading 0.8.9",
  "log",
  "mail-parser",
  "native-tls",

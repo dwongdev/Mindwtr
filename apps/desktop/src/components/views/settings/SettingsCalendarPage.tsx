@@ -110,7 +110,7 @@ export function SettingsCalendarPage({
                             <span className="text-muted-foreground">{t.calendarSystemStatus}: </span>
                             <span className="font-medium">{permissionLabel}</span>
                         </div>
-                        {systemCalendarPermission !== 'granted' && (
+                        {(systemCalendarPermission === 'undetermined' || systemCalendarPermission === 'denied') && (
                             <button
                                 type="button"
                                 onClick={onRequestSystemCalendarPermission}

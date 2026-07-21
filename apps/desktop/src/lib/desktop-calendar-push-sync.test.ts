@@ -109,6 +109,8 @@ describe('desktop calendar push sync', () => {
         expect(createEvent).toHaveBeenCalledWith(expect.objectContaining({
             calendarId: 'cal-mindwtr',
             title: 'Plan review',
+            startDate: '2026-01-10',
+            endDate: '2026-01-11',
             allDay: true,
         }));
         expect(upsertSyncEntry).toHaveBeenCalledWith(expect.objectContaining({

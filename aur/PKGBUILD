@@ -7,6 +7,7 @@ arch=('x86_64')
 url="https://github.com/dongdongbh/Mindwtr"
 license=('AGPL3')
 depends=('webkit2gtk-4.1' 'gtk3' 'libappindicator-gtk3')
+optdepends=('evolution-data-server: GNOME system calendar integration')
 provides=('mindwtr')
 conflicts=('mindwtr')
 source_x86_64=("${url}/releases/download/v${pkgver}/mindwtr_${pkgver}_amd64.deb")
