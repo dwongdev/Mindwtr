@@ -579,6 +579,7 @@ export const zhHant: Record<string, string> = {
         'projects.noNextAction': '沒有下一步行動',
         'projects.nextActionPromptTitle': '下一步行動是什麼？',
         'projects.nextActionPromptDesc': '為 {{project}} 選擇或添加下一步行動。',
+        'projects.nextActionPromptSectionDesc': '為 {{project}} 中的 {{section}} 選擇或添加下一步行動。',
         'projects.nextActionPromptChooseExisting': '選擇現有任務',
         'projects.nextActionPromptAddNew': '添加新的下一步行動',
         'projects.nextActionPromptPlaceholder': '新的下一步行動…',

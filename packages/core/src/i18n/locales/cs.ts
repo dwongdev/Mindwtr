@@ -626,6 +626,7 @@ export const csOverrides: Record<string, string> = {
         'projects.noNextAction': 'Žádný další krok',
         'projects.nextActionPromptTitle': 'Jaký je další krok?',
         'projects.nextActionPromptDesc': 'Zvolte nebo přidejte další krok pro {{project}}.',
+        'projects.nextActionPromptSectionDesc': 'Zvolte nebo přidejte další krok pro sekci {{section}} v projektu {{project}}.',
         'projects.nextActionPromptChooseExisting': 'Vybrat existující úkol',
         'projects.nextActionPromptAddNew': 'Přidat nový další krok',
         'projects.nextActionPromptPlaceholder': 'Nový další krok…',

@@ -74,6 +74,8 @@ type ProjectNextActionPromptState = {
     projectId: string;
     projectTitle: string;
     sectionId?: string;
+    scope: 'project' | 'section';
+    sectionTitle?: string;
 };
 
 type TaskStoreActions = ReturnType<typeof useTaskStore.getState>;
@@ -236,12 +238,17 @@ function SwipeableTaskItemInner({
             : [...allTasks, completedTask];
         const promptData = getProjectNextActionPromptData(completedTask, promptTasks, allProjects);
         if (!promptData) return;
+        const allSections = Array.isArray(storeState.sections) ? storeState.sections : [];
         setProjectNextActionTitle('');
         setProjectNextActionPrompt({
             candidates: promptData.candidates,
             projectId: promptData.project.id,
             projectTitle: promptData.project.title,
             sectionId: completedTask.sectionId,
+            scope: promptData.scope,
+            sectionTitle: promptData.scope === 'section' && completedTask.sectionId
+                ? allSections.find((section) => section.id === completedTask.sectionId)?.title
+                : undefined,
         });
     }, [task]);
 
@@ -667,6 +674,8 @@ function SwipeableTaskItemInner({
                     visible={Boolean(projectNextActionPrompt)}
                     candidates={projectNextActionPrompt.candidates}
                     projectTitle={projectNextActionPrompt.projectTitle}
+                    scope={projectNextActionPrompt.scope}
+                    sectionTitle={projectNextActionPrompt.sectionTitle}
                     newTitle={projectNextActionTitle}
                     submitting={isProjectNextActionSubmitting}
                     tc={tc}

@@ -98,6 +98,8 @@ type ProjectNextActionPromptState = {
     projectId: string;
     projectTitle: string;
     sectionId?: string;
+    scope: 'project' | 'section';
+    sectionTitle?: string;
 };
 
 export const TaskItem = memo(function TaskItem({
@@ -788,6 +790,10 @@ export const TaskItem = memo(function TaskItem({
             projectId: promptData.project.id,
             projectTitle: promptData.project.title,
             sectionId: completedTask.sectionId,
+            scope: promptData.scope,
+            sectionTitle: promptData.scope === 'section' && completedTask.sectionId
+                ? storeState.sections.find((section) => section.id === completedTask.sectionId)?.title
+                : undefined,
         });
     }, [task]);
     const handlePromoteProjectNextAction = useCallback((nextTaskId: string) => {
@@ -1436,6 +1442,8 @@ export const TaskItem = memo(function TaskItem({
                     isOpen={Boolean(projectNextActionPrompt)}
                     candidates={projectNextActionPrompt.candidates}
                     projectTitle={projectNextActionPrompt.projectTitle}
+                    scope={projectNextActionPrompt.scope}
+                    sectionTitle={projectNextActionPrompt.sectionTitle}
                     newTitle={projectNextActionTitle}
                     onAddTask={handleAddProjectNextAction}
                     onCancel={closeProjectNextActionPrompt}

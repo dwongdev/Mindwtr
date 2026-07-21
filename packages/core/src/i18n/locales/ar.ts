@@ -571,6 +571,7 @@ export const arOverrides: Record<string, string> = {
         'projects.deletedAreaFilterResetAlert': 'لم تعد هذه المنطقة متاحة. تم التبديل إلى جميع المناطق.',
         'projects.nextActionPromptTitle': 'إضافة الإجراء التالي؟',
         'projects.nextActionPromptDesc': 'هذا المشروع لا يحتوي على إجراء تالٍ واضح.',
+        'projects.nextActionPromptSectionDesc': 'اختر أو أضف الإجراء التالي لقسم {{section}} في {{project}}.',
         'projects.nextActionPromptChooseExisting': 'اختيار مهمة موجودة',
         'projects.nextActionPromptAddNew': 'إضافة مهمة جديدة',
         'projects.nextActionPromptPlaceholder': 'عنوان الإجراء التالي',

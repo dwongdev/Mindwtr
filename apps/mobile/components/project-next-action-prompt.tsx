@@ -12,6 +12,8 @@ type ProjectNextActionPromptState = {
     projectId: string;
     projectTitle: string;
     sectionId?: string;
+    scope: 'project' | 'section';
+    sectionTitle?: string;
 };
 
 type ProjectNextActionPromptPresenter = (completedTask: Task) => boolean;
@@ -61,11 +63,16 @@ export function buildProjectNextActionPromptState(completedTask: Task): ProjectN
 
     if (!promptData) return null;
 
+    const allSections = Array.isArray(storeState.sections) ? storeState.sections : [];
     return {
         candidates: promptData.candidates,
         projectId: promptData.project.id,
         projectTitle: promptData.project.title,
         sectionId: completedSnapshot.sectionId,
+        scope: promptData.scope,
+        sectionTitle: promptData.scope === 'section' && completedSnapshot.sectionId
+            ? allSections.find((section) => section.id === completedSnapshot.sectionId)?.title
+            : undefined,
     };
 }
 
@@ -191,6 +198,8 @@ export function ProjectNextActionPromptProvider({ children }: { children: React.
                     visible
                     candidates={prompt.candidates}
                     projectTitle={prompt.projectTitle}
+                    scope={prompt.scope}
+                    sectionTitle={prompt.sectionTitle}
                     newTitle={newTitle}
                     submitting={isSubmitting}
                     tc={tc}

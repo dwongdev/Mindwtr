@@ -645,6 +645,7 @@ export const viOverrides: Record<string, string> = {
         'projects.noNextAction': 'Không có hành động tiếp theo',
         'projects.nextActionPromptTitle': 'Hành động tiếp theo là gì?',
         'projects.nextActionPromptDesc': 'Chọn hoặc thêm hành động tiếp theo cho {{project}}.',
+        'projects.nextActionPromptSectionDesc': 'Chọn hoặc thêm hành động tiếp theo cho {{section}} trong {{project}}.',
         'projects.nextActionPromptChooseExisting': 'Chọn nhiệm vụ hiện có',
         'projects.nextActionPromptAddNew': 'Thêm hành động tiếp theo mới',
         'projects.nextActionPromptPlaceholder': 'Hành động tiếp theo mới...',

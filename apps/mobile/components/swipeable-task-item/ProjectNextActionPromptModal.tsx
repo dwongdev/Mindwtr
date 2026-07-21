@@ -9,6 +9,8 @@ type ProjectNextActionPromptModalProps = {
     candidates: Task[];
     newTitle: string;
     projectTitle: string;
+    scope?: 'project' | 'section';
+    sectionTitle?: string;
     submitting?: boolean;
     tc: ThemeColors;
     t: (key: string) => string;
@@ -24,6 +26,8 @@ export function ProjectNextActionPromptModal({
     candidates,
     newTitle,
     projectTitle,
+    scope = 'project',
+    sectionTitle,
     submitting = false,
     tc,
     t,
@@ -36,11 +40,17 @@ export function ProjectNextActionPromptModal({
 }: ProjectNextActionPromptModalProps) {
     const canAddTask = newTitle.trim().length > 0;
     const addDisabled = !canAddTask || submitting;
-    const description = tFallback(
-        t,
-        'projects.nextActionPromptDesc',
-        'Choose or add the next action for {{project}}.',
-    ).replace('{{project}}', projectTitle);
+    const description = scope === 'section' && sectionTitle
+        ? tFallback(
+            t,
+            'projects.nextActionPromptSectionDesc',
+            'Choose or add the next action for {{section}} in {{project}}.',
+        ).replace('{{section}}', sectionTitle).replace('{{project}}', projectTitle)
+        : tFallback(
+            t,
+            'projects.nextActionPromptDesc',
+            'Choose or add the next action for {{project}}.',
+        ).replace('{{project}}', projectTitle);
 
     return (
         <Modal
@@ -121,20 +131,22 @@ export function ProjectNextActionPromptModal({
                     </View>
 
                     <View style={styles.nextActionActions}>
-                        <Pressable
-                            style={styles.nextActionCompleteButton}
-                            onPress={onCompleteProject}
-                            disabled={submitting}
-                            accessibilityRole="button"
-                            accessibilityLabel={tFallback(t, 'projects.nextActionPromptComplete', 'Complete project')}
-                            accessibilityState={{ disabled: submitting }}
-                        >
-                            <Text
-                                style={[styles.nextActionSecondaryText, { color: submitting ? tc.secondaryText : tc.tint }]}
+                        {scope !== 'section' && (
+                            <Pressable
+                                style={styles.nextActionCompleteButton}
+                                onPress={onCompleteProject}
+                                disabled={submitting}
+                                accessibilityRole="button"
+                                accessibilityLabel={tFallback(t, 'projects.nextActionPromptComplete', 'Complete project')}
+                                accessibilityState={{ disabled: submitting }}
                             >
-                                {tFallback(t, 'projects.nextActionPromptComplete', 'Complete project')}
-                            </Text>
-                        </Pressable>
+                                <Text
+                                    style={[styles.nextActionSecondaryText, { color: submitting ? tc.secondaryText : tc.tint }]}
+                                >
+                                    {tFallback(t, 'projects.nextActionPromptComplete', 'Complete project')}
+                                </Text>
+                            </Pressable>
+                        )}
                         <Pressable
                             style={[styles.nextActionSecondaryButton, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
                             onPress={onCancel}

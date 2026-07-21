@@ -8,6 +8,8 @@ type ProjectNextActionPromptProps = {
     isOpen: boolean;
     newTitle: string;
     projectTitle: string;
+    scope?: 'project' | 'section';
+    sectionTitle?: string;
     onAddTask: () => void;
     onCancel: () => void;
     onChooseTask: (taskId: string) => void;
@@ -21,6 +23,8 @@ export function ProjectNextActionPrompt({
     isOpen,
     newTitle,
     projectTitle,
+    scope = 'project',
+    sectionTitle,
     onAddTask,
     onCancel,
     onChooseTask,
@@ -34,10 +38,15 @@ export function ProjectNextActionPrompt({
     const inputId = useId();
     const canAddTask = newTitle.trim().length > 0;
     const resolveText = (key: string, fallback: string) => translateWithFallback(t, key, fallback);
-    const description = resolveText(
-        'projects.nextActionPromptDesc',
-        'Choose or add the next action for {{project}}.',
-    ).replace('{{project}}', projectTitle);
+    const description = scope === 'section' && sectionTitle
+        ? resolveText(
+            'projects.nextActionPromptSectionDesc',
+            'Choose or add the next action for {{section}} in {{project}}.',
+        ).replace('{{section}}', sectionTitle).replace('{{project}}', projectTitle)
+        : resolveText(
+            'projects.nextActionPromptDesc',
+            'Choose or add the next action for {{project}}.',
+        ).replace('{{project}}', projectTitle);
 
     if (!isOpen) return null;
 
@@ -113,9 +122,11 @@ export function ProjectNextActionPrompt({
                     </div>
 
                     <div className="flex justify-between items-center gap-2">
-                        <Button variant="ghost" onClick={onCompleteProject}>
-                            {resolveText('projects.nextActionPromptComplete', 'Complete project')}
-                        </Button>
+                        {scope === 'section' ? <span /> : (
+                            <Button variant="ghost" onClick={onCompleteProject}>
+                                {resolveText('projects.nextActionPromptComplete', 'Complete project')}
+                            </Button>
+                        )}
                         <div className="flex gap-2">
                             <Button variant="secondary" onClick={onCancel}>
                                 {resolveText('common.skip', 'Skip')}

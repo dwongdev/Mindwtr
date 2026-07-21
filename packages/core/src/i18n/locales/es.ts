@@ -481,6 +481,7 @@ export const esOverrides: Record<string, string> = {
         'projects.noNextAction': 'No hay siguiente acción',
         'projects.nextActionPromptTitle': '¿Cuál es la siguiente acción?',
         'projects.nextActionPromptDesc': 'Elige o añade la siguiente acción para {{project}}.',
+        'projects.nextActionPromptSectionDesc': 'Elige o añade la siguiente acción para {{section}} en {{project}}.',
         'projects.nextActionPromptChooseExisting': 'Elegir una tarea existente',
         'projects.nextActionPromptAddNew': 'Añadir una nueva siguiente acción',
         'projects.nextActionPromptPlaceholder': 'Nueva siguiente acción...',

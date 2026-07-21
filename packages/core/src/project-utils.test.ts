@@ -109,6 +109,64 @@ describe('project-utils', () => {
         expect(getProjectNextActionPromptData(completedTask, [completedTask, ...tasks], projects)).toBeNull();
     });
 
+    it('prompts for a stalled section in a section-scoped sequential project (#911)', () => {
+        const sectionProject: Project = { ...projects[0], id: 'seq', isSequential: true, sequentialScope: 'section' };
+        const completedTask: Task = {
+            id: 'done-a', title: 'Finish section A', status: 'done', projectId: 'seq', sectionId: 's-a',
+            tags: [], contexts: [], createdAt: '', updatedAt: '',
+        };
+        const projectTasks: Task[] = [
+            completedTask,
+            { id: 'b-next', title: 'B live', status: 'next', projectId: 'seq', sectionId: 's-b', tags: [], contexts: [], createdAt: '', updatedAt: '' },
+            { id: 'a-someday', title: 'A later', status: 'someday', projectId: 'seq', sectionId: 's-a', order: 1, tags: [], contexts: [], createdAt: '', updatedAt: '' },
+            { id: 'b-inbox', title: 'B other', status: 'inbox', projectId: 'seq', sectionId: 's-b', tags: [], contexts: [], createdAt: '', updatedAt: '' },
+        ];
+
+        const promptData = getProjectNextActionPromptData(completedTask, projectTasks, [sectionProject]);
+
+        expect(promptData?.scope).toBe('section');
+        expect(promptData?.project.id).toBe('seq');
+        expect(promptData?.candidates.map((task) => task.id)).toEqual(['a-someday']);
+    });
+
+    it('does not prompt for a section while it still has a next action, nor without section-scoped sequencing', () => {
+        const completedTask: Task = {
+            id: 'done-a', title: 'Finish step', status: 'done', projectId: 'seq', sectionId: 's-a',
+            tags: [], contexts: [], createdAt: '', updatedAt: '',
+        };
+        const projectTasks: Task[] = [
+            completedTask,
+            { id: 'a-next', title: 'A live', status: 'next', projectId: 'seq', sectionId: 's-a', tags: [], contexts: [], createdAt: '', updatedAt: '' },
+            { id: 'b-next', title: 'B live', status: 'next', projectId: 'seq', sectionId: 's-b', tags: [], contexts: [], createdAt: '', updatedAt: '' },
+        ];
+        const sectionProject: Project = { ...projects[0], id: 'seq', isSequential: true, sequentialScope: 'section' };
+        expect(getProjectNextActionPromptData(completedTask, projectTasks, [sectionProject])).toBeNull();
+
+        // Section stalls but the project is parallel, or sequential over the whole project: no prompt.
+        const stalledTasks = projectTasks.filter((task) => task.id !== 'a-next');
+        const parallelProject: Project = { ...projects[0], id: 'seq' };
+        const projectScoped: Project = { ...projects[0], id: 'seq', isSequential: true, sequentialScope: 'project' };
+        expect(getProjectNextActionPromptData(completedTask, stalledTasks, [parallelProject])).toBeNull();
+        expect(getProjectNextActionPromptData(completedTask, stalledTasks, [projectScoped])).toBeNull();
+    });
+
+    it('treats unsectioned tasks as their own group for section-stall prompts', () => {
+        const sectionProject: Project = { ...projects[0], id: 'seq', isSequential: true, sequentialScope: 'section' };
+        const completedTask: Task = {
+            id: 'done-loose', title: 'Loose step', status: 'done', projectId: 'seq',
+            tags: [], contexts: [], createdAt: '', updatedAt: '',
+        };
+        const projectTasks: Task[] = [
+            completedTask,
+            { id: 'b-next', title: 'B live', status: 'next', projectId: 'seq', sectionId: 's-b', tags: [], contexts: [], createdAt: '', updatedAt: '' },
+            { id: 'loose-inbox', title: 'Loose later', status: 'inbox', projectId: 'seq', tags: [], contexts: [], createdAt: '', updatedAt: '' },
+        ];
+
+        const promptData = getProjectNextActionPromptData(completedTask, projectTasks, [sectionProject]);
+        expect(promptData?.scope).toBe('section');
+        expect(promptData?.candidates.map((task) => task.id)).toEqual(['loose-inbox']);
+    });
+
     it('marks one available next task in a sequential project', () => {
         const project: Project = { ...projects[0], isSequential: true, sequentialScope: 'project' };
         const projectTasks: Task[] = [

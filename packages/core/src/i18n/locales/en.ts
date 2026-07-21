@@ -651,6 +651,7 @@ export const en: Record<string, string> = {
         'projects.noNextAction': 'No next action',
         'projects.nextActionPromptTitle': "What's the next action?",
         'projects.nextActionPromptDesc': 'Choose or add the next action for {{project}}.',
+        'projects.nextActionPromptSectionDesc': 'Choose or add the next action for {{section}} in {{project}}.',
         'projects.nextActionPromptChooseExisting': 'Choose an existing task',
         'projects.nextActionPromptAddNew': 'Add a new next action',
         'projects.nextActionPromptPlaceholder': 'New next action...',

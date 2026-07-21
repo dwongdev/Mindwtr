@@ -630,6 +630,7 @@ export const frOverrides: Record<string, string> = {
         'projects.noNextAction': 'Aucune prochaine action',
         'projects.nextActionPromptTitle': 'Quelle est la prochaine action pour ce projet ?',
         'projects.nextActionPromptDesc': 'Ajoutez une prochaine action pour ce projet afin de le faire avancer.',
+        'projects.nextActionPromptSectionDesc': 'Choisissez ou ajoutez la prochaine action pour {{section}} dans {{project}}.',
         'projects.nextActionPromptChooseExisting': 'Choisir une action existante',
         'projects.nextActionPromptAddNew': 'Ajouter une nouvelle action',
         'projects.nextActionPromptPlaceholder': 'Décrivez la prochaine action…',

@@ -143,7 +143,7 @@ export function getProjectNextActionPromptData(
     completedTask: Task,
     tasks: Task[],
     projects: Project[]
-): { project: Project; candidates: Task[] } | null {
+): { project: Project; candidates: Task[]; scope: 'project' | 'section' } | null {
     if (!completedTask.projectId || completedTask.deletedAt || completedTask.status !== 'done') {
         return null;
     }
@@ -153,14 +153,37 @@ export function getProjectNextActionPromptData(
         return null;
     }
 
-    if (projectHasNextAction(project, tasks, completedTask.id)) {
-        return null;
+    if (!projectHasNextAction(project, tasks, completedTask.id)) {
+        return {
+            project,
+            candidates: getProjectNextActionCandidates(project.id, tasks, completedTask.id),
+            scope: 'project',
+        };
     }
 
-    return {
-        project,
-        candidates: getProjectNextActionCandidates(project.id, tasks, completedTask.id),
-    };
+    // Section-scoped sequential projects run one sequence per section, so a
+    // section left without a next action is stalled even while other sections
+    // still have live next actions (#911).
+    if (project.isSequential && normalizeProjectSequentialScope(project.sequentialScope) === 'section') {
+        const sectionKey = completedTask.sectionId ?? undefined;
+        const inSameSection = (task: Task) => (task.sectionId ?? undefined) === sectionKey;
+        const sectionHasNext = tasks.some((task) =>
+            task.id !== completedTask.id &&
+            task.projectId === project.id &&
+            !task.deletedAt &&
+            task.status === 'next' &&
+            inSameSection(task)
+        );
+        if (!sectionHasNext) {
+            return {
+                project,
+                candidates: getProjectNextActionCandidates(project.id, tasks, completedTask.id).filter(inSameSection),
+                scope: 'section',
+            };
+        }
+    }
+
+    return null;
 }
 
 export function shouldPromptForProjectNextAction(
