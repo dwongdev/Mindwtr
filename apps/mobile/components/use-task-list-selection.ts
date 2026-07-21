@@ -30,7 +30,7 @@ type ToggleMultiSelectOptions = {
 // Alert and tapping it) they return `{ success: false }` WITHOUT throwing. Turn
 // that into a throw so runBulkAction's catch shows the error toast and the
 // caller never reaches its exitSelectionMode()/success-toast lines.
-function assertBulkActionSucceeded(result: void | StoreActionResult): void {
+export function assertBulkActionSucceeded(result: void | StoreActionResult): void {
   if (result && result.success === false) {
     throw new Error(result.error ?? '');
   }

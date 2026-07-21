@@ -43,7 +43,7 @@ import {
   taskHasContextOrTag,
   taskMatchesContextOrTagFilter,
 } from './contexts-view-filter-utils';
-import { useTaskListSelection } from '../use-task-list-selection';
+import { assertBulkActionSucceeded, useTaskListSelection } from '../use-task-list-selection';
 
 type BulkTokenPickerState = {
   field: 'tags' | 'contexts';
@@ -243,7 +243,7 @@ export function ContextsView() {
       );
       setBulkTokenPicker(null);
       if (updates.length === 0) return;
-      await batchUpdateTasks(updates);
+      assertBulkActionSucceeded(await batchUpdateTasks(updates));
       exitSelectionMode();
       showToast({
         title: t('common.done'),
