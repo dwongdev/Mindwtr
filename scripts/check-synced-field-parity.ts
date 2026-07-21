@@ -494,20 +494,11 @@ failures.push(...compareSet(
 // the schema marks as writable via a cloud API patch (cloudWrite
 // 'create-patch' or 'patch'), so a future schema field promoted to
 // client-writable can't be forgotten on the server allowlist.
-//
-// `boardOrder` is added manually below: cloud-invariants-20260716-01 (Fix C)
-// deliberately makes it patchable via the API to match its order-semantic
-// siblings order/orderNum/focusOrder, but the schema fixture's cloudWrite tag
-// for boardOrder still says 'managed' (stale — task-sync-schema.fixture.json
-// is out of scope for this change; a follow-up should correct the tag there,
-// at which point this override can be removed).
-const PATCH_ALLOWLIST_SCHEMA_OVERRIDES = ['boardOrder'];
-const requiredCloudTaskPatchFields = Array.from(new Set([
-    ...TASK_SYNC_FIELD_SCHEMA
+const requiredCloudTaskPatchFields = Array.from(new Set(
+    TASK_SYNC_FIELD_SCHEMA
         .filter((field) => field.cloudWrite === 'create-patch' || field.cloudWrite === 'patch')
-        .map((field) => field.name),
-    ...PATCH_ALLOWLIST_SCHEMA_OVERRIDES,
-]));
+        .map((field) => field.name)
+));
 failures.push(...assertSuperset(
     'cloud CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS',
     CLOUD_TASK_PATCH_ALLOWED_PROP_KEYS as Iterable<string>,

@@ -44,7 +44,7 @@
         { "name": "purgedAt", "sync": "tombstone", "nullability": "optional", "sinceVersion": 1, "signature": "ignored", "sqliteColumn": "purgedAt", "cloudKit": { "key": "purgedAt", "kind": "date" }, "cloudWrite": "managed" },
         { "name": "order", "sync": "order", "nullability": "optional", "sinceVersion": 1, "signature": "ignored", "sqliteColumn": "orderNum", "cloudKit": { "key": "sortOrder", "kind": "integer" }, "cloudWrite": "patch" },
         { "name": "orderNum", "sync": "legacy-alias", "nullability": "optional", "sinceVersion": 1, "signature": "ignored", "sqliteColumn": "orderNum", "cloudKit": { "key": "orderNum", "kind": "integer" }, "cloudWrite": "patch" },
-        { "name": "boardOrder", "sync": "order", "nullability": "optional", "sinceVersion": 1, "signature": "ignored", "sqliteColumn": "boardOrder", "cloudKit": null, "cloudWrite": "managed" },
+        { "name": "boardOrder", "sync": "order", "nullability": "optional", "sinceVersion": 1, "signature": "ignored", "sqliteColumn": "boardOrder", "cloudKit": null, "cloudWrite": "patch" },
         { "name": "focusOrder", "sync": "order", "nullability": "optional", "sinceVersion": 1, "signature": "ignored", "sqliteColumn": "focusOrder", "cloudKit": { "key": "focusOrder", "kind": "integer" }, "cloudWrite": "patch" }
     ],
     "fixture": {
