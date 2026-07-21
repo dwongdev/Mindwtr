@@ -155,7 +155,7 @@ type FocusSectionType = 'focus' | 'schedule' | 'next' | 'reviewDue' | 'reviewPro
 type FocusListItem =
   | { type: 'task'; task: Task; grouped?: boolean }
   | { type: 'project'; project: Project }
-  | { type: 'groupHeader'; id: string; title: string; count: number; muted?: boolean };
+  | { type: 'groupHeader'; id: string; title: string; count: number; muted?: boolean; dotColor?: string };
 
 type FocusSection = {
   title: string;
@@ -1109,6 +1109,7 @@ export default function FocusScreen() {
             title: group.label,
             count: group.tasks.length,
             muted: group.muted,
+            dotColor: group.dotColor,
           },
           ...buildTaskItems(group.tasks, true),
         ]);
@@ -1496,7 +1497,7 @@ export default function FocusScreen() {
           <View
             style={[
               styles.contextGroupDot,
-              { backgroundColor: item.muted ? tc.secondaryText : tc.tint },
+              { backgroundColor: item.muted ? tc.secondaryText : (item.dotColor ?? tc.tint) },
             ]}
           />
           <Text

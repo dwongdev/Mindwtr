@@ -1324,5 +1324,6 @@ export {
 
 export * from './focus-star';
 export * from './focus-grouping';
+export * from './context-color';
 export * from './capture';
 export * from './session-restore';

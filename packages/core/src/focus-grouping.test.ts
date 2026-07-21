@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Area, Project, Task } from './types';
 import type { ProjectDeadlineBoost } from './task-utils';
 import { buildFocusTaskGroups, getProjectDeadlineBoostLabel, type FocusResolveText } from './focus-grouping';
+import { getContextColor } from './context-color';
+import { DEFAULT_AREA_COLOR } from './color-constants';
 
 const makeTask = (overrides: Partial<Task>): Task => ({
     id: 'task',
@@ -155,6 +157,54 @@ describe('buildFocusTaskGroups', () => {
             const groups = build('priority', { tasks });
             expect(keys(groups)).toEqual(['priority:urgent', 'priority:medium', 'priority:low', 'priority:none']);
             expect(groups[groups.length - 1].muted).toBe(true);
+        });
+    });
+
+    describe('dot colors (desktop next-grouping parity)', () => {
+        it('colors context/tag named buckets by token hash, none-bucket bare', () => {
+            const context = build('context', { tasks: [
+                makeTask({ id: 'a', contexts: ['@work'] }),
+                makeTask({ id: 'b' }),
+            ] });
+            expect(context.find((g) => g.key === 'context:@work')?.dotColor).toBe(getContextColor('@work'));
+            expect(context.find((g) => g.key === 'context:none')?.dotColor).toBeUndefined();
+
+            const tag = build('tag', { tasks: [makeTask({ id: 'a', tags: ['home'] })] });
+            expect(tag[0].dotColor).toBe(getContextColor('home'));
+        });
+
+        it('colors project buckets by project.color, none-bucket bare', () => {
+            const projects = [makeProject({ id: 'p1', color: '#123456' })];
+            const groups = build('project', { tasks: [
+                makeTask({ id: 'a', projectId: 'p1' }),
+                makeTask({ id: 'b' }),
+            ], projects });
+            expect(groups.find((g) => g.key === 'project:p1')?.dotColor).toBe('#123456');
+            expect(groups.find((g) => g.key === 'project:none')?.dotColor).toBeUndefined();
+        });
+
+        it('colors area buckets by area.color (default when unset), none-bucket bare', () => {
+            const areas = [
+                makeArea({ id: 'a1', color: '#abcdef' }),
+                makeArea({ id: 'a2', color: undefined }),
+            ];
+            const groups = build('area', { tasks: [
+                makeTask({ id: 'a', areaId: 'a1' }),
+                makeTask({ id: 'b', areaId: 'a2' }),
+                makeTask({ id: 'c' }),
+            ], areas });
+            expect(groups.find((g) => g.key === 'area:a1')?.dotColor).toBe('#abcdef');
+            expect(groups.find((g) => g.key === 'area:a2')?.dotColor).toBe(DEFAULT_AREA_COLOR);
+            expect(groups.find((g) => g.key === 'area:none')?.dotColor).toBeUndefined();
+        });
+
+        it('never colors person, energy, or priority buckets', () => {
+            const person = build('person', { tasks: [makeTask({ id: 'a', assignedTo: 'Ann' }), makeTask({ id: 'b' })] });
+            const energy = build('energy', { tasks: [makeTask({ id: 'a', energyLevel: 'high' }), makeTask({ id: 'b' })] });
+            const priority = build('priority', { tasks: [makeTask({ id: 'a', priority: 'urgent' }), makeTask({ id: 'b' })] });
+            [...person, ...energy, ...priority].forEach((group) => {
+                expect(group.dotColor).toBeUndefined();
+            });
         });
     });
 

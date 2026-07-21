@@ -1,5 +1,7 @@
 import type { Area, FocusGroupBy, Project, Task, TaskEnergyLevel, TaskPriority } from './types';
 import type { ProjectDeadlineBoost } from './task-utils';
+import { DEFAULT_AREA_COLOR } from './color-constants';
+import { getContextColor } from './context-color';
 
 /**
  * Resolve an i18n key to text, falling back to the supplied English string when
@@ -11,13 +13,16 @@ export type FocusResolveText = (key: string, fallback: string) => string;
 /**
  * One assembled Today's Focus group. `key` is stable across renders (React key
  * and collapse-state identity); each platform renders `label`/`muted`/`tasks`
- * with its own markup.
+ * with its own markup. `dotColor` is a decorative bucket-color swatch, present
+ * only on the project/area/context/tag axes' named buckets (never a none-bucket
+ * or the person/energy/priority axes) — desktop `next-grouping` parity.
  */
 export type FocusTaskGroup = {
     key: string;
     label: string;
     tasks: Task[];
     muted?: boolean;
+    dotColor?: string;
 };
 
 export type BuildFocusTaskGroupsParams = {
@@ -35,6 +40,7 @@ type OrderedGroupDescriptor = {
     label: string;
     muted?: boolean;
     sortOrder?: number;
+    dotColor?: string;
 };
 
 const ENERGY_SORT_ORDER: Record<TaskEnergyLevel, number> = { high: 0, medium: 1, low: 2 };
@@ -51,6 +57,7 @@ function getPrioritySortOrder(priority: TaskPriority | undefined): number {
 function stripSortOrder(descriptor: OrderedGroupDescriptor, tasks: Task[]): FocusTaskGroup {
     const group: FocusTaskGroup = { key: descriptor.key, label: descriptor.label, tasks };
     if (descriptor.muted) group.muted = true;
+    if (descriptor.dotColor) group.dotColor = descriptor.dotColor;
     return group;
 }
 
@@ -117,7 +124,12 @@ function buildTokenGroups(
     [...grouped.keys()]
         .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
         .forEach((token) => {
-            groups.push({ key: `${keyPrefix}:${token}`, label: token, tasks: grouped.get(token) ?? [] });
+            groups.push({
+                key: `${keyPrefix}:${token}`,
+                label: token,
+                tasks: grouped.get(token) ?? [],
+                dotColor: getContextColor(token),
+            });
         });
     return groups;
 }
@@ -168,6 +180,7 @@ export function buildFocusTaskGroups({
                     key: `project:${project.id}`,
                     label: project.title,
                     sortOrder: Number.isFinite(project.order) ? project.order : Number.POSITIVE_INFINITY,
+                    dotColor: project.color,
                 };
             });
         }
@@ -186,6 +199,7 @@ export function buildFocusTaskGroups({
                     key: `area:${areaId}`,
                     label: area?.name ?? project?.areaTitle ?? noAreaLabel,
                     sortOrder: area && Number.isFinite(area.order) ? area.order : Number.POSITIVE_INFINITY,
+                    dotColor: area?.color || DEFAULT_AREA_COLOR,
                 };
             });
         }
