@@ -987,7 +987,7 @@ export const frOverrides: Record<string, string> = {
         'settings.webdavSave': 'Enregistrer WebDAV',
         'settings.webdavHint': 'Configurez un dossier. Mindwtr stocke data.json à l’intérieur.',
         'settings.allowInsecureHttp': 'Autoriser HTTP non sécurisé (non recommandé)',
-        'settings.allowInsecureHttpHint': 'HTTP est autorisé seulement en local et sur des réseaux privés. Les données seront envoyées non chiffrées.',
+        'settings.allowInsecureHttpHint': 'À utiliser uniquement sur des réseaux de confiance. Les données seront envoyées non chiffrées.',
         'settings.cleartextSyncWarningWebdav': 'La synchronisation WebDAV utilise HTTP non sécurisé. Les données seront envoyées non chiffrées. Utilisez HTTPS pour une sécurité maximale.',
         'settings.cleartextSyncWarningCloud': 'La synchronisation cloud utilise HTTP non sécurisé. Les données seront envoyées non chiffrées. Utilisez HTTPS pour une sécurité maximale.',
         'settings.webdavBrowserStorageWarning': 'Les données du navigateur comme les mots de passe WebDAV ne sont pas sécurisées dans le stockage du navigateur. Utilisez HTTPS pour une sécurité maximale.',

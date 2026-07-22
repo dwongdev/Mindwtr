@@ -970,7 +970,7 @@ export const csOverrides: Record<string, string> = {
         'settings.webdavSave': 'Uložit WebDAV',
         'settings.webdavHint': 'Zadejte složku. Mindwtr v ní uloží data.json.',
         'settings.allowInsecureHttp': 'Povolit nezabezpečená připojení (HTTP)',
-        'settings.allowInsecureHttpHint': 'Povoleno je jen HTTP v lokální nebo privátní síti. Data se posílají nešifrovaně.',
+        'settings.allowInsecureHttpHint': 'Používejte jen v důvěryhodných sítích. Data se posílají nešifrovaně.',
         'settings.cleartextSyncWarningWebdav': 'Synchronizace WebDAV používá HTTP. Povoleny jsou jen lokální nebo privátní endpointy; data nejsou šifrována.',
         'settings.cleartextSyncWarningCloud': 'Synchronizace s vlastním serverem používá HTTP. Povoleny jsou jen lokální nebo privátní endpointy; data nejsou šifrována.',
         'settings.webdavBrowserStorageWarning': 'Hesla WebDAV se ukládají do úložiště prohlížeče. Používejte jen na důvěryhodných zařízeních.',

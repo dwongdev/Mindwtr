@@ -72,12 +72,20 @@ describe('isConnectionAllowed', () => {
         expect(isConnectionAllowed('http://nas.local/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(true);
     });
 
-    it('blocks public HTTP even when manually overridden', () => {
+    it('allows public HTTP hostnames only with the manual override', () => {
         expect(isConnectionAllowed('http://example.com/data.json', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(false);
-        expect(isConnectionAllowed('http://example.com/data.json', {
-            ...SYNC_LOCAL_INSECURE_URL_OPTIONS,
-            allowInsecureHttp: true,
-        })).toBe(false);
+        expect(isConnectionAllowed('http://nas.mydomain.tld:8787/v1/data', SYNC_LOCAL_INSECURE_URL_OPTIONS)).toBe(false);
+        const override = { ...SYNC_LOCAL_INSECURE_URL_OPTIONS, allowInsecureHttp: true };
+        expect(isConnectionAllowed('http://example.com/data.json', override)).toBe(true);
+        expect(isConnectionAllowed('http://nas.mydomain.tld:8787/v1/data', override)).toBe(true);
+        expect(isConnectionAllowed('http://machine.tailnet.ts.net/v1/data', override)).toBe(true);
+    });
+
+    it('never lets the manual override admit malformed or non-HTTP URLs', () => {
+        const override = { ...SYNC_LOCAL_INSECURE_URL_OPTIONS, allowInsecureHttp: true };
+        expect(isConnectionAllowed('http://', override)).toBe(false);
+        expect(isConnectionAllowed('ftp://example.com/data.json', override)).toBe(false);
+        expect(isConnectionAllowed('', override)).toBe(false);
     });
 
     it('falls back to raw host parsing when URL lacks hostname support', () => {

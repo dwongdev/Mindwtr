@@ -193,7 +193,12 @@ export const isAllowedInsecureUrl = (rawUrl: string, options: InsecureUrlOptions
 };
 
 export const isConnectionAllowed = (rawUrl: string, options: ConnectionAllowedOptions = {}): boolean => {
-    return isAllowedInsecureUrl(rawUrl, options);
+    if (isAllowedInsecureUrl(rawUrl, options)) return true;
+    // Explicit user opt-in (#920): the app cannot tell a private DNS/VPN/Tailscale
+    // hostname from a public one, so the toggle vouches for the host. Callers warn
+    // via isManualInsecureOverride when this branch is what admitted the URL.
+    if (!options.allowInsecureHttp) return false;
+    return parseUrlSecurityParts(rawUrl)?.protocol === 'http:';
 };
 
 export const assertConnectionAllowed = (url: string, message: string, options?: ConnectionAllowedOptions) => {

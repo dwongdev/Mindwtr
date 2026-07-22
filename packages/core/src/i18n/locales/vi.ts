@@ -1000,7 +1000,7 @@ export const viOverrides: Record<string, string> = {
         'settings.webdavSave': 'Lưu WebDAV',
         'settings.webdavHint': 'Trỏ đến thư mục. Mindwtr lưu data.json bên trong đó.',
         'settings.allowInsecureHttp': 'Cho phép kết nối không an toàn (HTTP)',
-        'settings.allowInsecureHttpHint': 'Chỉ HTTP mạng cục bộ hoặc riêng tư được phép. Dữ liệu sẽ được gửi không mã hóa.',
+        'settings.allowInsecureHttpHint': 'Chỉ dùng trên mạng đáng tin cậy. Dữ liệu sẽ được gửi không mã hóa.',
         'settings.cleartextSyncWarningWebdav': 'Đồng bộ WebDAV đang dùng HTTP. Chỉ cho phép điểm cuối mạng cục bộ hoặc riêng tư; dữ liệu không được mã hóa.',
         'settings.cleartextSyncWarningCloud': 'Đồng bộ tự lưu trữ đang dùng HTTP. Chỉ cho phép điểm cuối mạng cục bộ hoặc riêng tư; dữ liệu không được mã hóa.',
         'settings.webdavBrowserStorageWarning': 'Mật khẩu WebDAV được lưu trong bộ nhớ trình duyệt. Chỉ dùng trên thiết bị đáng tin cậy.',
