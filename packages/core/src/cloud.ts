@@ -145,6 +145,11 @@ export async function cloudGetJson<T>(
     try {
         return JSON.parse(text) as T;
     } catch (error) {
+        if (/^\s*(?:<!doctype\s+html|<html\b)/i.test(text)) {
+            throw new Error(
+                'Cloud GET failed: server returned HTML instead of Mindwtr sync data — check the Self-Hosted URL, host, and port',
+            );
+        }
         throw new Error(`Cloud GET failed: invalid JSON (${(error as Error).message})`);
     }
 }

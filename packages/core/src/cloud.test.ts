@@ -62,6 +62,13 @@ describe('cloud sync http helpers', () => {
         );
     });
 
+    it('explains HTML responses from the wrong self-hosted endpoint', async () => {
+        const fetcher = vi.fn(async () => okResponse('<!doctype html><html></html>'));
+        await expect(cloudGetJson('https://example.com/v1/data', { fetcher })).rejects.toThrow(
+            'server returned HTML instead of Mindwtr sync data — check the Self-Hosted URL, host, and port',
+        );
+    });
+
     it('allows local HTTP targets without manual override', async () => {
         const fetcher = vi.fn(async () => ({ ok: false, status: 404, statusText: 'Not Found', text: async () => '' } as Response));
         await expect(cloudGetJson('http://192.168.1.50:8787/v1/data', { fetcher })).resolves.toBeNull();

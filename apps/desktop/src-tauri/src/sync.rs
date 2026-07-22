@@ -1124,6 +1124,18 @@ fn wrong_sync_server_hint(status: reqwest::StatusCode) -> &'static str {
     }
 }
 
+fn parse_cloud_json_body(body: &str) -> Result<Value, String> {
+    let normalized = body.trim_start_matches('\u{feff}').trim();
+    serde_json::from_str::<Value>(normalized).map_err(|error| {
+        let lower = normalized.to_ascii_lowercase();
+        if lower.starts_with("<!doctype html") || lower.starts_with("<html") {
+            "Cloud GET failed: server returned HTML instead of Mindwtr sync data — check the Self-Hosted URL, host, and port".to_string()
+        } else {
+            format!("Cloud GET failed: invalid JSON ({error})")
+        }
+    })
+}
+
 fn cloud_get_json_blocking(app: &tauri::AppHandle) -> Result<Value, String> {
     let config = read_config(app);
     let url = normalize_cloud_url(&config.cloud_url.clone().unwrap_or_default());
@@ -1154,9 +1166,7 @@ fn cloud_get_json_blocking(app: &tauri::AppHandle) -> Result<Value, String> {
     let body = response
         .text()
         .map_err(|e| format!("Cloud GET failed: error reading response body: {e}"))?;
-    let normalized_body = body.trim_start_matches('\u{feff}').trim();
-    serde_json::from_str::<Value>(normalized_body)
-        .map_err(|e| format!("Cloud GET failed: invalid JSON ({e})"))
+    parse_cloud_json_body(&body)
 }
 
 #[tauri::command]
@@ -1289,6 +1299,14 @@ mod tests {
             ""
         );
         assert_eq!(wrong_sync_server_hint(reqwest::StatusCode::UNAUTHORIZED), "");
+    }
+
+    #[test]
+    fn cloud_json_body_explains_html_from_wrong_endpoint() {
+        assert_eq!(
+            parse_cloud_json_body("<!doctype html><html></html>").unwrap_err(),
+            "Cloud GET failed: server returned HTML instead of Mindwtr sync data — check the Self-Hosted URL, host, and port"
+        );
     }
 
     #[test]

@@ -6,10 +6,24 @@ This folder contains Dockerfiles and a compose file to run:
 
 ## Quick start (HTTP compose)
 
+You do not need to clone the repository. Download the Compose file into an empty directory:
+
 ```bash
-export MINDWTR_CLOUD_AUTH_TOKENS=your_token_here
-export MINDWTR_CLOUD_CORS_ORIGIN=http://localhost:5173
-docker compose -f docker/compose.yaml up --build
+curl -LO https://raw.githubusercontent.com/dongdongbh/Mindwtr/main/docker/compose.yaml
+```
+
+Create a `.env` file next to it (Compose reads this automatically):
+
+```dotenv
+MINDWTR_CLOUD_AUTH_TOKENS=replace_with_a_token_at_least_20_characters_long
+MINDWTR_CLOUD_CORS_ORIGIN=http://localhost:5173
+```
+
+Then pull and start the published images:
+
+```bash
+docker compose pull
+docker compose up -d
 ```
 
 Then open:
@@ -17,6 +31,10 @@ Then open:
 - Cloud health: `http://localhost:8787/health`
 - Self-Hosted URL for local testing: `http://localhost:8787`
 - REST API base URL: `http://localhost:8787/v1`
+
+From a phone or another computer, replace `localhost` with the Docker host's LAN IP. In Mindwtr, use the cloud port (`http://HOST_IP:8787`) as the Self-Hosted URL, not the PWA port (`:5173`).
+
+To build from source instead, clone the repository and run `docker compose -f docker/compose.yaml up --build -d` from its root.
 
 This HTTP compose file is best for local testing. Mindwtr desktop and mobile clients accept HTTP for localhost, private IPs, and local hostnames. Public URLs should use HTTPS.
 
