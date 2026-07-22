@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, ClipboardEvent } from 'react';
 import {
+    GEMINI_DEFAULT_MODEL,
     executeCaptureTransaction,
     canStarNewCapture,
     shallow,
@@ -736,7 +737,7 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
             const provider = speech?.provider ?? 'gemini';
             const model = speech?.model ?? (
                 provider === 'openai' ? 'gpt-4o-transcribe'
-                    : provider === 'gemini' ? 'gemini-2.5-flash'
+                    : provider === 'gemini' ? GEMINI_DEFAULT_MODEL
                         : provider === 'parakeet' ? DEFAULT_PARAKEET_MODEL
                             : DEFAULT_WHISPER_MODEL
             );

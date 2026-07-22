@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import {
+    GEMINI_DEFAULT_MODEL,
     applyMarkdownKeyboardShortcut,
     applyMarkdownPairInsertion,
     applyMarkdownToolbarAction,
@@ -1134,7 +1135,7 @@ export function TaskItemFieldRenderer({
             const provider = speech.provider ?? 'gemini';
             const model = speech.model ?? (
                 provider === 'openai' ? 'gpt-4o-transcribe'
-                    : provider === 'gemini' ? 'gemini-2.5-flash'
+                    : provider === 'gemini' ? GEMINI_DEFAULT_MODEL
                         : provider === 'parakeet' ? DEFAULT_PARAKEET_MODEL
                             : DEFAULT_WHISPER_MODEL
             );

@@ -15,6 +15,7 @@ import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildRevi
 import { fetchWithTimeout, normalizeTags, normalizeTimeEstimate, parseJson, rateLimit } from '../utils';
 import { isBreakdownResponse, isClarifyResponse, isCopilotResponse, isReviewAnalysisResponse } from '../validators';
 import { sleep } from '../../async-utils';
+import { resolveAnthropicModel } from '../catalog';
 
 const ANTHROPIC_BASE_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -125,8 +126,11 @@ async function requestAnthropic(
     }
     const url = config.endpoint || ANTHROPIC_BASE_URL;
     const usingOfficialAnthropic = url === ANTHROPIC_BASE_URL;
+    // Retired-id remap applies to Anthropic's own API only — a compatible
+    // custom endpoint owns its model namespace.
+    const model = usingOfficialAnthropic ? resolveAnthropicModel(config.model) : config.model;
     const thinkingBudget = typeof config.thinkingBudget === 'number' ? config.thinkingBudget : 0;
-    const adaptiveThinking = isAdaptiveThinkingModel(config.model);
+    const adaptiveThinking = isAdaptiveThinkingModel(model);
     let maxTokens =
         thinkingBudget > 0 && !adaptiveThinking
             ? Math.max(DEFAULT_MAX_TOKENS, thinkingBudget + 256)
@@ -138,7 +142,7 @@ async function requestAnthropic(
     }
 
     const body: Record<string, unknown> = {
-        model: config.model,
+        model,
         max_tokens: maxTokens,
         system: prompt.system,
         messages: [{ role: 'user', content: prompt.user }],

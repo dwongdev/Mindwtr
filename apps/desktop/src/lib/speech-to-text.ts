@@ -1,4 +1,5 @@
 import type { AudioCaptureMode, AudioFieldStrategy } from '@mindwtr/core';
+import { resolveGeminiModel } from '@mindwtr/core';
 
 import { isTauriRuntime } from './runtime';
 import { logWarn } from './app-log';
@@ -354,7 +355,8 @@ const requestGemini = async (audio: AudioInput, config: SpeechToTextConfig, prom
         timeZone: config.timeZone,
     });
     const base64Audio = bytesToBase64(audio.bytes);
-    const url = `${GEMINI_BASE_URL}/${config.model}:generateContent`;
+    const geminiModel = resolveGeminiModel(config.model);
+    const url = `${GEMINI_BASE_URL}/${geminiModel}:generateContent`;
     const body = {
         contents: [
             {

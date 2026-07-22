@@ -1,6 +1,7 @@
 import type { AIProvider, AIProviderConfig, BreakdownInput, BreakdownResponse, ClarifyInput, ClarifyResponse, CopilotInput, CopilotResponse, ReviewAnalysisInput, ReviewAnalysisResponse, AIRequestOptions } from '../types';
 import { buildBreakdownPrompt, buildClarifyPrompt, buildCopilotPrompt, buildReviewAnalysisPrompt } from '../prompts';
 import { fetchWithTimeout, normalizeTags, normalizeTimeEstimate, parseJson, rateLimit } from '../utils';
+import { resolveGeminiModel } from '../catalog';
 import { isBreakdownResponse, isClarifyResponse, isCopilotResponse, isReviewAnalysisResponse } from '../validators';
 import { sleep } from '../../async-utils';
 
@@ -161,7 +162,11 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
     if (!apiKey) {
         throw new Error('Gemini API key is required.');
     }
-    const rawUrl = `${endpoint.replace(/\/+$/, '')}/${config.model}:generateContent`;
+    // Retired-id remap applies to Google's own API only — a compatible custom
+    // endpoint owns its model namespace (Google retired gemini-2.5-flash early
+    // on 2026-07-09, which broke every saved default silently).
+    const model = usingOfficialGemini ? resolveGeminiModel(config.model) : config.model;
+    const rawUrl = `${endpoint.replace(/\/+$/, '')}/${model}:generateContent`;
     let url = rawUrl;
     try {
         const parsed = new URL(rawUrl);
@@ -182,7 +187,7 @@ async function requestGemini(config: AIProviderConfig, prompt: { system: string;
         : undefined;
     const thinkingBudget = explicitBudget !== undefined
         ? explicitBudget
-        : modelSupportsThinking(config.model)
+        : modelSupportsThinking(model)
             ? 0
             : undefined;
     const body = {

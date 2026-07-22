@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { NativeModules, Platform } from 'react-native';
 import type { AudioCaptureMode, AudioFieldStrategy, SpeechToTextSettings } from '@mindwtr/core';
+import { OPENAI_DEFAULT_MODEL, resolveGeminiModel } from '@mindwtr/core';
 import { logInfo, logWarn } from './app-log';
 import {
   buildMultipartAudioPart,
@@ -78,7 +79,7 @@ const LOCAL_WHISPER_MIN_DURATION_MS = 150;
 const LOCAL_WHISPER_UNSUPPORTED_AUDIO_ERROR =
   'Local Whisper can only transcribe 16 kHz mono PCM WAV audio.';
 const DEFAULT_OPENAI_STT_MODEL = 'gpt-4o-transcribe';
-const DEFAULT_GEMINI_STT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_GEMINI_STT_MODEL = 'gemini-3.6-flash';
 const DEFAULT_WHISPER_STT_MODEL = 'whisper-tiny';
 const WHISPER_STT_MODEL_IDS = new Set([
   'whisper-tiny',
@@ -685,9 +686,11 @@ const transcribeOpenAI = async (audioUri: string, config: SpeechToTextConfig) =>
 };
 
 const resolveOpenAIParseModel = (value?: string) => {
-  if (!value) return 'gpt-4o-mini';
+  // The transcript parse step wants a cheap fast model; gpt-4o-mini (the old
+  // choice) is retiring, so route to the current cost-efficient default.
+  if (!value) return OPENAI_DEFAULT_MODEL;
   const lower = value.toLowerCase();
-  if (lower.startsWith('gpt-5')) return 'gpt-4o-mini';
+  if (lower.startsWith('gpt-4o')) return OPENAI_DEFAULT_MODEL;
   return value;
 };
 
@@ -815,7 +818,8 @@ const requestGemini = async (audioUri: string, config: SpeechToTextConfig, promp
   const bytes = await file.bytes();
   const base64Audio = bytesToBase64(bytes);
   const mimeType = getMimeType(normalizedUri);
-  const url = `${GEMINI_BASE_URL}/${config.model}:generateContent`;
+  const geminiModel = resolveGeminiModel(config.model);
+  const url = `${GEMINI_BASE_URL}/${geminiModel}:generateContent`;
   const body = {
     contents: [
       {

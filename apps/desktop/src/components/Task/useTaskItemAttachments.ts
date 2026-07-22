@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Attachment, DEFAULT_PROJECT_COLOR, buildTaskUpdatesFromSpeechResult, findSelectableProjectByTitleAndArea, generateUUID, normalizeLinkAttachmentInput, translateWithFallback, useTaskStore, type Task } from '@mindwtr/core';
+import { GEMINI_DEFAULT_MODEL, Attachment, DEFAULT_PROJECT_COLOR, buildTaskUpdatesFromSpeechResult, findSelectableProjectByTitleAndArea, generateUUID, normalizeLinkAttachmentInput, translateWithFallback, useTaskStore, type Task } from '@mindwtr/core';
 import { dataDir } from '@tauri-apps/api/path';
 import { BaseDirectory, readFile, readTextFile } from '@tauri-apps/plugin-fs';
 import { loadAIKey } from '../../lib/ai-config';
@@ -209,7 +209,7 @@ export function useTaskItemAttachments({ task, t }: UseTaskItemAttachmentsProps)
             const provider = speech.provider ?? 'gemini';
             const model = speech.model ?? (
                 provider === 'openai' ? 'gpt-4o-transcribe'
-                    : provider === 'gemini' ? 'gemini-2.5-flash'
+                    : provider === 'gemini' ? GEMINI_DEFAULT_MODEL
                         : provider === 'parakeet' ? DEFAULT_PARAKEET_MODEL
                             : DEFAULT_WHISPER_MODEL
             );
