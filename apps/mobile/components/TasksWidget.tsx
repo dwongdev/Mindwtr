@@ -45,20 +45,76 @@ export function buildTasksWidgetTree(
 
     if (items.length > 0) {
         items.forEach((item, index) => {
+            const marginTop = index === 0 ? firstTaskMarginTop : taskMarginTop;
+            const showDueLabel = !isCompact && !!item.dueLabel;
+            if (!showDueLabel) {
+                contentChildren.push(
+                    React.createElement(TextWidget, {
+                        key: `item-${item.id}`,
+                        text: `• ${item.title}`,
+                        style: {
+                            color: palette.text,
+                            fontSize: taskFontSize,
+                            marginTop,
+                        },
+                        maxLines: 1,
+                        truncate: 'END',
+                        clickAction: 'OPEN_URI',
+                        clickActionData: { uri: focusUri },
+                    })
+                );
+                return;
+            }
             contentChildren.push(
-                React.createElement(TextWidget, {
-                    key: `item-${item.id}`,
-                    text: `• ${item.title}`,
-                    style: {
-                        color: palette.text,
-                        fontSize: taskFontSize,
-                        marginTop: index === 0 ? firstTaskMarginTop : taskMarginTop,
+                React.createElement(
+                    FlexWidget,
+                    {
+                        key: `item-${item.id}`,
+                        style: {
+                            width: 'match_parent',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            marginTop,
+                        },
+                        clickAction: 'OPEN_URI',
+                        clickActionData: { uri: focusUri },
                     },
-                    maxLines: 1,
-                    truncate: 'END',
-                    clickAction: 'OPEN_URI',
-                    clickActionData: { uri: focusUri },
-                })
+                    React.createElement(
+                        FlexWidget,
+                        {
+                            key: 'title',
+                            // flex lives on FlexWidget; TextWidget can't take it.
+                            style: { flex: 1 },
+                            clickAction: 'OPEN_URI',
+                            clickActionData: { uri: focusUri },
+                        },
+                        React.createElement(TextWidget, {
+                            key: 'title-text',
+                            text: `• ${item.title}`,
+                            style: {
+                                color: palette.text,
+                                fontSize: taskFontSize,
+                                width: 'match_parent',
+                            },
+                            maxLines: 1,
+                            truncate: 'END',
+                            clickAction: 'OPEN_URI',
+                            clickActionData: { uri: focusUri },
+                        })
+                    ),
+                    React.createElement(TextWidget, {
+                        key: 'due',
+                        text: item.dueLabel as string,
+                        style: {
+                            color: item.dueEmphasis ? palette.accent : palette.mutedText,
+                            fontSize: taskFontSize - 1,
+                            marginLeft: 6,
+                        },
+                        maxLines: 1,
+                        clickAction: 'OPEN_URI',
+                        clickActionData: { uri: focusUri },
+                    }),
+                )
             );
         });
     } else {

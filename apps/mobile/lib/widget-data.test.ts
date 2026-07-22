@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppData } from '@mindwtr/core';
 import { buildWidgetPayload, resolveWidgetLanguage } from './widget-data';
 
@@ -8,6 +8,37 @@ const baseData: AppData = {
     areas: [],
     sections: [],
     settings: {},
+};
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const toDateOnly = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const daysFromNow = (n: number): Date => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return d;
+};
+const buildDueItem = (dueDate: string, language = 'en') => {
+    const now = new Date().toISOString();
+    const payload = buildWidgetPayload(
+        {
+            ...baseData,
+            tasks: [
+                {
+                    id: 'due-task',
+                    title: 'Due task',
+                    status: 'next',
+                    isFocusedToday: true,
+                    dueDate,
+                    tags: [],
+                    contexts: [],
+                    createdAt: now,
+                    updatedAt: now,
+                },
+            ],
+        },
+        language as Parameters<typeof buildWidgetPayload>[1],
+    );
+    return payload.items[0];
 };
 
 describe('widget-data', () => {
@@ -412,5 +443,71 @@ describe('widget-data', () => {
         };
         const payload = buildWidgetPayload(data, 'en');
         expect(payload.items.map((item) => item.id)).toEqual(['newest', 'middle', 'old']);
+    });
+
+    describe('due labels', () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        it('labels a task due today with emphasis (date-only string)', () => {
+            const item = buildDueItem(toDateOnly(new Date()));
+            expect(item.dueLabel).toBe('Today');
+            expect(item.dueEmphasis).toBe(true);
+        });
+
+        it('labels an overdue task with a compact numeric date and emphasis', () => {
+            const item = buildDueItem('2000-01-01');
+            expect(item.dueLabel).toBe(
+                new Intl.DateTimeFormat('en', { month: 'numeric', day: 'numeric' }).format(
+                    new Date(2000, 0, 1),
+                ),
+            );
+            expect(item.dueEmphasis).toBe(true);
+        });
+
+        it('labels a task due tomorrow without emphasis', () => {
+            const item = buildDueItem(toDateOnly(daysFromNow(1)));
+            expect(item.dueLabel).toBe('Tomorrow');
+            expect(item.dueEmphasis).toBe(false);
+        });
+
+        it('labels a task due within the week with a short weekday', () => {
+            const target = daysFromNow(3);
+            const item = buildDueItem(toDateOnly(target));
+            const expected = new Intl.DateTimeFormat('en', { weekday: 'short' }).format(target);
+            expect(item.dueLabel).toBe(expected);
+            expect(item.dueLabel).not.toBe('Tomorrow');
+            expect(item.dueEmphasis).toBe(false);
+        });
+
+        it('labels a far-future task with a compact numeric date, no emphasis', () => {
+            const target = daysFromNow(30);
+            const item = buildDueItem(toDateOnly(target));
+            const expected = new Intl.DateTimeFormat('en', { month: 'numeric', day: 'numeric' }).format(target);
+            expect(item.dueLabel).toBe(expected);
+            expect(item.dueEmphasis).toBe(false);
+        });
+
+        it('returns a null label for a task with no due date', () => {
+            const item = buildDueItem('');
+            expect(item.dueLabel).toBeNull();
+            expect(item.dueEmphasis).toBe(false);
+        });
+
+        it('falls back to plain strings when Intl throws', () => {
+            vi.spyOn(Intl, 'DateTimeFormat').mockImplementation((() => {
+                throw new Error('no intl');
+            }) as unknown as typeof Intl.DateTimeFormat);
+
+            const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const weekTarget = daysFromNow(3);
+            const weekItem = buildDueItem(toDateOnly(weekTarget));
+            expect(weekItem.dueLabel).toBe(weekday[weekTarget.getDay()]);
+
+            const farTarget = daysFromNow(30);
+            const farItem = buildDueItem(toDateOnly(farTarget));
+            expect(farItem.dueLabel).toBe(`${farTarget.getMonth() + 1}/${farTarget.getDate()}`);
+        });
     });
 });

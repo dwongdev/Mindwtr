@@ -36,6 +36,8 @@ export interface WidgetTaskItem {
     id: string;
     title: string;
     statusLabel: string;
+    dueLabel: string | null;
+    dueEmphasis: boolean;
 }
 
 export interface WidgetPalette {
@@ -64,6 +66,53 @@ export interface TasksWidgetPayload {
 }
 
 const TASK_SORT_OPTIONS: TaskSortBy[] = ['default', 'due', 'start', 'review', 'title', 'created', 'created-desc'];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const FALLBACK_SHORT_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// The widget renderer runs in a headless JS context where Intl may be missing,
+// so every Intl call falls back to plain strings.
+const formatShortWeekday = (date: Date, language: string): string => {
+    try {
+        return new Intl.DateTimeFormat(language, { weekday: 'short' }).format(date);
+    } catch {
+        return FALLBACK_SHORT_WEEKDAYS[date.getDay()];
+    }
+};
+
+const formatNumericDate = (date: Date, language: string): string => {
+    try {
+        return new Intl.DateTimeFormat(language, { month: 'numeric', day: 'numeric' }).format(date);
+    } catch {
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+};
+
+const computeDueLabel = (
+    dueDate: string | undefined | null,
+    tr: Record<string, string>,
+    language: string,
+    startOfToday: Date,
+    endOfToday: Date,
+): Pick<WidgetTaskItem, 'dueLabel' | 'dueEmphasis'> => {
+    const due = safeParseDueDate(dueDate);
+    if (!due) return { dueLabel: null, dueEmphasis: false };
+    if (due < startOfToday) {
+        return { dueLabel: formatNumericDate(due, language), dueEmphasis: true };
+    }
+    if (due <= endOfToday) {
+        return { dueLabel: tr['quickDate.today'] ?? 'Today', dueEmphasis: true };
+    }
+    const dueDayStart = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    const daysAhead = Math.round((dueDayStart.getTime() - startOfToday.getTime()) / DAY_MS);
+    if (daysAhead === 1) {
+        return { dueLabel: tr['quickDate.tomorrow'] ?? 'Tomorrow', dueEmphasis: false };
+    }
+    if (daysAhead <= 6) {
+        return { dueLabel: formatShortWeekday(due, language), dueEmphasis: false };
+    }
+    return { dueLabel: formatNumericDate(due, language), dueEmphasis: false };
+};
 
 const resolveWidgetTaskSort = (data: AppData): TaskSortBy => {
     const sortBy = data.settings?.taskSortBy;
@@ -225,6 +274,7 @@ export function buildWidgetPayload(
         id: task.id,
         title: task.title,
         statusLabel: tr[`status.${task.status}`] || task.status,
+        ...computeDueLabel(task.dueDate, tr, language, startOfToday, endOfToday),
     }));
     const hiddenTaskCount = Math.max(listSource.length - items.length, 0);
 

@@ -16,6 +16,8 @@ type WidgetElement = ReactElement<{
         flex?: number;
         fontSize?: number;
         height?: number;
+        color?: string;
+        flexDirection?: string;
     };
     maxLines?: number;
     truncate?: string;
@@ -25,6 +27,32 @@ const asWidgetChildren = (children: WidgetElement['props']['children']): WidgetE
     if (!children) return [];
     return Array.isArray(children) ? children : [children];
 };
+
+const collectTexts = (
+    node: WidgetElement,
+    acc: Array<{ text: string; style?: WidgetElement['props']['style'] }> = [],
+): Array<{ text: string; style?: WidgetElement['props']['style'] }> => {
+    if (typeof node.props.text === 'string') {
+        acc.push({ text: node.props.text, style: node.props.style });
+    }
+    for (const child of asWidgetChildren(node.props.children)) {
+        collectTexts(child, acc);
+    }
+    return acc;
+};
+
+const dueItemPayload = (overrides: { dueLabel: string | null; dueEmphasis?: boolean }): TasksWidgetPayload => ({
+    ...basePayload,
+    items: [
+        {
+            id: 'task-1',
+            title: 'Review waiting item',
+            statusLabel: 'Next',
+            dueLabel: overrides.dueLabel,
+            dueEmphasis: overrides.dueEmphasis ?? false,
+        },
+    ],
+});
 
 const basePayload: TasksWidgetPayload = {
     headerTitle: 'Today',
@@ -37,6 +65,8 @@ const basePayload: TasksWidgetPayload = {
             id: 'task-1',
             title: 'Review waiting item',
             statusLabel: 'Next',
+            dueLabel: null,
+            dueEmphasis: false,
         },
     ],
     emptyMessage: 'No tasks',
@@ -76,6 +106,44 @@ describe('TasksWidget', () => {
         expect(button?.props.text).toBe('Quick capture');
         expect(button?.props.maxLines).toBe(1);
         expect(button?.props.truncate).toBe('END');
+    });
+
+    it('renders a right-aligned due label in standard mode when set', () => {
+        const tree = buildTasksWidgetTree(dueItemPayload({ dueLabel: 'Today', dueEmphasis: true })) as WidgetElement;
+        const [content] = asWidgetChildren(tree.props.children);
+        const contentChildren = content ? asWidgetChildren(content.props.children) : [];
+        const row = contentChildren.find((child) => child.props.style?.flexDirection === 'row');
+
+        expect(row).toBeDefined();
+        const texts = row ? collectTexts(row) : [];
+        expect(texts.map((t) => t.text)).toEqual(['• Review waiting item', 'Today']);
+        const titleWrapper = row ? asWidgetChildren(row.props.children)[0] : undefined;
+        const due = texts.find((t) => t.text === 'Today');
+        expect(titleWrapper?.props.style?.flex).toBe(1);
+        expect(due?.style?.color).toBe(basePayload.palette.accent);
+        expect(due?.style?.fontSize).toBe(12);
+    });
+
+    it('uses muted color for a non-emphasized due label', () => {
+        const tree = buildTasksWidgetTree(dueItemPayload({ dueLabel: 'Fri', dueEmphasis: false })) as WidgetElement;
+        const due = collectTexts(tree).find((t) => t.text === 'Fri');
+        expect(due?.style?.color).toBe(basePayload.palette.mutedText);
+    });
+
+    it('omits the due label in compact mode even when set', () => {
+        const tree = buildTasksWidgetTree(dueItemPayload({ dueLabel: 'Fri', dueEmphasis: false }), {
+            layoutMode: 'compact',
+        }) as WidgetElement;
+        const texts = collectTexts(tree).map((t) => t.text);
+        expect(texts).toContain('• Review waiting item');
+        expect(texts).not.toContain('Fri');
+    });
+
+    it('omits the due label when dueLabel is null', () => {
+        const tree = buildTasksWidgetTree(dueItemPayload({ dueLabel: null })) as WidgetElement;
+        const [content] = asWidgetChildren(tree.props.children);
+        const contentChildren = content ? asWidgetChildren(content.props.children) : [];
+        expect(contentChildren.some((child) => child.props.style?.flexDirection === 'row')).toBe(false);
     });
 
     it('uses a compact layout for narrow Android widgets', () => {
