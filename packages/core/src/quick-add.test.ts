@@ -641,6 +641,15 @@ describe('quick-add', () => {
         expect(result.title).toBe('task more words');
     });
 
+    it('supports macOS smart quotes around person names (#849)', () => {
+        const now = new Date('2026-07-22T10:00:00Z');
+        const result = parseQuickAdd('Task %“Jim Smith” /next', undefined, now);
+
+        expect(result.title).toBe('Task');
+        expect(result.props.assignedTo).toBe('Jim Smith');
+        expect(result.props.status).toBe('next');
+    });
+
     it('parses person tokens alongside contexts and tags', () => {
         const now = new Date('2026-07-11T10:00:00Z');
         const result = parseQuickAdd('Ask %Jim @phone #budget', undefined, now);

@@ -434,11 +434,14 @@ function matchKnownQuickAddNamePrefix(
 
 function matchQuickAddQuotedName(working: string, marker: '+' | '!' | '%'): { raw: string; value: string } | null {
     const escapedMarker = marker === '+' ? String.raw`\+` : marker;
-    const match = working.match(new RegExp(String.raw`(?:^|\s)${escapedMarker}"((?:\\.|[^"\\])*)"`, 'u'));
+    const match = working.match(new RegExp(
+        String.raw`(?:^|\s)${escapedMarker}(?:"((?:\\.|[^"\\])*)"|“([^”]*)”)`,
+        'u',
+    ));
     if (!match) return null;
-    const rawOffset = match[0].indexOf(`${marker}"`);
+    const rawOffset = match[0].indexOf(marker);
     if (rawOffset < 0) return null;
-    const value = restoreEscapes((match[1] ?? '').replace(/\\(["\\])/g, '$1')).replace(/\s+/g, ' ').trim();
+    const value = restoreEscapes((match[1] ?? match[2] ?? '').replace(/\\(["\\])/g, '$1')).replace(/\s+/g, ' ').trim();
     if (!value) return null;
     return { raw: match[0].slice(rawOffset), value };
 }
