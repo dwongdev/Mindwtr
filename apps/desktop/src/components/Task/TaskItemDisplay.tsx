@@ -262,6 +262,9 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         onOpenProject?.(projectId);
     };
     const handleProjectKeyDown = (event: KeyboardEvent<HTMLSpanElement>, projectId: string) => {
+        // Shift+Enter belongs to the list shortcut layer (edit selected task);
+        // swallowing it here made the chip activate instead (#847).
+        if (event.shiftKey) return;
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             event.stopPropagation();
@@ -273,6 +276,7 @@ export const TaskItemDisplay = memo(function TaskItemDisplay({
         onOpenContextToken?.(token);
     };
     const handleTokenKeyDown = (event: KeyboardEvent<HTMLSpanElement>, token: string) => {
+        if (event.shiftKey) return;
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             event.stopPropagation();
