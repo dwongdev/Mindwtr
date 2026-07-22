@@ -169,6 +169,28 @@ function restoreEscapes(input: string): string {
 
 type DateDefaultTimeMode = 'now' | 'startOfDay';
 
+// European dot dates are inherently day-first, so they carry none of the
+// mm/dd vs dd/mm ambiguity of slash dates. Requiring the convention's trailing
+// dot ("26.06.") or a four-digit year ("26.06.2026") keeps version strings
+// like "python 3.12" from parsing as dates; a bare "26.06" stays literal text.
+// (No lookbehind — the boundary check runs in extract() — because older
+// WKWebView builds lack lookbehind support.)
+const quickAddChrono = chrono.casual.clone();
+quickAddChrono.parsers.push({
+    pattern: () => /(\d{1,2})\.(\d{1,2})\.(\d{4})?(?=[\s,;:!?)\]]|$)/,
+    extract: (context, match) => {
+        const index = match.index ?? 0;
+        const before = index > 0 ? context.text[index - 1] : '';
+        if (before && !/[\s(,[]/.test(before)) return null;
+        const day = Number.parseInt(match[1] ?? '', 10);
+        const month = Number.parseInt(match[2] ?? '', 10);
+        if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+        const components: { day: number; month: number; year?: number } = { day, month };
+        if (match[3]) components.year = Number.parseInt(match[3], 10);
+        return components;
+    },
+});
+
 type DateCommandParseOptions = {
     defaultScheduleTime?: string | null;
 };
@@ -233,7 +255,7 @@ function parseNaturalDate(raw: string, now: Date, defaultTimeMode: DateDefaultTi
     const text = raw.trim();
     if (!text) return { date: buildDefaultDate(now, defaultTimeMode), hasExplicitTime: defaultTimeMode === 'now' };
 
-    const results = chrono.parse(text, { instant: now }, { forwardDate: true });
+    const results = quickAddChrono.parse(text, { instant: now }, { forwardDate: true });
     const result = results[0];
     if (!result) return null;
 
@@ -251,7 +273,7 @@ function detectTrailingDate(title: string, now: Date): QuickAddDetectedDate | un
     const trimmed = title.trim();
     if (!trimmed) return undefined;
 
-    const results = chrono.parse(trimmed, { instant: now }, { forwardDate: true });
+    const results = quickAddChrono.parse(trimmed, { instant: now }, { forwardDate: true });
     for (let index = results.length - 1; index >= 0; index -= 1) {
         const result = results[index];
         const matchedText = result.text.trim();

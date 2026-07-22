@@ -633,6 +633,41 @@ describe('quick-add', () => {
         expect(result.title).toBe('Ask Smith for report');
     });
 
+    it('parses European dot dates with a trailing dot or a year, day-first', () => {
+        const now = new Date('2026-07-22T12:00:00');
+
+        const trailingDot = parseQuickAdd('Pay rent 26.06.', undefined, now);
+        expect(trailingDot.detectedDate?.date).toBe('2027-06-26');
+        expect(trailingDot.detectedDate?.matchedText).toBe('26.06.');
+        expect(trailingDot.detectedDate?.titleWithoutDate).toBe('Pay rent');
+
+        const withYear = parseQuickAdd('Pay rent 26.06.2026', undefined, now);
+        expect(withYear.detectedDate?.date).toBe('2026-06-26');
+
+        const singleDigits = parseQuickAdd('Miete zahlen 1.7.', undefined, now);
+        expect(singleDigits.detectedDate?.date).toBe('2027-07-01');
+
+        const explicitCommand = parseQuickAdd('Task /due:26.06.', undefined, now);
+        expect(explicitCommand.props.dueDate).toBe('2027-06-26');
+
+        const withTime = parseQuickAdd('Pay rent 26.06. 18:00', undefined, now);
+        expect(withTime.detectedDate?.date).toBe(new Date(2027, 5, 26, 18, 0, 0, 0).toISOString());
+    });
+
+    it('never reads version numbers or bare decimals as dot dates', () => {
+        const now = new Date('2026-07-22T12:00:00');
+
+        const version = parseQuickAdd('Upgrade to python 3.12', undefined, now);
+        expect(version.detectedDate).toBeUndefined();
+        expect(version.title).toBe('Upgrade to python 3.12');
+
+        const bareDecimal = parseQuickAdd('Read chapter 26.06', undefined, now);
+        expect(bareDecimal.detectedDate).toBeUndefined();
+
+        const invalidMonth = parseQuickAdd('Ship build 26.13.', undefined, now);
+        expect(invalidMonth.detectedDate).toBeUndefined();
+    });
+
     it('accepts typographic and mixed quote styles around person names (#849 keyboard smart quotes)', () => {
         const now = new Date('2026-07-22T10:00:00Z');
         const variants = [
