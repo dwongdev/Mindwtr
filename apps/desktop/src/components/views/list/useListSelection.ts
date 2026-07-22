@@ -20,6 +20,7 @@ import type {
 import { reportError } from '../../../lib/report-error';
 import { registerUndoableAction } from '../../../lib/undo-registry';
 import { undoTaskCompletion } from '../../../lib/undo-task-completion';
+import { requestTaskRowAction, type TaskRowAction } from '../../../lib/task-row-actions';
 import type { NextGroupBy } from './next-grouping';
 
 type ShowToast = (
@@ -40,6 +41,8 @@ type TaskListScope = {
     openQuickActions: () => void;
     toggleDoneSelected: () => void;
     toggleSelectSelected: () => void;
+    toggleFocusSelected: () => void;
+    renameSelected: () => void;
     deleteSelected: () => void;
     setStatusSelected: (status: TaskStatus) => void;
     focusAddInput: () => boolean;
@@ -540,6 +543,22 @@ export function useListSelection({
         trigger.click();
     }, [filteredTasks, selectedIndex]);
 
+    const requestSelectedTaskRowAction = useCallback((action: TaskRowAction) => {
+        const task = filteredTasks[selectedIndex];
+        if (!task) return;
+        const taskElement = Array.from(document.querySelectorAll<HTMLElement>('[data-task-id]'))
+            .find((element) => element.dataset.taskId === task.id) ?? null;
+        requestTaskRowAction(taskElement, action);
+    }, [filteredTasks, selectedIndex]);
+
+    const toggleFocusSelected = useCallback(() => {
+        requestSelectedTaskRowAction('toggle-focus');
+    }, [requestSelectedTaskRowAction]);
+
+    const renameSelected = useCallback(() => {
+        requestSelectedTaskRowAction('rename-title');
+    }, [requestSelectedTaskRowAction]);
+
     useEffect(() => {
         if (isProcessing) {
             registerTaskListScope(null);
@@ -557,6 +576,8 @@ export function useListSelection({
             openQuickActions: openQuickActionsSelected,
             toggleDoneSelected,
             toggleSelectSelected,
+            toggleFocusSelected,
+            renameSelected,
             deleteSelected,
             setStatusSelected,
             focusAddInput: () => {
@@ -576,6 +597,7 @@ export function useListSelection({
         isProcessing,
         openQuickActionsSelected,
         openSelected,
+        renameSelected,
         registerTaskListScope,
         selectFirst,
         selectLast,
@@ -583,6 +605,7 @@ export function useListSelection({
         selectPrev,
         setStatusSelected,
         toggleDoneSelected,
+        toggleFocusSelected,
         toggleSelectSelected,
     ]);
 

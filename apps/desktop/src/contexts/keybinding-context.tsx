@@ -10,6 +10,7 @@ import { undoTaskCompletion } from '../lib/undo-task-completion';
 import { logWarn } from '../lib/app-log';
 import { useUiStore } from '../store/ui-store';
 import { saveStoredFullscreen } from '../lib/window-state';
+import { requestTaskRowAction, type TaskRowAction } from '../lib/task-row-actions';
 import {
     type GlobalQuickAddShortcutSetting,
     matchesGlobalQuickAddShortcut,
@@ -35,6 +36,8 @@ export interface TaskListScope {
     openQuickActions?: () => void;
     toggleDoneSelected: () => void;
     toggleSelectSelected?: () => void;
+    toggleFocusSelected?: () => void;
+    renameSelected?: () => void;
     deleteSelected: () => void;
     setStatusSelected?: (status: TaskStatus) => void;
     focusAddInput?: () => boolean;
@@ -454,6 +457,18 @@ export function KeybindingProvider({
         window.requestAnimationFrame(() => clickCheckbox());
     }, [getFallbackTaskElements, pickFallbackTaskElement]);
 
+    const fallbackRequestTaskRowAction = useCallback((action: TaskRowAction) => {
+        requestTaskRowAction(pickFallbackTaskElement(), action);
+    }, [pickFallbackTaskElement]);
+
+    const fallbackToggleFocusSelected = useCallback(() => {
+        fallbackRequestTaskRowAction('toggle-focus');
+    }, [fallbackRequestTaskRowAction]);
+
+    const fallbackRenameSelected = useCallback(() => {
+        fallbackRequestTaskRowAction('rename-title');
+    }, [fallbackRequestTaskRowAction]);
+
     const fallbackToggleDoneSelected = useCallback(() => {
         const selectedElement = pickFallbackTaskElement();
         const selectedTaskId = selectedElement?.dataset.taskId;
@@ -574,6 +589,8 @@ export function KeybindingProvider({
         openQuickActions: fallbackOpenQuickActionsSelected,
         toggleDoneSelected: fallbackToggleDoneSelected,
         toggleSelectSelected: fallbackToggleSelectSelected,
+        toggleFocusSelected: fallbackToggleFocusSelected,
+        renameSelected: fallbackRenameSelected,
         deleteSelected: fallbackDeleteSelected,
         setStatusSelected: fallbackSetStatusSelected,
         // Entering the list from the sidebar activates the current selection
@@ -586,12 +603,14 @@ export function KeybindingProvider({
         fallbackEditSelected,
         fallbackOpenQuickActionsSelected,
         fallbackOpenSelected,
+        fallbackRenameSelected,
         fallbackSelectFirst,
         fallbackSelectLast,
         fallbackSelectNext,
         fallbackSelectPrev,
         fallbackSetStatusSelected,
         fallbackToggleDoneSelected,
+        fallbackToggleFocusSelected,
         fallbackToggleSelectSelected,
         pickFallbackTaskElement,
     ]);
@@ -847,6 +866,14 @@ export function KeybindingProvider({
                 case 'x':
                     e.preventDefault();
                     scope?.toggleSelectSelected?.();
+                    break;
+                case 'S':
+                    e.preventDefault();
+                    scope?.toggleFocusSelected?.();
+                    break;
+                case 'F2':
+                    e.preventDefault();
+                    scope?.renameSelected?.();
                     break;
                 case '#':
                     e.preventDefault();

@@ -62,6 +62,7 @@ import { resolveNativeDateInputLocale } from '../lib/native-date-input-locale';
 import { setCalendarTaskDragData } from '../lib/calendar-task-drag';
 import { useTaskItemStoreState, useTaskItemUiState } from './Task/useTaskItemStoreState';
 import type { TaskInputAcceptedSuggestion } from './Task/TaskInput';
+import { TASK_ROW_ACTION_EVENT, type TaskRowAction } from '../lib/task-row-actions';
 
 interface TaskItemProps {
     task: Task;
@@ -318,6 +319,20 @@ export const TaskItem = memo(function TaskItem({
         sectionScopedProjectIds: sequentialWithinSectionProjectIds,
         allowUnclarified: options?.allowUnclarified,
     }), [activeTasksByStatus, focusTaskLimit, focusedCount, projectMap, sequentialProjectIds, sequentialWithinSectionProjectIds, task]);
+    const toggleTaskFocus = useCallback(() => {
+        if (effectiveReadOnly) return;
+        const action = resolveFocusStar();
+        const blockedText = getFocusStarBlockedText(t, action, focusTaskLimit);
+        if (!action.canToggle) {
+            if (blockedText) showToast(blockedText, 'info');
+            return;
+        }
+        void updateTask(task.id, action.patch)
+            .then((result) => {
+                if (!result.success) showToast(result.error || 'Failed to update task', 'error');
+            });
+    }, [effectiveReadOnly, focusTaskLimit, resolveFocusStar, showToast, t, task.id, updateTask]);
+
     const quickActionFocus = useMemo(() => {
         // Also computed while the editor is open: the editor header shows the
         // same focus star (as a draft field there).
@@ -334,18 +349,26 @@ export const TaskItem = memo(function TaskItem({
             canToggle: action.canToggle,
             label,
             title: blockedText ?? label,
-            onToggle: () => {
-                if (!action.canToggle) {
-                    if (blockedText) showToast(blockedText, 'info');
-                    return;
-                }
-                void updateTask(task.id, action.patch)
-                    .then((result) => {
-                        if (!result.success) showToast(result.error || 'Failed to update task', 'error');
-                    });
-            },
+            onToggle: toggleTaskFocus,
         };
-    }, [effectiveReadOnly, focusTaskLimit, isEditing, quickActionMenu, resolveFocusStar, showToast, t, task.id, updateTask]);
+    }, [effectiveReadOnly, focusTaskLimit, isEditing, quickActionMenu, resolveFocusStar, t, toggleTaskFocus]);
+
+    useEffect(() => {
+        const root = taskRootRef.current;
+        if (!root) return;
+        const handleTaskRowAction = (event: Event) => {
+            const action = (event as CustomEvent<TaskRowAction>).detail;
+            if (action === 'toggle-focus') {
+                toggleTaskFocus();
+                return;
+            }
+            if (action === 'rename-title' && !effectiveReadOnly && !selectionMode && !isEditing) {
+                setRenameRequestToken((token) => token + 1);
+            }
+        };
+        root.addEventListener(TASK_ROW_ACTION_EVENT, handleTaskRowAction);
+        return () => root.removeEventListener(TASK_ROW_ACTION_EVENT, handleTaskRowAction);
+    }, [effectiveReadOnly, isEditing, selectionMode, toggleTaskFocus]);
     const handleToggleChecklistItem = useCallback((index: number) => {
         if (effectiveReadOnly) return;
         const checklist = task.checklist || [];

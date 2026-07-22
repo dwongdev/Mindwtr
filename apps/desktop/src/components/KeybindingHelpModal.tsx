@@ -88,6 +88,8 @@ export function KeybindingHelpModal({
         { keys: 'Shift+Enter', labelKey: 'keybindings.list.edit' },
         { keys: 'e', labelKey: 'keybindings.list.toggleDone' },
         { keys: 'x', labelKey: 'keybindings.list.select', fallbackLabel: 'Select / deselect task' },
+        { keys: 'S', labelKey: 'agenda.addToFocus', fallbackLabel: "Add to today's focus" },
+        { keys: 'F2', labelKey: 'task.renameTitle', fallbackLabel: 'Rename task' },
         { keys: '#', labelKey: 'keybindings.list.delete' },
         { keys: 'z', labelKey: 'keybindings.undo', fallbackLabel: 'Undo last complete/delete' },
         { keys: '.', labelKey: 'taskEdit.moreOptions' },

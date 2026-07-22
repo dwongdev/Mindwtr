@@ -4,7 +4,7 @@ import { KeybindingHelpModal } from './KeybindingHelpModal';
 import { GLOBAL_QUICK_ADD_SHORTCUT_DEFAULT } from '../lib/global-quick-add-shortcut';
 
 describe('KeybindingHelpModal', () => {
-    const renderModal = (style: 'vim' | 'emacs') => {
+    const renderModal = (style: 'vim' | 'emacs' | 'standard') => {
         return render(
             <KeybindingHelpModal
                 style={style}
@@ -50,5 +50,12 @@ describe('KeybindingHelpModal', () => {
         expect(getByText('Ctrl-n / Ctrl-p / ↑ / ↓')).toBeInTheDocument();
         expect(getByText('F11')).toBeInTheDocument();
         expect(queryByText('gi')).not.toBeInTheDocument();
+    });
+
+    it('shows Standard focus and rename shortcuts', () => {
+        const { getByText } = renderModal('standard');
+
+        expect(getByText('S').parentElement).toHaveTextContent("Add to today's focus");
+        expect(getByText('F2').parentElement).toHaveTextContent('Rename task');
     });
 });

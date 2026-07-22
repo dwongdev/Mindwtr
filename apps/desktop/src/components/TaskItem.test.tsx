@@ -889,6 +889,50 @@ describe('TaskItem', () => {
         });
     });
 
+    it('toggles today focus through the selected-row shortcut action', async () => {
+        const nextTask: Task = {
+            ...mockTask,
+            id: 'shortcut-focus-next-task',
+            status: 'next',
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [nextTask],
+                _allTasks: [nextTask],
+                projects: [],
+                _allProjects: [],
+            }));
+        });
+
+        const { container } = render(
+            <LanguageProvider>
+                <TaskItem task={nextTask} />
+            </LanguageProvider>
+        );
+
+        const row = container.querySelector('[data-task-id="shortcut-focus-next-task"]');
+        fireEvent(row!, new CustomEvent('mindwtr:task-row-action', { detail: 'toggle-focus' }));
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._allTasks.find((task) => task.id === nextTask.id);
+            expect(updatedTask?.isFocusedToday).toBe(true);
+        });
+    });
+
+    it('starts inline title rename through the selected-row shortcut action', () => {
+        const { container, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={mockTask} />
+            </LanguageProvider>
+        );
+
+        const row = container.querySelector('[data-task-id="1"]');
+        fireEvent(row!, new CustomEvent('mindwtr:task-row-action', { detail: 'rename-title' }));
+
+        expect(getByRole('textbox', { name: /rename task/i })).toHaveValue('Test Task');
+    });
+
     it('does not add unclarified inbox tasks to today focus from the quick actions menu', () => {
         const inboxTask: Task = {
             ...mockTask,

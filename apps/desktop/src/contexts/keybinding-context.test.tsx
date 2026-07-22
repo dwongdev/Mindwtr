@@ -1175,12 +1175,16 @@ describe('KeybindingProvider (standard)', () => {
     const StandardScopeList = ({
         toggleDoneSelected,
         toggleSelectSelected,
+        toggleFocusSelected,
+        renameSelected,
         deleteSelected,
         openSelected,
         editSelected,
     }: {
         toggleDoneSelected: () => void;
         toggleSelectSelected: () => void;
+        toggleFocusSelected?: () => void;
+        renameSelected?: () => void;
         deleteSelected: () => void;
         openSelected: () => void;
         editSelected: () => void;
@@ -1197,10 +1201,12 @@ describe('KeybindingProvider (standard)', () => {
                 openSelected,
                 toggleDoneSelected,
                 toggleSelectSelected,
+                toggleFocusSelected,
+                renameSelected,
                 deleteSelected,
             });
             return () => registerTaskListScope(null);
-        }, [deleteSelected, editSelected, openSelected, registerTaskListScope, toggleDoneSelected, toggleSelectSelected]);
+        }, [deleteSelected, editSelected, openSelected, registerTaskListScope, renameSelected, toggleDoneSelected, toggleFocusSelected, toggleSelectSelected]);
         return (
             <div data-task-id="1">
                 <button type="button" data-task-view-toggle>Task 1</button>
@@ -1219,9 +1225,11 @@ describe('KeybindingProvider (standard)', () => {
         }));
     });
 
-    it('maps e/x/#/Enter/Shift+Enter to done/select/delete/open/edit', () => {
+    it('maps e/x/S/F2/#/Enter/Shift+Enter to done/select/focus/rename/delete/open/edit', () => {
         const toggleDoneSelected = vi.fn();
         const toggleSelectSelected = vi.fn();
+        const toggleFocusSelected = vi.fn();
+        const renameSelected = vi.fn();
         const deleteSelected = vi.fn();
         const openSelected = vi.fn();
         const editSelected = vi.fn();
@@ -1232,6 +1240,8 @@ describe('KeybindingProvider (standard)', () => {
                     <StandardScopeList
                         toggleDoneSelected={toggleDoneSelected}
                         toggleSelectSelected={toggleSelectSelected}
+                        toggleFocusSelected={toggleFocusSelected}
+                        renameSelected={renameSelected}
                         deleteSelected={deleteSelected}
                         openSelected={openSelected}
                         editSelected={editSelected}
@@ -1243,12 +1253,16 @@ describe('KeybindingProvider (standard)', () => {
         (document.activeElement as HTMLElement | null)?.blur?.();
         fireEvent.keyDown(window, { key: 'e' });
         fireEvent.keyDown(window, { key: 'x' });
+        fireEvent.keyDown(window, { key: 'S', code: 'KeyS', shiftKey: true });
+        fireEvent.keyDown(window, { key: 'F2', code: 'F2' });
         fireEvent.keyDown(window, { key: '#', shiftKey: true });
         fireEvent.keyDown(window, { key: 'Enter' });
         fireEvent.keyDown(window, { key: 'Enter', shiftKey: true });
 
         expect(toggleDoneSelected).toHaveBeenCalledTimes(1);
         expect(toggleSelectSelected).toHaveBeenCalledTimes(1);
+        expect(toggleFocusSelected).toHaveBeenCalledTimes(1);
+        expect(renameSelected).toHaveBeenCalledTimes(1);
         expect(deleteSelected).toHaveBeenCalledTimes(1);
         expect(openSelected).toHaveBeenCalledTimes(1);
         expect(editSelected).toHaveBeenCalledTimes(1);
