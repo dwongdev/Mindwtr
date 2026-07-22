@@ -1116,7 +1116,11 @@ function TaskListComponent({
     const estimate = (info.averageItemLength || PROJECT_REORDER_ITEM_HEIGHT) * info.index;
     reorderListRef.current?.scrollToOffset({ offset: estimate, animated: false });
     setTimeout(() => {
-      reorderListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0 });
+      try {
+        reorderListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0 });
+      } catch {
+        // List changed under the retry; the estimated offset stands.
+      }
     }, 120);
   }, []);
   const prevProjectReorderModeRef = useRef(projectReorderMode);
@@ -1159,9 +1163,13 @@ function TaskListComponent({
     };
   }, [canUseProjectReorder, projectReorderMode]);
 
-  // FlatList row heights vary, so a scrollToIndex to an unmeasured row throws;
-  // estimate the offset, jump there, then retry the exact index once rows near
-  // the target have mounted (mirrors the reorder-mode fallback).
+  // FlatList row heights vary, so a scrollToIndex to an unmeasured row reports
+  // failure via this callback; estimate the offset, jump there, then retry the
+  // exact index once rows near the target have mounted (mirrors the
+  // reorder-mode fallback). The retry runs 120ms later against a list that may
+  // have shrunk or reordered meanwhile, and scrollToIndex throws an invariant
+  // for an out-of-bounds index — swallow that instead of crashing; the row is
+  // already near the estimated offset.
   const handleListScrollToIndexFailed = useCallback(
     (info: { index: number; averageItemLength: number }) => {
       const list = internalListRef.current;
@@ -1169,7 +1177,11 @@ function TaskListComponent({
       const estimate = (info.averageItemLength || STATIC_LIST_ROW_ESTIMATE) * info.index;
       list.scrollToOffset({ offset: estimate, animated: false });
       setTimeout(() => {
-        internalListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0.5 });
+        try {
+          internalListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0.5 });
+        } catch {
+          // List changed under the retry; the estimated offset stands.
+        }
       }, 120);
     },
     [],
@@ -1196,12 +1208,10 @@ function TaskListComponent({
     scrolledHighlightIdRef.current = highlightTaskId;
     const list = internalListRef.current;
     if (!list) return;
-    try {
-      list.scrollToIndex({ index, viewPosition: 0.5, animated: !reduceMotion });
-    } catch {
-      // Row outside the current render window without getItemLayout throws
-      // synchronously; onScrollToIndexFailed runs the estimate-then-retry path.
-    }
+    // An unmeasured target row does not throw here — VirtualizedList reports it
+    // through the onScrollToIndexFailed prop, which runs the estimate-then-retry
+    // path. The index is in bounds (found in listItems above), so no try/catch.
+    list.scrollToIndex({ index, viewPosition: 0.5, animated: !reduceMotion });
   }, [highlightTaskId, listItems, projectReorderMode, reduceMotion]);
 
   const handleProjectTaskDragEnd = useCallback((params: DragEndParams<ProjectReorderFlatItem<Task>>) => {
