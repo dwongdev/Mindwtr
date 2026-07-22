@@ -734,9 +734,19 @@ export const ListView = memo(function ListView({ title, statusFilter }: ListView
                 const existingTags = initialProps.tags ?? [];
                 initialProps.tags = Array.from(new Set([...existingTags, ...copilotTags]));
             }
-            await addTask(finalTitle, initialProps);
+            const result = await addTask(finalTitle, initialProps);
             setNewTaskTitle('');
             resetCopilot();
+            // Flash + scroll the freshly created row into view so a batch-entered
+            // task added far down a sorted/filtered list is not lost. Reuses the
+            // shared highlightTaskId machinery (useListSelection scrolls it to
+            // centre and auto-clears; TaskItem paints the flash). Focus stays in
+            // the add input, so rapid entry is uninterrupted. If the task is
+            // filtered out of the current view, useListSelection finds no row and
+            // never scrolls (#916).
+            if (result?.success && result.id) {
+                setHighlightTask(result.id);
+            }
         } catch (error) {
             reportError('Failed to add task from quick add', error);
             showToast(t('task.addFailed') || 'Failed to add task', 'error');

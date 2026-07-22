@@ -14,6 +14,9 @@ const taskEditModalPropsSpy = vi.hoisted(() => vi.fn());
 const bulkOrganizeModalPropsSpy = vi.hoisted(() => vi.fn());
 const parseQuickAddMock = vi.hoisted(() => vi.fn());
 const taskListHeaderPropsSpy = vi.hoisted(() => vi.fn());
+const flatListPropsSpy = vi.hoisted(() => vi.fn());
+const flatListScrollToIndexMock = vi.hoisted(() => vi.fn());
+const flatListScrollToOffsetMock = vi.hoisted(() => vi.fn());
 const taskListSelectionState = vi.hoisted(() => ({
   current: {
     bulkActionLabel: 'Move',
@@ -92,14 +95,22 @@ const storeState = vi.hoisted(() => ({
 }));
 
 vi.mock('react-native', () => ({
-  FlatList: ({ data, ListEmptyComponent, ListHeaderComponent, renderItem }: any) => React.createElement(
-    'FlatList',
-    null,
-    typeof ListHeaderComponent === 'function' ? React.createElement(ListHeaderComponent) : ListHeaderComponent,
-    data?.length
-      ? data.map((item: unknown, index: number) => renderItem?.({ item, index }))
-      : (typeof ListEmptyComponent === 'function' ? React.createElement(ListEmptyComponent) : ListEmptyComponent),
-  ),
+  FlatList: React.forwardRef((allProps: any, ref: any) => {
+    const { data, ListEmptyComponent, ListHeaderComponent, renderItem } = allProps;
+    flatListPropsSpy(allProps);
+    React.useImperativeHandle(ref, () => ({
+      scrollToIndex: flatListScrollToIndexMock,
+      scrollToOffset: flatListScrollToOffsetMock,
+    }));
+    return React.createElement(
+      'FlatList',
+      null,
+      typeof ListHeaderComponent === 'function' ? React.createElement(ListHeaderComponent) : ListHeaderComponent,
+      data?.length
+        ? data.map((item: unknown, index: number) => renderItem?.({ item, index }))
+        : (typeof ListEmptyComponent === 'function' ? React.createElement(ListEmptyComponent) : ListEmptyComponent),
+    );
+  }),
   Modal: ({ children, visible, ...props }: any) => (visible ? React.createElement('Modal', props, children) : null),
   Pressable: ({ children, onPress, ...props }: any) => React.createElement('Pressable', { ...props, onPress }, children),
   RefreshControl: () => null,
@@ -249,6 +260,10 @@ vi.mock('@/hooks/use-theme-colors', () => ({
   }),
 }));
 
+vi.mock('@/hooks/use-reduced-motion', () => ({
+  useReducedMotion: () => false,
+}));
+
 vi.mock('@/hooks/use-mobile-area-filter', () => ({
   useMobileAreaFilter: () => ({
     areaById: new Map(),
@@ -384,6 +399,11 @@ describe('TaskList project quick add', () => {
     };
     selectedAreaIdForNewTasksMock.current = undefined;
     addTaskMock.mockResolvedValue({ success: true, id: 'created-task' });
+    // The real store action sets highlightTaskId; mirror that so the scroll
+    // effect (keyed off the shared highlightTaskId) can react.
+    setHighlightTaskMock.mockImplementation((id: string | null) => {
+      storeState.highlightTaskId = id;
+    });
     parseQuickAddMock.mockImplementation((input: string) => ({ title: input, props: {} }));
     vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
       callback(0);
@@ -601,6 +621,113 @@ describe('TaskList project quick add', () => {
       projectId: project.id,
       status: 'inbox',
     }));
+
+    act(() => {
+      tree.unmount();
+    });
+  });
+
+  it('flashes and scrolls a freshly inline-added row into view (#916)', async () => {
+    const createdTask = makeTask('created-task', 'Draft launch checklist', { status: 'inbox' });
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <TaskList
+          allowAdd
+          projectId={project.id}
+          showHeader={false}
+          statusFilter="all"
+          taskSource={[createdTask]}
+          title={project.title}
+        />,
+      );
+    });
+
+    await act(async () => {
+      latestQuickAddProps().onChangeText('Draft launch checklist');
+    });
+    await act(async () => {
+      await latestQuickAddProps().handleAddTask();
+    });
+
+    expect(setHighlightTaskMock).toHaveBeenCalledWith('created-task');
+    expect(flatListScrollToIndexMock).toHaveBeenCalledWith(expect.objectContaining({ index: 0 }));
+
+    // Variable row heights mean an unmeasured target throws; the fallback jumps
+    // to an estimated offset (index * averageItemLength) before retrying.
+    const flatListProps = flatListPropsSpy.mock.calls.at(-1)?.[0];
+    act(() => {
+      flatListProps.onScrollToIndexFailed({ index: 4, averageItemLength: 90 });
+    });
+    expect(flatListScrollToOffsetMock).toHaveBeenCalledWith({ offset: 360, animated: false });
+
+    act(() => {
+      tree.unmount();
+    });
+  });
+
+  it('scrolls to a row flagged via the shared highlightTaskId, e.g. quick-capture (#916)', async () => {
+    const captured = makeTask('capture-task', 'Captured into project', { status: 'inbox' });
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <TaskList
+          allowAdd
+          projectId={project.id}
+          showHeader={false}
+          statusFilter="all"
+          taskSource={[captured]}
+          title={project.title}
+        />,
+      );
+    });
+
+    // The quick-capture sheet sets highlightTaskId as it closes; the list scrolls
+    // once the flagged row is present in the rendered data (no composer involved).
+    storeState.highlightTaskId = 'capture-task';
+    await act(async () => {
+      tree.update(
+        <TaskList
+          allowAdd
+          projectId={project.id}
+          showHeader={false}
+          statusFilter="all"
+          taskSource={[captured]}
+          title={project.title}
+        />,
+      );
+    });
+
+    expect(flatListScrollToIndexMock).toHaveBeenCalledWith(expect.objectContaining({ index: 0 }));
+
+    act(() => {
+      tree.unmount();
+    });
+  });
+
+  it('does not scroll the add row while project reorder mode is active (#916)', async () => {
+    const existing = makeTask('task-1', 'Existing task', { status: 'inbox' });
+    let tree!: ReturnType<typeof create>;
+    await act(async () => {
+      tree = create(
+        <TaskList
+          allowAdd
+          enableProjectReorder
+          projectReorderMode
+          projectId={project.id}
+          showHeader={false}
+          statusFilter="all"
+          taskSource={[existing]}
+          title={project.title}
+        />,
+      );
+    });
+
+    // Reorder mode swaps in the draggable list and hides the inline composer, so
+    // the add-scroll effect has no add to react to and never touches the list.
+    expect(quickAddPropsSpy).not.toHaveBeenCalled();
+    expect(flatListScrollToIndexMock).not.toHaveBeenCalled();
+    expect(tree.root.findAll((node) => String(node.type) === 'DraggableFlatList').length).toBeGreaterThan(0);
 
     act(() => {
       tree.unmount();

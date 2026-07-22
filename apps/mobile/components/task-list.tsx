@@ -48,6 +48,7 @@ import { useTheme } from '../contexts/theme-context';
 import { useLanguage } from '../contexts/language-context';
 
 import { useThemeColors } from '@/hooks/use-theme-colors';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { useMobileAreaFilter } from '@/hooks/use-mobile-area-filter';
 import { useToast } from '@/contexts/toast-context';
 import { PullSyncIndicator } from '@/components/PullSyncIndicator';
@@ -307,6 +308,11 @@ function TaskListComponent({
   const newTaskTitleRef = useRef(newTaskTitle);
   const inputSelectionRef = useRef(inputSelection);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reduceMotion = useReducedMotion();
+  // Tracks the highlightTaskId we already scrolled to, so an id is centred once
+  // (when it first appears in the rendered data) rather than re-scrolling on
+  // every unrelated list re-render during its ~3.5s highlight window (#916).
+  const scrolledHighlightIdRef = useRef<string | null>(null);
   const copilotAbortRef = useRef<AbortController | null>(null);
   const copilotRequestIdRef = useRef(0);
   const restoreActionLabel = getTranslationsSync(language)['trash.restoreToInbox']
@@ -1078,6 +1084,18 @@ function TaskListComponent({
   // enough rows render.
   const firstViewableTaskIdRef = useRef<string | null>(null);
   const reorderListRef = useRef<FlatList<ProjectReorderFlatItem<Task>> | null>(null);
+  // The normal FlatList's ref is owned by the parent (listRef prop); keep an
+  // internal handle too so this component can scroll a freshly added row into
+  // view without stealing the parent's ref.
+  const internalListRef = useRef<FlatList<ListItem> | null>(null);
+  const setListRef = useCallback((node: FlatList<ListItem> | null) => {
+    internalListRef.current = node;
+    if (typeof listRef === 'function') {
+      listRef(node);
+    } else if (listRef) {
+      (listRef as React.MutableRefObject<FlatList | null>).current = node;
+    }
+  }, [listRef]);
   const projectReorderFlatItemsRef = useRef(projectReorderFlatItems);
   projectReorderFlatItemsRef.current = projectReorderFlatItems;
   const projectReorderScrollOffsetRef = useRef(0);
@@ -1140,6 +1158,51 @@ function TaskListComponent({
       if (timer !== null) clearTimeout(timer);
     };
   }, [canUseProjectReorder, projectReorderMode]);
+
+  // FlatList row heights vary, so a scrollToIndex to an unmeasured row throws;
+  // estimate the offset, jump there, then retry the exact index once rows near
+  // the target have mounted (mirrors the reorder-mode fallback).
+  const handleListScrollToIndexFailed = useCallback(
+    (info: { index: number; averageItemLength: number }) => {
+      const list = internalListRef.current;
+      if (!list) return;
+      const estimate = (info.averageItemLength || STATIC_LIST_ROW_ESTIMATE) * info.index;
+      list.scrollToOffset({ offset: estimate, animated: false });
+      setTimeout(() => {
+        internalListRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0.5 });
+      }, 120);
+    },
+    [],
+  );
+
+  // Scroll a highlighted task into view once it is actually present in the
+  // rendered row model. Driven by the shared highlightTaskId so both this list's
+  // own composer (handleAddTask) and the project-preset quick-capture sheet
+  // flash + scroll, without stacking scrolls: each id centres once (see
+  // scrolledHighlightIdRef). Normal mode only — reorder swaps in a different
+  // list. A task filtered out of this view never enters listItems, so nothing
+  // scrolls (#916).
+  useEffect(() => {
+    if (!highlightTaskId) {
+      scrolledHighlightIdRef.current = null;
+      return;
+    }
+    if (projectReorderMode) return;
+    if (scrolledHighlightIdRef.current === highlightTaskId) return;
+    const index = listItems.findIndex(
+      (item) => item.type === 'task' && item.task.id === highlightTaskId,
+    );
+    if (index < 0) return;
+    scrolledHighlightIdRef.current = highlightTaskId;
+    const list = internalListRef.current;
+    if (!list) return;
+    try {
+      list.scrollToIndex({ index, viewPosition: 0.5, animated: !reduceMotion });
+    } catch {
+      // Row outside the current render window without getItemLayout throws
+      // synchronously; onScrollToIndexFailed runs the estimate-then-retry path.
+    }
+  }, [highlightTaskId, listItems, projectReorderMode, reduceMotion]);
 
   const handleProjectTaskDragEnd = useCallback((params: DragEndParams<ProjectReorderFlatItem<Task>>) => {
     if (!projectId) return;
@@ -1467,6 +1530,14 @@ function TaskListComponent({
         setIsModalVisible(true);
       }
       return;
+    }
+
+    if (createdTaskId) {
+      // Flash the new row and scroll it into view (the highlightTaskId effect
+      // above centres it) so a task added far down a sorted project list is not
+      // lost. Focus returns to the input (below) so batch entry is
+      // uninterrupted (#916).
+      setHighlightTask(createdTaskId);
     }
 
     refocusQuickAddInput();
@@ -2022,13 +2093,14 @@ function TaskListComponent({
         </View>
       ) : (
         <FlatList
-          ref={listRef}
+          ref={setListRef}
           data={listItems}
           renderItem={renderListItem}
           keyExtractor={getVirtualizedListItemKey}
           ListHeaderComponent={listHeaderComponent ?? undefined}
           viewabilityConfig={listViewabilityConfig}
           onViewableItemsChanged={handleListViewableItemsChanged}
+          onScrollToIndexFailed={handleListScrollToIndexFailed}
           onScroll={onListScroll}
           scrollEventThrottle={onListScroll ? 16 : undefined}
           style={styles.list}

@@ -1020,6 +1020,12 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
         close({ keepPastedImages: true });
         if (openAfterSave && result.createdTaskId && result.props && !standaloneWindow) {
             openCreatedTaskForEditing(result.createdTaskId, result.props);
+        } else if (initialProps?.projectId && result.createdTaskId) {
+            // Opened from a project/section preset (ProjectWorkspace's add button):
+            // flash + scroll the new row in the project view. Global captures with
+            // no project preset intentionally skip this so they never leave a
+            // stray highlight on an unrelated view (#916).
+            setHighlightTask(result.createdTaskId);
         }
     };
 

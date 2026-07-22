@@ -385,6 +385,58 @@ describe('QuickAddModal', () => {
         window.removeEventListener('mindwtr:navigate', navigateListener);
     });
 
+    it('flashes the created row on a plain save from a project-preset capture (#916)', async () => {
+        const addTask = vi.fn(async () => ({ success: true, id: 'task-created' }));
+        act(() => {
+            useTaskStore.setState((state) => ({ ...state, addTask }));
+        });
+
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+                detail: {
+                    initialValue: 'Draft launch brief',
+                    initialProps: { projectId: 'project-launch', status: 'next' },
+                },
+            }));
+            await Promise.resolve();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => {
+            expect(addTask).toHaveBeenCalled();
+        });
+        expect(useTaskStore.getState().highlightTaskId).toBe('task-created');
+    });
+
+    it('does not flash on a global capture with no project preset (#916)', async () => {
+        const addTask = vi.fn(async () => ({ success: true, id: 'task-global' }));
+        act(() => {
+            useTaskStore.setState((state) => ({ ...state, addTask }));
+        });
+
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+                detail: {
+                    initialValue: 'Loose thought',
+                    initialProps: { status: 'inbox' },
+                },
+            }));
+            await Promise.resolve();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => {
+            expect(addTask).toHaveBeenCalled();
+        });
+        expect(useTaskStore.getState().highlightTaskId).toBeNull();
+    });
+
     it('saves and opens the task for editing on Ctrl+Enter', async () => {
         const addTask = vi.fn(async () => ({ success: true, id: 'task-shortcut' }));
         act(() => {

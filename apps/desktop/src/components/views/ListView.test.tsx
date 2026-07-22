@@ -566,6 +566,92 @@ describe('ListView', () => {
     expect(scrollIntoViewMock).not.toHaveBeenCalled();
   });
 
+  it('flashes and scrolls a freshly inline-added row into view (#916)', async () => {
+    const scrollIntoViewMock = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoViewMock,
+    });
+
+    const addTask = vi.fn(async (title: string, props?: Partial<Task>) => {
+      const task = makeTask('created', { title, status: props?.status ?? 'inbox' });
+      useTaskStore.setState((state) => ({
+        _allTasks: [...state._allTasks, task],
+        lastDataChangeAt: (state.lastDataChangeAt ?? 0) + 1,
+      }));
+      return { success: true, id: 'created' };
+    });
+    useTaskStore.setState({ addTask, settings: { quickAddAutoClean: true } });
+
+    const { container, getByRole, queryByText } = renderListView('inbox', 'Inbox');
+    const input = getByRole('combobox', { name: 'Add Task' });
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Buried inbox task' } });
+    });
+    const form = container.querySelector('form');
+    await act(async () => {
+      fireEvent.submit(form!);
+    });
+
+    await waitFor(() => {
+      expect(queryByText('Buried inbox task')).toBeInTheDocument();
+    });
+    expect(useTaskStore.getState().highlightTaskId).toBe('created');
+    await waitFor(() => {
+      expect(scrollIntoViewMock).toHaveBeenCalled();
+    });
+  });
+
+  it('does not scroll when the freshly inline-added task is filtered out of the view (#916)', async () => {
+    const scrollIntoViewMock = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoViewMock,
+    });
+
+    const addTask = vi.fn(async (title: string, props?: Partial<Task>) => {
+      const task = makeTask('created', { title, status: props?.status ?? 'inbox' });
+      useTaskStore.setState((state) => ({
+        _allTasks: [...state._allTasks, task],
+        lastDataChangeAt: (state.lastDataChangeAt ?? 0) + 1,
+      }));
+      return { success: true, id: 'created' };
+    });
+    useTaskStore.setState({
+      addTask,
+      settings: { quickAddAutoClean: true },
+      _allTasks: [makeTask('existing', { title: 'Filtered visible task', status: 'inbox', contexts: ['@work'] })],
+      lastDataChangeAt: 1,
+    });
+    // An active context filter that the new task will not match, so the created
+    // row never enters the rendered row model.
+    act(() => {
+      useUiStore.getState().setListFilters({ criteria: { contexts: ['@work'] } });
+    });
+
+    const { container, getByRole, queryByText } = renderListView('inbox', 'Inbox');
+    await waitFor(() => {
+      expect(queryByText('Filtered visible task')).toBeInTheDocument();
+    });
+    // Ignore any scroll from the initial mount / selection settle.
+    scrollIntoViewMock.mockClear();
+
+    const input = getByRole('combobox', { name: 'Add Task' });
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Task without the filtered context' } });
+    });
+    const form = container.querySelector('form');
+    await act(async () => {
+      fireEvent.submit(form!);
+    });
+
+    await waitFor(() => {
+      expect(useTaskStore.getState().highlightTaskId).toBe('created');
+    });
+    expect(queryByText('Task without the filtered context')).not.toBeInTheDocument();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+
   it('shows an error toast when loading archived tasks fails', () => {
     const showToast = vi.fn();
 

@@ -98,7 +98,7 @@ export function QuickCaptureSheet({
   initialValue?: string;
   autoRecord?: boolean;
 }) {
-  const { addTask, addTasks, addProject, addArea, updateSettings, projects, settings, areas, getDerivedState } = useTaskStore((state) => ({
+  const { addTask, addTasks, addProject, addArea, updateSettings, projects, settings, areas, getDerivedState, setHighlightTask } = useTaskStore((state) => ({
     addTask: state.addTask,
     addTasks: state.addTasks,
     addProject: state.addProject,
@@ -108,6 +108,7 @@ export function QuickCaptureSheet({
     settings: state.settings,
     areas: state.areas,
     getDerivedState: state.getDerivedState,
+    setHighlightTask: state.setHighlightTask,
   }), shallow);
   const { t } = useLanguage();
   const tc = useThemeColors();
@@ -667,11 +668,20 @@ export function QuickCaptureSheet({
         return;
       }
 
+      // Project/section-preset capture (opened from ProjectDetailModal's add
+      // button): flash + scroll the new row in the project list once the sheet
+      // closes. Global captures with no project preset skip this, and "Add
+      // another" bursts never highlight mid-typing under the open sheet — only
+      // this final close does (#916).
+      if (initialProps?.projectId && result.createdTaskId) {
+        setHighlightTask(result.createdTaskId);
+      }
+
       finalizeClose();
     } finally {
       isSavingRef.current = false;
     }
-  }, [addAnother, confirmBulkQuickAdd, createTaskFromInput, finalizeClose, resetDraftState, value]);
+  }, [addAnother, confirmBulkQuickAdd, createTaskFromInput, finalizeClose, initialProps?.projectId, resetDraftState, setHighlightTask, value]);
 
   const selectedProject = projectId ? projects.find((project) => project.id === projectId) : null;
   const dueLabel = dueDate ? safeFormatDate(dueDate, dueDateHasTime ? 'Pp' : 'P') : t('taskEdit.dueDateLabel');
