@@ -226,7 +226,7 @@ describe('TaskEditFormTab keyboard handling', () => {
     });
 
     expect(tree.root.findByType(KeyboardAvoidingView).props.behavior).toBe('height');
-    expect(findScrollContainer(tree).props.keyboardDismissMode).toBe('on-drag');
+    expect(findScrollContainer(tree).props.keyboardDismissMode).toBe('none');
     expect(findScrollContainer(tree).props.scrollsChildToFocus).toBe(false);
     expect(listeners.has('keyboardDidShow')).toBe(true);
     expect(listeners.has('keyboardDidChangeFrame')).toBe(true);
@@ -466,7 +466,140 @@ describe('TaskEditFormTab keyboard handling', () => {
     const visibleHeight = visibleBottom - visibleTop;
     const bottomClearance = visibleHeight * 0.18;
     const measuredOverlap = (targetY + targetH) - (visibleBottom - bottomClearance);
-    expect(mockScrollTo).toHaveBeenCalledWith({ y: 420 + measuredOverlap, animated: true });
+    expect(mockScrollTo).toHaveBeenCalledWith({ y: 420 + measuredOverlap, animated: false });
+  });
+
+  it('replays a deferred Android focus scroll once the keyboard shows (#921)', () => {
+    setPlatform('android');
+    vi.spyOn(Dimensions, 'get').mockReturnValue({
+      width: 390,
+      height: 800,
+      scale: 3,
+      fontScale: 1,
+    });
+    const listeners = new Map<string, (event?: unknown) => void>();
+    vi.spyOn(Keyboard, 'addListener').mockImplementation(((eventName: string, listener: (event?: unknown) => void) => {
+      listeners.set(eventName, listener);
+      return { remove: () => listeners.delete(eventName) };
+    }) as any);
+    mockFindNodeHandle.mockReturnValue(9001);
+    const targetY = 700;
+    const targetH = 60;
+    const scrollY = 0;
+    const scrollH = 800;
+    const keyboardTop = 520;
+    mockMeasureInWindow.mockImplementation(((handle: number, callback: any) => {
+      if (handle === 42) {
+        callback(0, targetY, 320, targetH);
+        return;
+      }
+      callback(0, scrollY, 390, scrollH);
+    }) as any);
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    }) as any);
+    const registeredHandlers: Array<((targetInput?: number | string) => void) | null> = [];
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskEditFormTab
+          {...baseProps}
+          registerScrollToEnd={(handler) => {
+            registeredHandlers.push(handler);
+          }}
+        />
+      );
+    });
+    mockScrollTo.mockClear();
+
+    // Android focuses before the keyboard opens: the focus scroll is deferred, not run.
+    act(() => {
+      findScrollContainer(tree).props.onScroll({ nativeEvent: { contentOffset: { y: 420 } } });
+      registeredHandlers.at(-1)?.(42);
+    });
+    expect(mockScrollTo).not.toHaveBeenCalled();
+
+    // keyboardDidShow alone should replay the pending scroll — no second focus event needed.
+    act(() => {
+      listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: keyboardTop } });
+    });
+
+    const visibleBottom = Math.min(scrollY + scrollH, keyboardTop);
+    const visibleHeight = visibleBottom - scrollY;
+    const bottomClearance = visibleHeight * 0.18;
+    const measuredOverlap = (targetY + targetH) - (visibleBottom - bottomClearance);
+    expect(mockScrollTo).toHaveBeenCalledWith({ y: 420 + measuredOverlap, animated: false });
+
+    // Hiding the keyboard clears the pending handle so a later show does not re-scroll.
+    mockScrollTo.mockClear();
+    act(() => {
+      listeners.get('keyboardDidHide')?.();
+      listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: keyboardTop } });
+    });
+    expect(mockScrollTo).not.toHaveBeenCalled();
+  });
+
+  it('caps the reveal for a tall input so its top stays visible instead of scrolling its full height (#921)', () => {
+    setPlatform('android');
+    vi.spyOn(Dimensions, 'get').mockReturnValue({
+      width: 390,
+      height: 800,
+      scale: 3,
+      fontScale: 1,
+    });
+    const listeners = new Map<string, (event?: unknown) => void>();
+    vi.spyOn(Keyboard, 'addListener').mockImplementation(((eventName: string, listener: (event?: unknown) => void) => {
+      listeners.set(eventName, listener);
+      return { remove: () => listeners.delete(eventName) };
+    }) as any);
+    mockFindNodeHandle.mockReturnValue(9001);
+    const targetY = 700;
+    const targetH = 400; // taller than the reveal cap
+    const scrollY = 0;
+    const scrollH = 800;
+    const keyboardTop = 520;
+    mockMeasureInWindow.mockImplementation(((handle: number, callback: any) => {
+      if (handle === 42) {
+        callback(0, targetY, 320, targetH);
+        return;
+      }
+      callback(0, scrollY, 390, scrollH);
+    }) as any);
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    }) as any);
+    const registeredHandlers: Array<((targetInput?: number | string) => void) | null> = [];
+    let tree!: ReturnType<typeof create>;
+
+    act(() => {
+      tree = create(
+        <TaskEditFormTab
+          {...baseProps}
+          registerScrollToEnd={(handler) => {
+            registeredHandlers.push(handler);
+          }}
+        />
+      );
+    });
+    mockScrollTo.mockClear();
+
+    act(() => {
+      findScrollContainer(tree).props.onScroll({ nativeEvent: { contentOffset: { y: 420 } } });
+      listeners.get('keyboardDidShow')?.({ endCoordinates: { screenY: keyboardTop } });
+      registeredHandlers.at(-1)?.(42);
+    });
+
+    const visibleHeight = keyboardTop - scrollY;
+    const bottomClearance = visibleHeight * 0.18;
+    const reveal = Math.min(targetH, visibleHeight * 0.4);
+    const cappedOverlap = (targetY + reveal) - (keyboardTop - bottomClearance);
+    expect(mockScrollTo).toHaveBeenCalledWith({ y: 420 + cappedOverlap, animated: false });
+    // A full-height target would have scrolled further and buried the input's top.
+    const uncappedOverlap = (targetY + targetH) - (keyboardTop - bottomClearance);
+    expect(mockScrollTo).not.toHaveBeenCalledWith({ y: 420 + uncappedOverlap, animated: false });
   });
 
   it('ignores stale string keyboard targets instead of applying a fixed Android scroll', () => {

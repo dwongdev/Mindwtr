@@ -36,6 +36,10 @@ export function useTaskEditPager({
     const [scrollTaskFormToEnd, setScrollTaskFormToEnd] = useState<((targetInput?: number | string) => void) | null>(null);
     const lastFocusedInputRef = useRef<number | string | undefined>(undefined);
     const pendingScrollTaskFormTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // True between a real input focus and the keyboard actually opening. While set, a
+    // transient handleInputFocus(undefined) — e.g. the description's caret-placement
+    // selection change — must not discard the focus target we still need to scroll to (#921).
+    const focusScrollPendingRef = useRef(false);
 
     const registerScrollTaskFormToEnd = useCallback((handler: ((targetInput?: number | string) => void) | null) => {
         setScrollTaskFormToEnd(() => handler);
@@ -99,9 +103,11 @@ export function useTaskEditPager({
             if (lastFocusedInputRef.current !== undefined) {
                 scrollTaskFormToEnd?.(lastFocusedInputRef.current);
             }
+            focusScrollPendingRef.current = false;
         };
         const handleKeyboardHide = () => {
             alignPagerToActiveTab();
+            focusScrollPendingRef.current = false;
         };
         const showListener = Keyboard.addListener('keyboardDidShow', handleKeyboardShow);
         const hideListener = Keyboard.addListener('keyboardDidHide', handleKeyboardHide);
@@ -112,14 +118,22 @@ export function useTaskEditPager({
     }, [alignPagerToActiveTab, isMarkdownOverlayOpen, scrollTaskFormToEnd, visible]);
 
     const handleInputFocus = useCallback((targetInput?: number | string) => {
+        if (targetInput === undefined && focusScrollPendingRef.current) {
+            // The just-focused input is still waiting for the keyboard to open before it
+            // can be scrolled into view; ignore this transient clear so the target and its
+            // pending scroll survive until keyboardDidShow (#921).
+            return;
+        }
         if (pendingScrollTaskFormTimerRef.current) {
             clearTimeout(pendingScrollTaskFormTimerRef.current);
             pendingScrollTaskFormTimerRef.current = null;
         }
         lastFocusedInputRef.current = targetInput;
         if (targetInput === undefined) {
+            focusScrollPendingRef.current = false;
             return;
         }
+        focusScrollPendingRef.current = true;
         pendingScrollTaskFormTimerRef.current = setTimeout(() => {
             scrollTaskFormToEnd?.(targetInput);
             pendingScrollTaskFormTimerRef.current = null;

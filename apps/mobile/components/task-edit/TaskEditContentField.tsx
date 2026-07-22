@@ -120,7 +120,6 @@ export function TaskEditContentField({
     const ignoredNativePairChangeRefs = React.useRef<Record<string, IgnoredNativePairChange>>({});
     const pendingChecklistSelectionRefs = React.useRef<Record<string, MarkdownSelection | null>>({});
     const [checklistSelectionRestorePending, setChecklistSelectionRestorePending] = React.useState<Record<string, boolean>>({});
-    const descriptionFocusAnchorRef = React.useRef<View | null>(null);
     const checklistLength = editedTask.checklist?.length ?? 0;
     React.useEffect(() => {
         if (fieldId !== 'checklist' || checklistLength < 2) {
@@ -251,10 +250,13 @@ export function TaskEditContentField({
 
     const getDescriptionFocusScrollTarget = React.useCallback((nativeTarget?: number) => {
         if (Platform.OS === 'android') {
-            return findNodeHandle(descriptionFocusAnchorRef.current) ?? undefined;
+            // Scroll to the input itself, not the label header above it, so the field (not just
+            // the "DESCRIPTION" label) lands above the keyboard. The reveal cap in
+            // scrollHandleIntoView keeps a tall description from over-scrolling (#921).
+            return findNodeHandle(descriptionInputRef.current) ?? undefined;
         }
         return nativeTarget || undefined;
-    }, []);
+    }, [descriptionInputRef]);
 
     const handleDescriptionSelectionChange = React.useCallback((selection: MarkdownSelection) => {
         setDescriptionSelection(selection);
@@ -355,8 +357,6 @@ export function TaskEditContentField({
             return (
                 <View style={styles.formGroup}>
                     <View
-                        ref={descriptionFocusAnchorRef}
-                        collapsable={false}
                         style={styles.inlineHeader}
                     >
                         <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.descriptionLabel')}</Text>

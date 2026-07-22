@@ -64,6 +64,8 @@ type TaskEditFormTabProps = {
 };
 
 const TASK_FORM_BASE_BOTTOM_PADDING = 32;
+// Fraction of the space above the keyboard to reveal from a focused input's top edge.
+const DESCRIPTION_REVEAL_FRACTION = 0.4;
 
 function TaskEditFormTabComponent({
     t,
@@ -109,6 +111,9 @@ function TaskEditFormTabComponent({
     const formScrollOffsetRef = React.useRef(0);
     const keyboardTopRef = React.useRef(Dimensions.get('window').height);
     const keyboardVisibleRef = React.useRef(false);
+    // Android focuses before `keyboardDidShow`, so a focus scroll requested with no
+    // keyboard metrics yet is stashed here and replayed once the keyboard opens (#921).
+    const pendingScrollHandleRef = React.useRef<number | null>(null);
     const [keyboardBottomInset, setKeyboardBottomInset] = React.useState(0);
     const androidScrollViewFocusProps: Partial<ScrollViewProps> & { scrollsChildToFocus?: boolean } = (
         Platform.OS === 'android' ? { scrollsChildToFocus: false } : {}
@@ -137,51 +142,6 @@ function TaskEditFormTabComponent({
         }
     }, [formResetKey]);
 
-    React.useEffect(() => {
-        if (suspendKeyboardHandling) {
-            keyboardTopRef.current = Dimensions.get('window').height;
-            keyboardVisibleRef.current = false;
-            setKeyboardBottomInset(0);
-            return;
-        }
-        if (typeof Keyboard?.addListener !== 'function') return;
-        const updateKeyboardTop = (event: { endCoordinates?: { screenY?: number; height?: number } }) => {
-            const windowHeight = Dimensions.get('window').height;
-            const endCoords = event.endCoordinates;
-            let nextKeyboardTop = windowHeight;
-            if (typeof endCoords?.screenY === 'number') {
-                nextKeyboardTop = endCoords.screenY;
-            } else if (typeof endCoords?.height === 'number') {
-                nextKeyboardTop = Math.max(0, windowHeight - endCoords.height);
-            }
-            keyboardTopRef.current = nextKeyboardTop;
-            keyboardVisibleRef.current = nextKeyboardTop < windowHeight;
-            setKeyboardBottomInset(Math.max(0, windowHeight - nextKeyboardTop));
-        };
-        const resetKeyboardTop = () => {
-            keyboardTopRef.current = Dimensions.get('window').height;
-            keyboardVisibleRef.current = false;
-            setKeyboardBottomInset(0);
-        };
-        const showListener = Keyboard.addListener(
-            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-            updateKeyboardTop
-        );
-        const changeListener = Keyboard.addListener(
-            Platform.OS === 'ios' ? 'keyboardWillChangeFrame' : 'keyboardDidChangeFrame',
-            updateKeyboardTop
-        );
-        const hideListener = Keyboard.addListener(
-            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-            resetKeyboardTop
-        );
-        return () => {
-            showListener.remove();
-            changeListener.remove();
-            hideListener.remove();
-        };
-    }, [suspendKeyboardHandling]);
-
     const scrollHandleIntoView = React.useCallback((targetHandle: number) => {
         const scrollView = formScrollRef.current;
         if (!scrollView) return;
@@ -200,12 +160,22 @@ function TaskEditFormTabComponent({
                 const bottomClearance = visibleHeight * 0.18;
                 const effectiveVisibleBottom = visibleBottom - bottomClearance;
                 const targetTop = targetY;
-                const targetBottom = targetY + targetH;
+                // Reveal at most this much of the target measured from its TOP. A tall input
+                // (the description block) would otherwise scroll its whole height into view and
+                // push its own top edge + caret line off the top; capping keeps the input's top
+                // and first lines visible. No-op for short targets (label/checklist/title), where
+                // targetH is already below the cap, so their behaviour is unchanged (#921).
+                const maxReveal = visibleHeight * DESCRIPTION_REVEAL_FRACTION;
+                const targetBottom = targetY + Math.min(targetH, maxReveal);
 
                 if (targetBottom > effectiveVisibleBottom) {
                     const delta = targetBottom - effectiveVisibleBottom;
                     const nextOffset = Math.max(0, formScrollOffsetRef.current + delta);
-                    formScrollRef.current?.scrollTo({ y: nextOffset, animated: true });
+                    // Android scrolls without animation: the settle retries below re-fire this,
+                    // and animated scrolls cancel each other mid-flight (leaving the input short
+                    // of clearing the keyboard) while an instant scroll keeps the tracked offset
+                    // in sync via onScroll so the retries converge (#921).
+                    formScrollRef.current?.scrollTo({ y: nextOffset, animated: Platform.OS !== 'android' });
                     return;
                 }
 
@@ -219,7 +189,11 @@ function TaskEditFormTabComponent({
     }, []);
 
     const scheduleScrollHandleIntoView = React.useCallback((targetHandle: number) => {
-        if (Platform.OS === 'android' && !keyboardVisibleRef.current) return;
+        if (Platform.OS === 'android' && !keyboardVisibleRef.current) {
+            // Keyboard not up yet; replay this once `keyboardDidShow` gives us real metrics (#921).
+            pendingScrollHandleRef.current = targetHandle;
+            return;
+        }
         const scrollIntoView = () => scrollHandleIntoView(targetHandle);
         if (typeof requestAnimationFrame === 'function') {
             requestAnimationFrame(() => {
@@ -231,10 +205,66 @@ function TaskEditFormTabComponent({
         } else {
             setTimeout(scrollIntoView, 0);
         }
-        if (Platform.OS === 'android') return;
+        // Re-measure after the keyboard/height animation settles. A single immediate scroll
+        // under-applies while the KeyboardAvoidingView is still shrinking, leaving the input
+        // behind the keyboard; these retries converge (Android only ever scrolls downward, so
+        // they can't jump the view upward). Runs for both platforms (#921).
         setTimeout(scrollIntoView, 180);
         setTimeout(scrollIntoView, 360);
     }, [scrollHandleIntoView]);
+
+    React.useEffect(() => {
+        if (suspendKeyboardHandling) {
+            keyboardTopRef.current = Dimensions.get('window').height;
+            keyboardVisibleRef.current = false;
+            pendingScrollHandleRef.current = null;
+            setKeyboardBottomInset(0);
+            return;
+        }
+        if (typeof Keyboard?.addListener !== 'function') return;
+        const updateKeyboardTop = (event: { endCoordinates?: { screenY?: number; height?: number } }) => {
+            const windowHeight = Dimensions.get('window').height;
+            const endCoords = event.endCoordinates;
+            let nextKeyboardTop = windowHeight;
+            if (typeof endCoords?.screenY === 'number') {
+                nextKeyboardTop = endCoords.screenY;
+            } else if (typeof endCoords?.height === 'number') {
+                nextKeyboardTop = Math.max(0, windowHeight - endCoords.height);
+            }
+            keyboardTopRef.current = nextKeyboardTop;
+            keyboardVisibleRef.current = nextKeyboardTop < windowHeight;
+            setKeyboardBottomInset(Math.max(0, windowHeight - nextKeyboardTop));
+            if (keyboardVisibleRef.current && pendingScrollHandleRef.current != null) {
+                const pendingHandle = pendingScrollHandleRef.current;
+                pendingScrollHandleRef.current = null;
+                scheduleScrollHandleIntoView(pendingHandle);
+            }
+        };
+        const resetKeyboardTop = () => {
+            keyboardTopRef.current = Dimensions.get('window').height;
+            keyboardVisibleRef.current = false;
+            pendingScrollHandleRef.current = null;
+            setKeyboardBottomInset(0);
+        };
+        const showListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+            updateKeyboardTop
+        );
+        const changeListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillChangeFrame' : 'keyboardDidChangeFrame',
+            updateKeyboardTop
+        );
+        const hideListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+            resetKeyboardTop
+        );
+        return () => {
+            showListener.remove();
+            changeListener.remove();
+            hideListener.remove();
+            pendingScrollHandleRef.current = null;
+        };
+    }, [suspendKeyboardHandling, scheduleScrollHandleIntoView]);
 
     const ensureInputVisible = React.useCallback((targetInput?: number | string) => {
         const normalizedHandle = typeof targetInput === 'number'
@@ -314,7 +344,7 @@ function TaskEditFormTabComponent({
                             ? { paddingBottom: TASK_FORM_BASE_BOTTOM_PADDING + keyboardBottomInset }
                             : null,
                     ]}
-                    keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+                    keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
                     keyboardShouldPersistTaps="handled"
                     scrollEnabled={!suspendKeyboardHandling}
                     {...androidScrollViewFocusProps}
