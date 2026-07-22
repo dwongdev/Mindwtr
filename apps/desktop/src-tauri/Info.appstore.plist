@@ -10,5 +10,7 @@
     <string>Mindwtr uses your calendars to show upcoming events during planning and review.</string>
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>Mindwtr uses your calendars to show upcoming events during planning and review.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Mindwtr connects to sync servers and calendar feeds on your local network when you configure them, such as a self-hosted sync server behind your router.</string>
 </dict>
 </plist>
