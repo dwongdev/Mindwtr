@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { Alert, Share } from 'react-native';
 import {
+    formatAIErrorAlertBody,
     Task,
     TaskStatus,
     TimeEstimate,
@@ -506,7 +507,7 @@ export function useTaskEditActions({
             });
         } catch (error) {
             logTaskWarn('AI clarify failed', error);
-            Alert.alert(t('ai.errorTitle'), t('ai.errorBody'));
+            Alert.alert(t('ai.errorTitle'), formatAIErrorAlertBody(t('ai.errorBody'), error));
         } finally {
             setIsAIWorking(false);
         }
@@ -567,7 +568,7 @@ export function useTaskEditActions({
             });
         } catch (error) {
             logTaskWarn('AI breakdown failed', error);
-            Alert.alert(t('ai.errorTitle'), t('ai.errorBody'));
+            Alert.alert(t('ai.errorTitle'), formatAIErrorAlertBody(t('ai.errorBody'), error));
         } finally {
             setIsAIWorking(false);
         }

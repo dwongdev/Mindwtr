@@ -160,6 +160,17 @@ export function normalizeTags(tags?: string[] | null): string[] {
     return Array.from(new Set(normalized));
 }
 
+// The generic "AI request failed, try again" alert hid the provider's actual
+// error, so failures like Gemini retiring a model (404 "no longer available")
+// produced unreproducible reports. Append a truncated single-line detail; API
+// keys never appear in provider error bodies, but cap length defensively.
+export function formatAIErrorAlertBody(genericBody: string, error: unknown): string {
+    const raw = error instanceof Error ? error.message : String(error ?? '');
+    const detail = raw.replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (!detail) return genericBody;
+    return `${genericBody}\n\n${detail}`;
+}
+
 export async function fetchWithTimeout(
     url: string,
     init: RequestInit,

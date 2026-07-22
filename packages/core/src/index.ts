@@ -1063,6 +1063,8 @@ export {
     createAIProvider,
 } from './ai/ai-service';
 
+export { formatAIErrorAlertBody } from './ai/utils';
+
 export type {
     AIProvider,
     AIProviderConfig,
@@ -1106,6 +1108,8 @@ export {
     OPENAI_FAST_MODEL,
     OPENAI_MODEL_OPTIONS,
     OPENAI_SMART_MODEL,
+    resolveAnthropicModel,
+    resolveGeminiModel,
 } from './ai/catalog';
 
 export {

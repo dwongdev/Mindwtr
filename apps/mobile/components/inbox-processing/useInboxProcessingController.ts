@@ -15,6 +15,7 @@ import {
   collectTaskTokenUsage,
   createAIProvider,
   filterProjectsBySelectedArea,
+  formatAIErrorAlertBody,
   getProcessInboxCurrentCandidate,
   getProcessInboxRemainingCandidates,
   hasTimeComponent,
@@ -1059,7 +1060,7 @@ export function useInboxProcessingController({
         scope: 'inbox',
         extra: { error: error instanceof Error ? error.message : String(error) },
       });
-      Alert.alert(t('ai.errorTitle'), t('ai.errorBody'));
+      Alert.alert(t('ai.errorTitle'), formatAIErrorAlertBody(t('ai.errorBody'), error));
     } finally {
       setIsAIWorking(false);
     }
