@@ -95,7 +95,7 @@ const storeState = vi.hoisted(() => ({
 }));
 
 vi.mock('react-native', () => ({
-  FlatList: React.forwardRef((allProps: any, ref: any) => {
+  FlatList: React.forwardRef(function MockFlatList(allProps: any, ref: any) {
     const { data, ListEmptyComponent, ListHeaderComponent, renderItem } = allProps;
     flatListPropsSpy(allProps);
     React.useImperativeHandle(ref, () => ({
