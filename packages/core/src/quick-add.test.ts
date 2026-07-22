@@ -633,6 +633,25 @@ describe('quick-add', () => {
         expect(result.title).toBe('Ask Smith for report');
     });
 
+    it('accepts typographic and mixed quote styles around person names (#849 keyboard smart quotes)', () => {
+        const now = new Date('2026-07-22T10:00:00Z');
+        const variants = [
+            'Task %"Jim Smith" /next',
+            'Task %“Jim Smith” /next',
+            'Task %“Jim Smith" /next',
+            'Task %„Jim Smith" /next',
+            "Task %'Jim Smith' /next",
+            'Task %’Jim Smith’ /next',
+            'Task %‘Jim Smith’ /next',
+        ];
+        for (const input of variants) {
+            const result = parseQuickAdd(input, undefined, now);
+            expect(result.props.assignedTo, input).toBe('Jim Smith');
+            expect(result.title, input).toBe('Task');
+            expect(result.props.status, input).toBe('next');
+        }
+    });
+
     it('supports quoted person names for explicit delimiting', () => {
         const now = new Date('2026-07-11T10:00:00Z');
         const result = parseQuickAdd('task %"Jane Doe" more words', undefined, now);

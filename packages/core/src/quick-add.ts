@@ -434,14 +434,25 @@ function matchKnownQuickAddNamePrefix(
 
 function matchQuickAddQuotedName(working: string, marker: '+' | '!' | '%'): { raw: string; value: string } | null {
     const escapedMarker = marker === '+' ? String.raw`\+` : marker;
+    // Mobile and desktop keyboards substitute typographic quotes as you type
+    // (iOS smart punctuation, German layouts, autocorrect fixing only one of
+    // the pair), so accept the common quote styles and mixed pairs — a name
+    // that parses when pasted must also parse as typed (#849):
+    //   "..."  straight doubles, with backslash escapes (canonical form)
+    //   “...”  or mixed “..."  curly/straight doubles
+    //   „..."  German low-9 opening with any double-quote close
+    //   '...'  straight singles
+    //   ‘...’  or ’...’  smart singles
     const match = working.match(new RegExp(
-        String.raw`(?:^|\s)${escapedMarker}(?:"((?:\\.|[^"\\])*)"|“([^”]*)”)`,
+        String.raw`(?:^|\s)${escapedMarker}(?:"((?:\\.|[^"\\])*)"|“([^"”]*)["”]|„([^"“”]*)["“”]|'([^']*)'|[‘’]([^’]*)’)`,
         'u',
     ));
     if (!match) return null;
     const rawOffset = match[0].indexOf(marker);
     if (rawOffset < 0) return null;
-    const value = restoreEscapes((match[1] ?? match[2] ?? '').replace(/\\(["\\])/g, '$1')).replace(/\s+/g, ' ').trim();
+    const value = restoreEscapes(
+        (match[1] ?? match[2] ?? match[3] ?? match[4] ?? match[5] ?? '').replace(/\\(["\\])/g, '$1'),
+    ).replace(/\s+/g, ' ').trim();
     if (!value) return null;
     return { raw: match[0].slice(rawOffset), value };
 }
