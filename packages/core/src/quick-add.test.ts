@@ -363,12 +363,24 @@ describe('quick-add', () => {
             expect(result.detectedDate).toBeUndefined();
         });
 
-        it('toggle on, preserveText on: preserveText already suppresses detection (pre-existing #742 behavior), title kept as-typed', () => {
+        it('toggle on, preserveText on: date is detected and applies, title stays as-typed (Reddit report: quick capture saved "do this jun 26 10am" verbatim with no date)', () => {
             const result = parseQuickAdd('Register for the race next week', undefined, now, undefined, {
                 preserveText: true,
             });
 
             expect(result.title).toBe('Register for the race next week');
+            expect(result.detectedDate).toBeDefined();
+            // Preserve mode applies the date but never strips the text: the
+            // consumer-facing titleWithoutDate is the verbatim title.
+            expect(result.detectedDate?.titleWithoutDate).toBe('Register for the race next week');
+        });
+
+        it('preserveText on: explicit /due: still wins over detection', () => {
+            const result = parseQuickAdd('Register next week /due:friday', undefined, now, undefined, {
+                preserveText: true,
+            });
+
+            expect(result.props.dueDate).toBeDefined();
             expect(result.detectedDate).toBeUndefined();
         });
 
@@ -744,13 +756,19 @@ describe('quick-add', () => {
         expect(result.props.dueDate).toBeTruthy();
     });
 
-    it('preserveText leaves a pasted URL untouched and extracts no implicit date (#742)', () => {
+    it('preserveText leaves a pasted URL untouched while a trailing date still applies', () => {
+        // The URL-integrity guarantee of preserve mode is the verbatim title;
+        // a trailing date phrase outside the URL still becomes the due date
+        // (same stance as shortcut captures, which resolve relative dates at
+        // capture time). Consumers that must never infer dates pass
+        // naturalLanguageDates: false.
         const now = new Date('2025-01-01T10:00:00Z');
         const input = 'Read https://en.wikipedia.org/wiki/Foo_(bar) tomorrow';
         const result = parseQuickAdd(input, undefined, now, undefined, { preserveText: true });
 
         expect(result.title).toBe(input);
-        expect(result.detectedDate).toBeUndefined();
+        expect(result.detectedDate?.matchedText).toBe('tomorrow');
+        expect(result.detectedDate?.titleWithoutDate).toBe(input);
         expect(result.props.dueDate).toBeUndefined();
     });
 

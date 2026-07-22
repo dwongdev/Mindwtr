@@ -786,12 +786,18 @@ export function parseQuickAdd(
     }
 
     const cleanedTitle = restoreEscapes(working.replace(/\s{2,}/g, ' ').trim());
-    // Preserve mode keeps the original text and never strips a recognized
-    // trailing date; explicit metadata in props is still applied (copy-out).
+    // Preserve mode keeps the original text verbatim, but recognized metadata
+    // still applies (copy-out) — including a detected trailing date, per the
+    // "Clean up quick add text" setting's contract ("after applying them").
+    // Only the stripping is gated on clean mode: titleWithoutDate falls back
+    // to the verbatim input so consumers keep the text as typed.
     const title = preserveText ? input.trim() : cleanedTitle;
-    const detectedDate = preserveText || dueDate || hadExplicitDueCommand || options.naturalLanguageDates === false
+    const rawDetectedDate = dueDate || hadExplicitDueCommand || options.naturalLanguageDates === false
         ? undefined
         : detectTrailingDate(cleanedTitle, now);
+    const detectedDate = rawDetectedDate && preserveText
+        ? { ...rawDetectedDate, titleWithoutDate: title }
+        : rawDetectedDate;
 
     const props: Partial<Task> = {};
     if (status) props.status = status;
