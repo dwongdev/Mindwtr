@@ -605,6 +605,7 @@ export function ContextsView() {
                                 <div className="flex flex-wrap items-center gap-2">
                                     <ToolbarButton
                                         active={selectionMode}
+                                        data-task-selection-toggle
                                         onClick={() => {
                                             if (selectionMode) exitSelectionMode();
                                             else setSelectionMode(true);

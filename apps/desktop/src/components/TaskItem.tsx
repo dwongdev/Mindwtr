@@ -1358,6 +1358,7 @@ export const TaskItem = memo(function TaskItem({
                     {selectionMode && (
                         <input
                             type="checkbox"
+                            data-task-selection-checkbox
                             aria-label={selectAriaLabel}
                             checked={isMultiSelected}
                             onClick={(event) => onToggleSelect?.({ range: event.shiftKey })}

@@ -197,6 +197,7 @@ export function ReviewListControls({
             </div>
             <ToolbarButton
                 active={selectionMode}
+                data-task-selection-toggle
                 onClick={onToggleSelection}
                 aria-pressed={selectionMode}
                 icon={<CheckSquare className="h-3.5 w-3.5" aria-hidden="true" />}

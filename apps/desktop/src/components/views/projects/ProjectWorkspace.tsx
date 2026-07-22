@@ -1409,6 +1409,7 @@ export function ProjectWorkspace({
     const selectProjectTasksButton = selectedProject ? (
         <button
             type="button"
+            data-task-selection-toggle
             onClick={() => {
                 captureProjectScrollBeforeLayoutChange();
                 if (selectionMode) exitSelectionMode();

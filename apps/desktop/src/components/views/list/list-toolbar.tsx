@@ -22,6 +22,7 @@ type ToolbarButtonProps = {
     'aria-controls'?: string;
     'aria-expanded'?: boolean;
     'aria-pressed'?: boolean;
+    'data-task-selection-toggle'?: boolean;
 };
 
 /** A toggle in a list toolbar: same height and radius as the selects beside it. */

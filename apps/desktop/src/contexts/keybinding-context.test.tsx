@@ -104,6 +104,42 @@ const FallbackTaskList = ({
     );
 };
 
+const FallbackSelectableTaskList = ({ onToggleTask }: { onToggleTask: (taskId: string) => void }) => {
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    return (
+        <div data-main-content tabIndex={-1}>
+            <button type="button" data-task-selection-toggle onClick={() => setSelectionMode(true)}>
+                Select
+            </button>
+            {['1', '2'].map((taskId) => (
+                <div key={taskId} data-task-id={taskId} ref={setVisibleRect}>
+                    <button type="button" data-task-view-toggle>Task {taskId}</button>
+                    <button type="button" data-other-task-control>Other task control {taskId}</button>
+                    {selectionMode && (
+                        <input
+                            type="checkbox"
+                            data-task-selection-checkbox
+                            aria-label={`Select Task ${taskId}`}
+                            checked={selectedIds.has(taskId)}
+                            onChange={() => {
+                                setSelectedIds((values) => {
+                                    const next = new Set(values);
+                                    if (next.has(taskId)) next.delete(taskId);
+                                    else next.add(taskId);
+                                    return next;
+                                });
+                                onToggleTask(taskId);
+                            }}
+                        />
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+};
+
 const FallbackTaskListWithoutEditTrigger = ({
     onOpenTask1,
     onOpenTask2,
@@ -1244,7 +1280,7 @@ describe('KeybindingProvider (standard)', () => {
         expect(openSelected).not.toHaveBeenCalled();
     });
 
-    it('leaves Shift+Enter alone while another task control has focus', () => {
+    it('edits with Shift+Enter while another control in the selected task has focus', () => {
         const openSelected = vi.fn();
         const editSelected = vi.fn();
 
@@ -1264,10 +1300,34 @@ describe('KeybindingProvider (standard)', () => {
 
         const control = document.querySelector('[data-other-task-control]') as HTMLButtonElement;
         control.focus();
-        fireEvent.keyDown(control, { key: 'Enter', shiftKey: true });
+        const propagated = fireEvent.keyDown(control, { key: 'Enter', shiftKey: true });
 
-        expect(editSelected).not.toHaveBeenCalled();
+        expect(propagated).toBe(false);
+        expect(editSelected).toHaveBeenCalledTimes(1);
         expect(openSelected).not.toHaveBeenCalled();
+    });
+
+    it('uses x to enter an existing fallback Select mode and select the focused task', async () => {
+        const onToggleTask = vi.fn();
+        const { container } = render(
+            <LanguageProvider>
+                <KeybindingProvider currentView="projects" onNavigate={vi.fn()}>
+                    <FallbackSelectableTaskList onToggleTask={onToggleTask} />
+                </KeybindingProvider>
+            </LanguageProvider>
+        );
+
+        const firstControl = container.querySelector('[data-task-id="1"] [data-other-task-control]') as HTMLButtonElement;
+        firstControl.focus();
+        fireEvent.keyDown(firstControl, { key: 'x' });
+        await waitFor(() => expect(onToggleTask).toHaveBeenCalledWith('1'));
+
+        const secondControl = container.querySelector('[data-task-id="2"] [data-other-task-control]') as HTMLButtonElement;
+        secondControl.focus();
+        fireEvent.keyDown(secondControl, { key: 'x' });
+
+        await waitFor(() => expect(onToggleTask).toHaveBeenLastCalledWith('2'));
+        expect(container.querySelectorAll('[data-task-selection-checkbox]:checked')).toHaveLength(2);
     });
 
     it('navigates views with g chords in standard style', () => {

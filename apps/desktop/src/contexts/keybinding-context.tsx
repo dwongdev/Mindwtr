@@ -98,9 +98,9 @@ function hasInteractiveFocus(): boolean {
     ));
 }
 
-function hasTaskTitleFocus(): boolean {
+function hasTaskRowFocus(): boolean {
     const active = document.activeElement;
-    return active instanceof HTMLElement && active.matches('[data-task-view-toggle]');
+    return active instanceof HTMLElement && active.closest('[data-task-id]') !== null;
 }
 
 function moveSidebarFocus(target: EventTarget | null, direction: 'next' | 'prev'): boolean {
@@ -345,17 +345,17 @@ export function KeybindingProvider({
 
     const resolveFallbackSelectionIndex = useCallback((elements: HTMLElement[]): number => {
         if (elements.length === 0) return -1;
-        const selectedTaskId = fallbackSelectedTaskIdRef.current;
-        if (selectedTaskId) {
-            const selectedIndex = elements.findIndex((item) => item.dataset.taskId === selectedTaskId);
-            if (selectedIndex >= 0) return selectedIndex;
-        }
         const activeTaskElement = document.activeElement instanceof HTMLElement
             ? document.activeElement.closest('[data-task-id]')
             : null;
         if (activeTaskElement instanceof HTMLElement) {
             const activeIndex = elements.findIndex((item) => item === activeTaskElement);
             if (activeIndex >= 0) return activeIndex;
+        }
+        const selectedTaskId = fallbackSelectedTaskIdRef.current;
+        if (selectedTaskId) {
+            const selectedIndex = elements.findIndex((item) => item.dataset.taskId === selectedTaskId);
+            if (selectedIndex >= 0) return selectedIndex;
         }
         return 0;
     }, []);
@@ -435,6 +435,24 @@ export function KeybindingProvider({
         trigger.focus();
         trigger.click();
     }, [pickFallbackTaskElement]);
+
+    const fallbackToggleSelectSelected = useCallback(() => {
+        const selectedTaskId = pickFallbackTaskElement()?.dataset.taskId;
+        if (!selectedTaskId) return;
+        const clickCheckbox = () => {
+            const selectedElement = getFallbackTaskElements()
+                .find((element) => element.dataset.taskId === selectedTaskId);
+            const checkbox = selectedElement?.querySelector<HTMLInputElement>('[data-task-selection-checkbox]');
+            if (!checkbox) return false;
+            checkbox.click();
+            return true;
+        };
+        if (clickCheckbox()) return;
+        const selectionToggle = document.querySelector<HTMLElement>('[data-task-selection-toggle]');
+        if (!selectionToggle) return;
+        selectionToggle.click();
+        window.requestAnimationFrame(() => clickCheckbox());
+    }, [getFallbackTaskElements, pickFallbackTaskElement]);
 
     const fallbackToggleDoneSelected = useCallback(() => {
         const selectedElement = pickFallbackTaskElement();
@@ -555,6 +573,7 @@ export function KeybindingProvider({
         openSelected: fallbackOpenSelected,
         openQuickActions: fallbackOpenQuickActionsSelected,
         toggleDoneSelected: fallbackToggleDoneSelected,
+        toggleSelectSelected: fallbackToggleSelectSelected,
         deleteSelected: fallbackDeleteSelected,
         setStatusSelected: fallbackSetStatusSelected,
         // Entering the list from the sidebar activates the current selection
@@ -573,6 +592,7 @@ export function KeybindingProvider({
         fallbackSelectPrev,
         fallbackSetStatusSelected,
         fallbackToggleDoneSelected,
+        fallbackToggleSelectSelected,
         pickFallbackTaskElement,
     ]);
 
@@ -841,7 +861,7 @@ export function KeybindingProvider({
                     break;
                 }
                 case 'Enter':
-                    if (e.shiftKey && (!hasInteractiveFocus() || hasTaskTitleFocus())) {
+                    if (e.shiftKey && (!hasInteractiveFocus() || hasTaskRowFocus())) {
                         e.preventDefault();
                         scope?.editSelected();
                         break;

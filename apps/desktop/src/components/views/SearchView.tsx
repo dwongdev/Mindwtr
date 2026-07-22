@@ -280,6 +280,7 @@ export function SearchView({ savedSearchId, onDelete }: SearchViewProps) {
                 {savedSearch && (
                     <div className="flex items-center gap-2">
                         <button
+                            data-task-selection-toggle
                             onClick={() => {
                                 if (selectionMode) exitSelectionMode();
                                 else setSelectionMode(true);
