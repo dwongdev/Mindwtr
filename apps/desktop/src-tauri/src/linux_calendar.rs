@@ -4,10 +4,12 @@ use crate::{
 };
 
 #[tauri::command]
-pub(crate) fn get_linux_calendar_permission_status() -> Result<String, String> {
+pub(crate) async fn get_linux_calendar_permission_status() -> Result<String, String> {
     #[cfg(target_os = "linux")]
     {
-        Ok(imp::permission_status())
+        tauri::async_runtime::spawn_blocking(imp::permission_status)
+            .await
+            .map_err(|error| error.to_string())
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -16,18 +18,20 @@ pub(crate) fn get_linux_calendar_permission_status() -> Result<String, String> {
 }
 
 #[tauri::command]
-pub(crate) fn request_linux_calendar_permission() -> Result<String, String> {
-    get_linux_calendar_permission_status()
+pub(crate) async fn request_linux_calendar_permission() -> Result<String, String> {
+    get_linux_calendar_permission_status().await
 }
 
 #[tauri::command]
-pub(crate) fn get_linux_calendar_events(
+pub(crate) async fn get_linux_calendar_events(
     range_start: String,
     range_end: String,
 ) -> Result<LinuxCalendarReadResult, String> {
     #[cfg(target_os = "linux")]
     {
-        imp::get_events(&range_start, &range_end)
+        tauri::async_runtime::spawn_blocking(move || imp::get_events(&range_start, &range_end))
+            .await
+            .map_err(|error| error.to_string())?
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -41,10 +45,12 @@ pub(crate) fn get_linux_calendar_events(
 }
 
 #[tauri::command]
-pub(crate) fn get_linux_writable_calendars() -> Result<Vec<MacOsCalendarPushTarget>, String> {
+pub(crate) async fn get_linux_writable_calendars() -> Result<Vec<MacOsCalendarPushTarget>, String> {
     #[cfg(target_os = "linux")]
     {
-        imp::get_writable_calendars()
+        tauri::async_runtime::spawn_blocking(imp::get_writable_calendars)
+            .await
+            .map_err(|error| error.to_string())?
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -53,12 +59,16 @@ pub(crate) fn get_linux_writable_calendars() -> Result<Vec<MacOsCalendarPushTarg
 }
 
 #[tauri::command]
-pub(crate) fn ensure_linux_mindwtr_calendar(
+pub(crate) async fn ensure_linux_mindwtr_calendar(
     stored_calendar_id: Option<String>,
 ) -> Result<Option<MacOsCalendarPushTarget>, String> {
     #[cfg(target_os = "linux")]
     {
-        imp::ensure_mindwtr_calendar(stored_calendar_id.as_deref())
+        tauri::async_runtime::spawn_blocking(move || {
+            imp::ensure_mindwtr_calendar(stored_calendar_id.as_deref())
+        })
+        .await
+        .map_err(|error| error.to_string())?
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -68,12 +78,14 @@ pub(crate) fn ensure_linux_mindwtr_calendar(
 }
 
 #[tauri::command]
-pub(crate) fn create_linux_calendar_event(
+pub(crate) async fn create_linux_calendar_event(
     details: MacOsCalendarEventPayload,
 ) -> Result<MacOsCalendarEventWriteResult, String> {
     #[cfg(target_os = "linux")]
     {
-        Ok(imp::create_event_command(&details))
+        tauri::async_runtime::spawn_blocking(move || imp::create_event_command(&details))
+            .await
+            .map_err(|error| error.to_string())
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -83,13 +95,15 @@ pub(crate) fn create_linux_calendar_event(
 }
 
 #[tauri::command]
-pub(crate) fn update_linux_calendar_event(
+pub(crate) async fn update_linux_calendar_event(
     event_id: String,
     details: MacOsCalendarEventPayload,
 ) -> Result<MacOsCalendarEventWriteResult, String> {
     #[cfg(target_os = "linux")]
     {
-        Ok(imp::update_event_command(&event_id, &details))
+        tauri::async_runtime::spawn_blocking(move || imp::update_event_command(&event_id, &details))
+            .await
+            .map_err(|error| error.to_string())
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -99,12 +113,14 @@ pub(crate) fn update_linux_calendar_event(
 }
 
 #[tauri::command]
-pub(crate) fn delete_linux_calendar_event(
+pub(crate) async fn delete_linux_calendar_event(
     event_id: String,
 ) -> Result<MacOsCalendarEventWriteResult, String> {
     #[cfg(target_os = "linux")]
     {
-        Ok(imp::delete_event_command(&event_id))
+        tauri::async_runtime::spawn_blocking(move || imp::delete_event_command(&event_id))
+            .await
+            .map_err(|error| error.to_string())
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -138,6 +154,7 @@ mod imp {
     const SOURCE_TYPE_EVENTS: c_int = 0;
     const OBJ_MOD_ALL: c_int = 0x07;
     const OPERATION_FLAGS_NONE: c_int = 0;
+    const CAL_CLIENT_ERROR_OBJECT_NOT_FOUND: c_int = 1;
 
     #[repr(C)]
     struct GList {
@@ -189,6 +206,7 @@ mod imp {
         *mut c_void,
         *mut *mut GError,
     ) -> c_int;
+    type CalClientErrorQuark = unsafe extern "C" fn() -> u32;
     type CalClientGetComponentString =
         unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_char;
     type CalUtilParseIcsString = unsafe extern "C" fn(*const c_char) -> *mut c_void;
@@ -244,6 +262,7 @@ mod imp {
         client_is_readonly: ClientIsReadonly,
         cal_client_get_object_list_sync: CalClientGetObjectListSync,
         cal_client_get_object_sync: CalClientGetObjectSync,
+        cal_client_error_quark: CalClientErrorQuark,
         cal_client_get_component_string: CalClientGetComponentString,
         cal_util_parse_ics_string: CalUtilParseIcsString,
         cal_client_create_object_sync: CalClientCreateObjectSync,
@@ -296,6 +315,7 @@ mod imp {
                         &ecal,
                         b"e_cal_client_get_object_sync\0",
                     )?,
+                    cal_client_error_quark: load_symbol(&ecal, b"e_cal_client_error_quark\0")?,
                     cal_client_get_component_string: load_symbol(
                         &ecal,
                         b"e_cal_client_get_component_as_string\0",
@@ -658,9 +678,7 @@ mod imp {
             };
             let name = source_name(session.api, source.ptr);
             let color = source_color(session.api, source.ptr);
-            let Ok(calendar) = connect_calendar(&session, source, false) else {
-                continue;
-            };
+            let calendar = connect_calendar(&session, source, false)?;
             let source_id = format!("system:{uid}");
             calendars.push(ExternalCalendarSubscription {
                 id: source_id.clone(),
@@ -669,7 +687,7 @@ mod imp {
                 enabled: true,
                 color,
             });
-            let ics = read_calendar_components(session.api, calendar.client.ptr, &query);
+            let ics = read_calendar_components(session.api, calendar.client.ptr, &query)?;
             if !ics.is_empty() {
                 ics_sources.push(LinuxCalendarIcsSource { source_id, ics });
             }
@@ -682,7 +700,11 @@ mod imp {
         })
     }
 
-    fn read_calendar_components(api: &EdsApi, client: *mut c_void, query: &CString) -> Vec<String> {
+    fn read_calendar_components(
+        api: &EdsApi,
+        client: *mut c_void,
+        query: &CString,
+    ) -> Result<Vec<String>, String> {
         let mut list = ptr::null_mut();
         let mut error = ptr::null_mut();
         let ok = unsafe {
@@ -695,11 +717,8 @@ mod imp {
             )
         };
         if ok == 0 {
-            if !error.is_null() {
-                unsafe { (api.error_free)(error) };
-            }
             free_component_list(api, list);
-            return Vec::new();
+            return Err(unsafe { api.take_error(error, "calendar-read-failed") });
         }
         if !error.is_null() {
             unsafe { (api.error_free)(error) };
@@ -720,7 +739,7 @@ mod imp {
             }
         }
         unsafe { (api.slist_free)(list) };
-        result
+        Ok(result)
     }
 
     fn free_component_list(api: &EdsApi, list: *mut GSList) {
@@ -893,10 +912,27 @@ mod imp {
         if !component.is_null() {
             unsafe { (api.object_unref)(component) };
         }
-        if !error.is_null() {
-            unsafe { (api.error_free)(error) };
+        if ok != 0 {
+            if !error.is_null() {
+                unsafe { (api.error_free)(error) };
+            }
+            return Ok(true);
         }
-        Ok(ok != 0)
+        if error.is_null() {
+            return Err("calendar-event-check-failed".to_string());
+        }
+        let not_found =
+            unsafe { is_object_not_found_error(&*error, (api.cal_client_error_quark)()) };
+        let message = unsafe { api.take_error(error, "calendar-event-check-failed") };
+        if not_found {
+            Ok(false)
+        } else {
+            Err(message)
+        }
+    }
+
+    fn is_object_not_found_error(error: &GError, calendar_error_domain: u32) -> bool {
+        error.domain == calendar_error_domain && error.code == CAL_CLIENT_ERROR_OBJECT_NOT_FOUND
     }
 
     fn remove_event(api: &EdsApi, client: *mut c_void, uid: &str) -> Result<(), String> {
@@ -1136,6 +1172,36 @@ mod imp {
             let event = build_event_component(&details(true), "event@example").unwrap();
             assert!(event.contains("DTSTART;VALUE=DATE:20260721"));
             assert!(event.contains("DTEND;VALUE=DATE:20260722"));
+        }
+
+        #[test]
+        fn distinguishes_missing_events_from_other_calendar_errors() {
+            let calendar_error_domain = 42;
+            let missing = GError {
+                domain: calendar_error_domain,
+                code: CAL_CLIENT_ERROR_OBJECT_NOT_FOUND,
+                message: ptr::null_mut(),
+            };
+            let backend_failure = GError {
+                domain: calendar_error_domain,
+                code: CAL_CLIENT_ERROR_OBJECT_NOT_FOUND + 1,
+                message: ptr::null_mut(),
+            };
+            let unrelated = GError {
+                domain: calendar_error_domain + 1,
+                code: CAL_CLIENT_ERROR_OBJECT_NOT_FOUND,
+                message: ptr::null_mut(),
+            };
+
+            assert!(is_object_not_found_error(&missing, calendar_error_domain));
+            assert!(!is_object_not_found_error(
+                &backend_failure,
+                calendar_error_domain
+            ));
+            assert!(!is_object_not_found_error(
+                &unrelated,
+                calendar_error_domain
+            ));
         }
     }
 }
