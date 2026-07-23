@@ -5,7 +5,6 @@ import { getNextScheduledAt } from '@mindwtr/core';
 
 import {
     buildDesktopTaskNotificationBody,
-    resolveDesktopTaskReminderKind,
     resolveDueRepeatToFire,
 } from './notification-service';
 
@@ -27,19 +26,6 @@ const translations = {
 };
 
 describe('desktop notification service', () => {
-    it('identifies start, due, and review task reminder kinds', () => {
-        const task: Task = {
-            ...baseTask,
-            startTime: '2026-05-23T09:00:00.000Z',
-            dueDate: '2026-05-23T17:00:00.000Z',
-            reviewAt: '2026-05-24T10:00:00.000Z',
-        };
-
-        expect(resolveDesktopTaskReminderKind(task, new Date('2026-05-23T09:00:00.000Z'))).toBe('start');
-        expect(resolveDesktopTaskReminderKind(task, new Date('2026-05-23T17:00:00.000Z'))).toBe('due');
-        expect(resolveDesktopTaskReminderKind(task, new Date('2026-05-24T10:00:00.000Z'))).toBe('review');
-    });
-
     it('includes the reminder type before the task description', () => {
         const task: Task = {
             ...baseTask,
@@ -49,7 +35,7 @@ describe('desktop notification service', () => {
 
         expect(buildDesktopTaskNotificationBody(
             task,
-            new Date('2026-05-23T17:00:00.000Z'),
+            'due',
             translations,
         )).toBe('Due date reminders\nBring notes');
     });
@@ -62,7 +48,7 @@ describe('desktop notification service', () => {
 
         expect(buildDesktopTaskNotificationBody(
             task,
-            new Date('2026-05-23T09:00:00.000Z'),
+            'start',
             translations,
         )).toBe('Start date reminders');
     });

@@ -2,7 +2,8 @@ import React from 'react';
 import { Platform, Text, TextInput, TouchableOpacity } from 'react-native';
 import renderer, { act } from 'react-test-renderer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { configureDateFormatting } from '@mindwtr/core';
+import { configureDateFormatting, type Task } from '@mindwtr/core';
+import { createTaskDraft } from '@mindwtr/core/task-draft';
 
 import { TaskEditScheduleField } from './TaskEditScheduleField';
 
@@ -77,6 +78,16 @@ const t = (key: string) => ({
 }[key] ?? key);
 
 const originalPlatformOS = Platform.OS;
+const task: Task = {
+    id: 'task-1',
+    title: 'Task',
+    status: 'next',
+    tags: [],
+    contexts: [],
+    createdAt: '2026-04-01T00:00:00.000Z',
+    updatedAt: '2026-04-01T00:00:00.000Z',
+};
+const makeDraft = (overrides: Partial<Task> = {}) => createTaskDraft({ ...task, ...overrides });
 
 afterEach(() => {
     Object.defineProperty(Platform, 'OS', { value: originalPlatformOS, configurable: true });
@@ -93,7 +104,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: {},
+                    draft: makeDraft({}),
                     fieldId: 'dueDate',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? 'Not set',
@@ -109,7 +120,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask: vi.fn(),
+                    setDraftField: vi.fn(),
                     setShowDatePicker,
                     showDatePicker: null,
                     styles,
@@ -138,7 +149,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: {},
+                    draft: makeDraft({}),
                     fieldId: 'dueDate',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? 'Not set',
@@ -154,7 +165,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask: vi.fn(),
+                    setDraftField: vi.fn(),
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -177,7 +188,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: {},
+                    draft: makeDraft({}),
                     fieldId: 'dueDate',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? 'Not set',
@@ -193,7 +204,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask: vi.fn(),
+                    setDraftField: vi.fn(),
                     setShowDatePicker: vi.fn(),
                     showDatePicker: 'due',
                     styles,
@@ -217,7 +228,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: { startTime: '2026-04-28T09:20:00' },
+                    draft: makeDraft({ startTime: '2026-04-28T09:20:00' }),
                     fieldId: 'startTime',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -233,7 +244,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask: vi.fn(),
+                    setDraftField: vi.fn(),
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -256,7 +267,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: { startTime: '2026-04-25', dueDate: '2026-04-24' },
+                    draft: makeDraft({ startTime: '2026-04-25', dueDate: '2026-04-24' }),
                     fieldId: 'startTime',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -272,7 +283,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask: vi.fn(),
+                    setDraftField: vi.fn(),
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -289,7 +300,7 @@ describe('TaskEditScheduleField', () => {
     });
 
     it('shows the calendar reminder handoff once on the due-date field for explicit reminder times', () => {
-        const setEditedTask = vi.fn();
+        const setDraftField = vi.fn();
 
         let dateOnlyTree!: renderer.ReactTestRenderer;
         act(() => {
@@ -297,7 +308,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: { dueDate: '2026-04-28' },
+                    draft: makeDraft({ dueDate: '2026-04-28' }),
                     fieldId: 'dueDate',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -313,7 +324,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask,
+                    setDraftField,
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -333,7 +344,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: { startTime: '2026-04-28T09:20:00' },
+                    draft: makeDraft({ startTime: '2026-04-28T09:20:00' }),
                     fieldId: 'startTime',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -349,7 +360,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask,
+                    setDraftField,
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -369,7 +380,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: { dueDate: '2026-04-28T09:20:00' },
+                    draft: makeDraft({ dueDate: '2026-04-28T09:20:00' }),
                     fieldId: 'dueDate',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -385,7 +396,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask,
+                    setDraftField,
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -404,20 +415,11 @@ describe('TaskEditScheduleField', () => {
             handoffSwitch.props.onPress();
         });
 
-        const update = setEditedTask.mock.calls[0][0] as (previous: any) => any;
-        expect(update({ dueDate: '2026-04-28T09:20:00' })).toMatchObject({
-            dueDate: '2026-04-28T09:20:00',
-            suppressMindwtrReminders: true,
-        });
-
-        // Toggling off must clear the field (undefined, not false) so the draft
-        // serializer never persists a redundant `false` (#836/#885).
-        const toggledOff = update({ dueDate: '2026-04-28T09:20:00', suppressMindwtrReminders: true });
-        expect(toggledOff.suppressMindwtrReminders).toBeUndefined();
+        expect(setDraftField).toHaveBeenCalledWith('suppressMindwtrReminders', true);
     });
 
     it('collapses repeat reminder options until the compact row is pressed', () => {
-        const setEditedTask = vi.fn();
+        const setDraftField = vi.fn();
 
         let tree!: renderer.ReactTestRenderer;
         act(() => {
@@ -425,7 +427,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: { dueDate: '2026-04-28T09:20:00' },
+                    draft: makeDraft({ dueDate: '2026-04-28T09:20:00' }),
                     fieldId: 'dueDate',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -441,7 +443,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask,
+                    setDraftField,
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -466,11 +468,7 @@ describe('TaskEditScheduleField', () => {
             fiveMinuteOption.props.onPress();
         });
 
-        const update = setEditedTask.mock.calls[0][0] as (previous: any) => any;
-        expect(update({ dueDate: '2026-04-28T09:20:00' })).toMatchObject({
-            dueDate: '2026-04-28T09:20:00',
-            repeatReminderMinutes: 5,
-        });
+        expect(setDraftField).toHaveBeenCalledWith('repeatReminderMinutes', 5);
     });
 
     it('renders the iOS due-time picker with time mode and theme text color', () => {
@@ -482,7 +480,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: { dueDate: '2026-04-28T09:20:00' },
+                    draft: makeDraft({ dueDate: '2026-04-28T09:20:00' }),
                     fieldId: 'dueDate',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -498,7 +496,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask: vi.fn(),
+                    setDraftField: vi.fn(),
                     setShowDatePicker: vi.fn(),
                     showDatePicker: 'due-time',
                     styles,
@@ -517,7 +515,7 @@ describe('TaskEditScheduleField', () => {
     });
 
     it('updates monthly recurrence intervals without changing the monthly pattern', () => {
-        const setEditedTask = vi.fn();
+        const setDraftField = vi.fn();
 
         let tree!: renderer.ReactTestRenderer;
         act(() => {
@@ -525,7 +523,7 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: {},
+                    draft: makeDraft({}),
                     fieldId: 'recurrence',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -544,7 +542,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask,
+                    setDraftField,
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -564,25 +562,16 @@ describe('TaskEditScheduleField', () => {
             intervalInput?.props.onChangeText('3');
         });
 
-        const update = setEditedTask.mock.calls[0][0] as (previous: any) => any;
-        const next = update({
-            recurrence: {
-                rule: 'monthly',
-                strategy: 'strict',
-                rrule: 'FREQ=MONTHLY;BYMONTHDAY=15',
-            },
-        });
-
-        expect(next.recurrence).toMatchObject({
-            rule: 'monthly',
-            strategy: 'strict',
-            byMonthDay: [15],
-            rrule: 'FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=15',
-        });
+        expect(setDraftField).toHaveBeenCalledWith('recurrence', 'monthly');
+        expect(setDraftField).toHaveBeenCalledWith('recurrenceStrategy', 'strict');
+        expect(setDraftField).toHaveBeenCalledWith(
+            'recurrenceRRule',
+            'FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=15',
+        );
     });
 
     it('updates weekly recurrence intervals without dropping selected weekdays', () => {
-        const setEditedTask = vi.fn();
+        const setDraftField = vi.fn();
 
         let tree!: renderer.ReactTestRenderer;
         act(() => {
@@ -590,14 +579,14 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: ['TU'],
                     dailyInterval: 1,
-                    editedTask: {
+                    draft: makeDraft({
                         recurrence: {
                             rule: 'weekly',
                             strategy: 'strict',
                             byDay: ['TU'],
                             rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU',
                         },
-                    },
+                    }),
                     fieldId: 'recurrence',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -616,7 +605,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [{ key: 'TU', label: 'T' }],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask,
+                    setDraftField,
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -638,22 +627,12 @@ describe('TaskEditScheduleField', () => {
             intervalInput?.props.onChangeText('78');
         });
 
-        const update = setEditedTask.mock.calls[0][0] as (previous: any) => any;
-        const next = update({
-            recurrence: {
-                rule: 'weekly',
-                strategy: 'strict',
-                byDay: ['TU'],
-                rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU',
-            },
-        });
-
-        expect(next.recurrence).toMatchObject({
-            rule: 'weekly',
-            strategy: 'strict',
-            byDay: ['TU'],
-            rrule: 'FREQ=WEEKLY;INTERVAL=78;BYDAY=TU',
-        });
+        expect(setDraftField).toHaveBeenCalledWith('recurrence', 'weekly');
+        expect(setDraftField).toHaveBeenCalledWith('recurrenceStrategy', 'strict');
+        expect(setDraftField).toHaveBeenCalledWith(
+            'recurrenceRRule',
+            'FREQ=WEEKLY;INTERVAL=78;BYDAY=TU',
+        );
     });
 
     it('uses the primary selection color for selected weekly recurrence weekdays', () => {
@@ -663,14 +642,14 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: ['TU'],
                     dailyInterval: 1,
-                    editedTask: {
+                    draft: makeDraft({
                         recurrence: {
                             rule: 'weekly',
                             strategy: 'strict',
                             byDay: ['TU'],
                             rrule: 'FREQ=WEEKLY;BYDAY=TU',
                         },
-                    },
+                    }),
                     fieldId: 'recurrence',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -692,7 +671,7 @@ describe('TaskEditScheduleField', () => {
                         { key: 'WE', label: 'W' },
                     ],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask: vi.fn(),
+                    setDraftField: vi.fn(),
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -723,7 +702,7 @@ describe('TaskEditScheduleField', () => {
     });
 
     it('updates yearly recurrence intervals', () => {
-        const setEditedTask = vi.fn();
+        const setDraftField = vi.fn();
 
         let tree!: renderer.ReactTestRenderer;
         act(() => {
@@ -731,13 +710,13 @@ describe('TaskEditScheduleField', () => {
                 <TaskEditScheduleField {...({
                     customWeekdays: [],
                     dailyInterval: 1,
-                    editedTask: {
+                    draft: makeDraft({
                         recurrence: {
                             rule: 'yearly',
                             strategy: 'strict',
                             rrule: 'FREQ=YEARLY',
                         },
-                    },
+                    }),
                     fieldId: 'recurrence',
                     formatDate: (value?: string) => value ?? '',
                     formatDueDate: (value?: string) => value ?? '',
@@ -756,7 +735,7 @@ describe('TaskEditScheduleField', () => {
                     recurrenceStrategyValue: 'strict',
                     recurrenceWeekdayButtons: [],
                     setCustomWeekdays: vi.fn(),
-                    setEditedTask,
+                    setDraftField,
                     setShowDatePicker: vi.fn(),
                     showDatePicker: null,
                     styles,
@@ -778,19 +757,8 @@ describe('TaskEditScheduleField', () => {
             intervalInput?.props.onChangeText('2');
         });
 
-        const update = setEditedTask.mock.calls[0][0] as (previous: any) => any;
-        const next = update({
-            recurrence: {
-                rule: 'yearly',
-                strategy: 'strict',
-                rrule: 'FREQ=YEARLY',
-            },
-        });
-
-        expect(next.recurrence).toMatchObject({
-            rule: 'yearly',
-            strategy: 'strict',
-            rrule: 'FREQ=YEARLY;INTERVAL=2',
-        });
+        expect(setDraftField).toHaveBeenCalledWith('recurrence', 'yearly');
+        expect(setDraftField).toHaveBeenCalledWith('recurrenceStrategy', 'strict');
+        expect(setDraftField).toHaveBeenCalledWith('recurrenceRRule', 'FREQ=YEARLY;INTERVAL=2');
     });
 });

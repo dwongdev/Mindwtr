@@ -158,6 +158,7 @@ export type {
     ProcessInboxWorkflowFields,
 } from './process-inbox-workflow';
 export * from './process-inbox-session';
+export * from './speech-to-task';
 export * from './data-transfer-transaction';
 
 export {
@@ -732,8 +733,19 @@ export type {
 } from './calendar-push-run';
 
 export {
+    isMindwtrMirrorCalendar,
+    isMindwtrMirrorEvent,
+    mergeExternalCalendarSources,
+} from './external-calendar-ingestion';
+export type {
+    ExternalCalendarSourceResult,
+} from './external-calendar-ingestion';
+
+export {
     getDueReminderRepeatTimes,
     getNextScheduledAt,
+    getProjectReviewReminderIntent,
+    getTaskReminderPlan,
     getUpcomingSchedules,
     isDueWithinMinutes,
     normalizeRepeatReminderMinutes,
@@ -741,6 +753,13 @@ export {
     REPEAT_REMINDER_INTERVAL_OPTIONS,
     REPEAT_REMINDER_MAX_OCCURRENCES,
     REPEAT_REMINDER_MAX_WINDOW_MINUTES,
+} from './schedule-utils';
+export type {
+    ProjectReviewReminderIntent,
+    ScheduleOptions,
+    TaskReminderIntent,
+    TaskReminderIntentKind,
+    TaskReminderPlan,
 } from './schedule-utils';
 
 export {

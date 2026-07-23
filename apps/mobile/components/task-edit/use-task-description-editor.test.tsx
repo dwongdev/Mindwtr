@@ -34,7 +34,7 @@ function DescriptionEditorHarness({
     descriptionDraftRef,
     setDescriptionDraft,
     descriptionDebounceRef,
-    setEditedTask: vi.fn(),
+    setDraftField: vi.fn(),
     resetCopilotDraft: vi.fn(),
     onMarkdownOverlayVisibilityChange: vi.fn(),
     onInputFocusTracked: vi.fn(),

@@ -1,4 +1,11 @@
-import { parseIcs, type ExternalCalendarEvent, type ExternalCalendarSubscription } from '@mindwtr/core';
+import {
+    isMindwtrMirrorCalendar,
+    mergeExternalCalendarSources,
+    parseIcs,
+    type ExternalCalendarEvent,
+    type ExternalCalendarSourceResult,
+    type ExternalCalendarSubscription,
+} from '@mindwtr/core';
 import { gunzipSync, strFromU8 } from 'fflate';
 import { ExternalCalendarService } from './external-calendar-service';
 import { isLocalCalendarFileUrl } from './external-calendar-source';
@@ -6,8 +13,6 @@ import { isTauriRuntime } from './runtime';
 import { fetchSystemCalendarEvents } from './system-calendar';
 import { getTauriHttpFetch } from './tauri-http';
 
-const MINDWTR_PUSHED_EVENT_PREFIX = 'Mindwtr: ';
-const MINDWTR_MIRROR_CALENDAR_NAMES = new Set(['mindwtr', 'mindwtr calendar', 'mindwtrcal']);
 const ICS_MONTH_CACHE_TTL_MS = 5 * 60 * 1000;
 const ICS_MONTH_CACHE_MAX_ENTRIES = 120;
 
@@ -30,10 +35,6 @@ export const summarizeExternalCalendarWarnings = (warnings: string[]): string | 
     if (warnings.length === 1) return warnings[0];
     return `${warnings[0]} (+${warnings.length - 1} more)`;
 };
-
-function normalizeCalendarName(value: string | undefined): string {
-    return (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
 
 function getMonthKey(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -80,14 +81,6 @@ function eventOverlapsRange(event: ExternalCalendarEvent, rangeStart: Date, rang
     return startMs < rangeEnd.getTime() && endMs > rangeStart.getTime();
 }
 
-function dedupeEvents(events: ExternalCalendarEvent[]): ExternalCalendarEvent[] {
-    const byKey = new Map<string, ExternalCalendarEvent>();
-    for (const event of events) {
-        byKey.set(`${event.sourceId}:${event.id}:${event.start}:${event.end}`, event);
-    }
-    return Array.from(byKey.values());
-}
-
 async function loadCachedIcsEventsForCalendar(
     calendar: ExternalCalendarSubscription,
     monthRanges: MonthRange[],
@@ -130,19 +123,6 @@ async function loadCachedIcsEventsForCalendar(
     }
     pruneIcsMonthCache();
     return events;
-}
-
-export function isMindwtrMirrorCalendar(calendar: Pick<ExternalCalendarSubscription, 'name'>): boolean {
-    return MINDWTR_MIRROR_CALENDAR_NAMES.has(normalizeCalendarName(calendar.name));
-}
-
-export function isMindwtrMirrorEvent(
-    event: Pick<ExternalCalendarEvent, 'sourceId' | 'title'>,
-    calendarById: Map<string, ExternalCalendarSubscription>,
-): boolean {
-    const sourceCalendar = calendarById.get(event.sourceId);
-    if (sourceCalendar && isMindwtrMirrorCalendar(sourceCalendar)) return true;
-    return event.title.trim().toLowerCase().startsWith(MINDWTR_PUSHED_EVENT_PREFIX.toLowerCase());
 }
 
 async function readCalendarResponseText(res: Response): Promise<string> {
@@ -204,14 +184,13 @@ export async function fetchExternalCalendarEvents(
         fetchSystemCalendarEvents(rangeStart, rangeEnd),
     ]);
 
-    const calendarById = new Map<string, ExternalCalendarSubscription>();
-    for (const calendar of [...calendars, ...systemResults.calendars]) {
-        calendarById.set(calendar.id, calendar);
-    }
-    const systemCalendars = systemResults.calendars.filter((calendar) => !isMindwtrMirrorCalendar(calendar));
-
-    const events: ExternalCalendarEvent[] = systemResults.events
-        .filter((event) => !isMindwtrMirrorEvent(event, calendarById));
+    const sources: ExternalCalendarSourceResult[] = [
+        { calendars, events: [] },
+        {
+            calendars: systemResults.calendars,
+            events: systemResults.events,
+        },
+    ];
     const warnings: string[] = [];
     for (const [index, result] of icsResults.entries()) {
         if (result.status !== 'fulfilled') {
@@ -221,24 +200,10 @@ export async function fetchExternalCalendarEvents(
             warnings.push(`Failed to load "${label}": ${detail}`);
             continue;
         }
-        events.push(...result.value.filter((event) => !isMindwtrMirrorEvent(event, calendarById)));
+        sources.push({ calendars: [], events: result.value });
     }
 
-    const mergedCalendars = [...importableCalendars];
-    const existingIds = new Set(mergedCalendars.map((calendar) => calendar.id));
-    for (const systemCalendar of systemCalendars) {
-        if (existingIds.has(systemCalendar.id)) continue;
-        existingIds.add(systemCalendar.id);
-        mergedCalendars.push(systemCalendar);
-    }
-
-    const dedupedEvents = dedupeEvents(events);
-    dedupedEvents.sort((a, b) => {
-        if (a.start === b.start) return a.title.localeCompare(b.title);
-        return a.start.localeCompare(b.start);
-    });
-
-    return { calendars: mergedCalendars, events: dedupedEvents, warnings };
+    return { ...mergeExternalCalendarSources(sources), warnings };
 }
 
 export const __externalCalendarEventsTestUtils = {

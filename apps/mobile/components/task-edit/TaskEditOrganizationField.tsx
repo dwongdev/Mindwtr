@@ -10,7 +10,6 @@ import {
 } from '@mindwtr/core';
 
 import type { TaskEditFieldRendererProps } from './TaskEditFieldRenderer.types';
-import { getAreaIdForClearedProject, getEditedTaskValue } from './task-edit-modal.utils';
 import { CompactText } from '@/components/compact-text';
 
 type OrganizationFieldId =
@@ -33,7 +32,7 @@ export function TaskEditOrganizationField({
     assignedToSuggestions,
     availableStatusOptions,
     createAssignedToPerson,
-    editedTask,
+    draft,
     energyLevelOptions,
     fieldId,
     handleInputFocus,
@@ -43,7 +42,7 @@ export function TaskEditOrganizationField({
     projects,
     requestBackdatedCompletion,
     requestStatusChange,
-    setEditedTask,
+    setDraftField,
     setShowAreaPicker,
     setShowProjectPicker,
     setShowSectionPicker,
@@ -55,11 +54,10 @@ export function TaskEditOrganizationField({
     timeEstimatesEnabled,
     timeSpentEnabled,
 }: TaskEditOrganizationFieldProps) {
-    const inputStyle = { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text };
-    const currentTimeEstimate = editedTask.timeEstimate;
     const customTimeEstimateDraftSourceRef = React.useRef<string | undefined>(undefined);
     const [customTimeEstimateDraft, setCustomTimeEstimateDraft] = React.useState('');
-    const isCustomTimeEstimateSelected = isCustomTimeEstimate(currentTimeEstimate);
+    const currentTimeEstimate = draft?.timeEstimate;
+    const isCustomTimeEstimateSelected = isCustomTimeEstimate(currentTimeEstimate || undefined);
 
     React.useEffect(() => {
         if (!isCustomTimeEstimateSelected) {
@@ -67,6 +65,7 @@ export function TaskEditOrganizationField({
             setCustomTimeEstimateDraft('');
             return;
         }
+        if (!currentTimeEstimate) return;
 
         if (customTimeEstimateDraftSourceRef.current !== currentTimeEstimate) {
             customTimeEstimateDraftSourceRef.current = currentTimeEstimate;
@@ -74,15 +73,18 @@ export function TaskEditOrganizationField({
         }
     }, [currentTimeEstimate, isCustomTimeEstimateSelected]);
 
+    if (!draft) return null;
+    const inputStyle = { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text };
+
     const setCustomTimeEstimate = (minutes: number) => {
         const next = createCustomTimeEstimate(minutes);
         customTimeEstimateDraftSourceRef.current = next;
-        setEditedTask((prev) => ({ ...prev, timeEstimate: next }));
+        setDraftField('timeEstimate', next);
         return next;
     };
 
     const beginCustomTimeEstimate = () => {
-        const next = setCustomTimeEstimate(timeEstimateToMinutes(currentTimeEstimate));
+        const next = setCustomTimeEstimate(timeEstimateToMinutes(currentTimeEstimate || undefined));
         setCustomTimeEstimateDraft(formatTimeEstimateLabel(next));
     };
 
@@ -127,7 +129,7 @@ export function TaskEditOrganizationField({
             </TouchableOpacity>
         </View>
     );
-    const assignedToDraft = String(editedTask.assignedTo ?? '').trim();
+    const assignedToDraft = draft.assignedTo.trim();
     const assignedToCreateLabel = translateWithFallback(t, 'people.new', 'New Person');
     const canCreateAssignedToPerson = assignedToDraft.length > 0
         && !assignedToSuggestions.some((name) => name.trim().toLowerCase() === assignedToDraft.toLowerCase());
@@ -141,18 +143,18 @@ export function TaskEditOrganizationField({
                         {availableStatusOptions.map((status) => (
                             <TouchableOpacity
                                 key={status}
-                                style={[styles.statusChipCompact, ...getStatusChipStyle(editedTask.status === status)]}
+                                style={[styles.statusChipCompact, ...getStatusChipStyle(draft.status === status)]}
                                 onPress={() => requestStatusChange(status)}
                                 onLongPress={status === 'done' ? requestBackdatedCompletion : undefined}
                                 accessibilityRole="button"
-                                accessibilityState={{ selected: editedTask.status === status }}
+                                accessibilityState={{ selected: draft.status === status }}
                                 accessibilityLabel={`${t('taskEdit.statusLabel')}: ${getStatusLabel(status)}`}
                                 accessibilityHint={status === 'done'
                                     ? translateWithFallback(t, 'task.completeBackdateHintMobile', 'Long-press to complete with a different time')
                                     : undefined}
                             >
                                 <Text
-                                    style={getStatusTextStyle(editedTask.status === status, true)}
+                                    style={getStatusTextStyle(draft.status === status, true)}
                                     numberOfLines={1}
                                     ellipsizeMode="tail"
                                     adjustsFontSizeToFit
@@ -166,7 +168,7 @@ export function TaskEditOrganizationField({
                 </View>
             );
         case 'project': {
-            const projectId = getEditedTaskValue(editedTask, task, 'projectId');
+            const projectId = draft.projectId;
             if (!projectId) {
                 return renderCompactPicker(
                     t('taskEdit.projectLabel'),
@@ -189,12 +191,14 @@ export function TaskEditOrganizationField({
                         {!!projectId && (
                             <TouchableOpacity
                                 style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                onPress={() => setEditedTask((prev) => ({
-                                    ...prev,
-                                    projectId: undefined,
-                                    sectionId: undefined,
-                                    areaId: getAreaIdForClearedProject(prev, task, projects),
-                                }))}
+                                onPress={() => {
+                                    const areaId = draft.areaId
+                                        || projects.find((project) => project.id === draft.projectId)?.areaId
+                                        || '';
+                                    setDraftField('projectId', '');
+                                    setDraftField('sectionId', '');
+                                    setDraftField('areaId', areaId);
+                                }}
                             >
                                 <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
                             </TouchableOpacity>
@@ -204,9 +208,9 @@ export function TaskEditOrganizationField({
             );
         }
         case 'section': {
-            const projectId = getEditedTaskValue(editedTask, task, 'projectId');
+            const projectId = draft.projectId;
             if (!projectId) return null;
-            const section = projectSections.find((item) => item.id === editedTask.sectionId);
+            const section = projectSections.find((item) => item.id === draft.sectionId);
             return (
                 <View style={styles.formGroup}>
                     <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.sectionLabel')}</Text>
@@ -219,10 +223,10 @@ export function TaskEditOrganizationField({
                                 {section?.title || t('taskEdit.noSectionOption')}
                             </Text>
                         </TouchableOpacity>
-                        {!!editedTask.sectionId && (
+                        {!!draft.sectionId && (
                             <TouchableOpacity
                                 style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                onPress={() => setEditedTask((prev) => ({ ...prev, sectionId: undefined }))}
+                                onPress={() => setDraftField('sectionId', '')}
                             >
                                 <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
                             </TouchableOpacity>
@@ -232,8 +236,8 @@ export function TaskEditOrganizationField({
             );
         }
         case 'area': {
-            const areaId = getEditedTaskValue(editedTask, task, 'areaId');
-            if (getEditedTaskValue(editedTask, task, 'projectId')) return null;
+            const areaId = draft.areaId;
+            if (draft.projectId) return null;
             if (!areaId) {
                 return renderCompactPicker(
                     t('taskEdit.areaLabel'),
@@ -256,7 +260,7 @@ export function TaskEditOrganizationField({
                         {!!areaId && (
                             <TouchableOpacity
                                 style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                onPress={() => setEditedTask((prev) => ({ ...prev, areaId: undefined }))}
+                                onPress={() => setDraftField('areaId', '')}
                             >
                                 <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
                             </TouchableOpacity>
@@ -272,20 +276,20 @@ export function TaskEditOrganizationField({
                     <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.priorityLabel')}</Text>
                     <View style={styles.statusContainer}>
                         <TouchableOpacity
-                            style={getStatusChipStyle(!editedTask.priority)}
-                            onPress={() => setEditedTask((prev) => ({ ...prev, priority: undefined }))}
+                            style={getStatusChipStyle(!draft.priority)}
+                            onPress={() => setDraftField('priority', '')}
                         >
-                            <Text style={getStatusTextStyle(!editedTask.priority)}>
+                            <Text style={getStatusTextStyle(!draft.priority)}>
                                 {t('common.none')}
                             </Text>
                         </TouchableOpacity>
                         {priorityOptions.map((priority) => (
                             <TouchableOpacity
                                 key={priority}
-                                style={getStatusChipStyle(editedTask.priority === priority)}
-                                onPress={() => setEditedTask((prev) => ({ ...prev, priority }))}
+                                style={getStatusChipStyle(draft.priority === priority)}
+                                onPress={() => setDraftField('priority', priority)}
                             >
-                                <Text style={getStatusTextStyle(editedTask.priority === priority)}>
+                                <Text style={getStatusTextStyle(draft.priority === priority)}>
                                     {t(`priority.${priority}`)}
                                 </Text>
                             </TouchableOpacity>
@@ -299,20 +303,20 @@ export function TaskEditOrganizationField({
                     <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.energyLevel')}</Text>
                     <View style={styles.statusContainer}>
                         <TouchableOpacity
-                            style={getStatusChipStyle(!editedTask.energyLevel)}
-                            onPress={() => setEditedTask((prev) => ({ ...prev, energyLevel: undefined }))}
+                            style={getStatusChipStyle(!draft.energyLevel)}
+                            onPress={() => setDraftField('energyLevel', '')}
                         >
-                            <Text style={getStatusTextStyle(!editedTask.energyLevel)}>
+                            <Text style={getStatusTextStyle(!draft.energyLevel)}>
                                 {t('common.none')}
                             </Text>
                         </TouchableOpacity>
                         {energyLevelOptions.map((energyLevel) => (
                             <TouchableOpacity
                                 key={energyLevel}
-                                style={getStatusChipStyle(editedTask.energyLevel === energyLevel)}
-                                onPress={() => setEditedTask((prev) => ({ ...prev, energyLevel }))}
+                                style={getStatusChipStyle(draft.energyLevel === energyLevel)}
+                                onPress={() => setDraftField('energyLevel', energyLevel)}
                             >
-                                <Text style={getStatusTextStyle(editedTask.energyLevel === energyLevel)}>
+                                <Text style={getStatusTextStyle(draft.energyLevel === energyLevel)}>
                                     {t(`energyLevel.${energyLevel}`)}
                                 </Text>
                             </TouchableOpacity>
@@ -326,8 +330,8 @@ export function TaskEditOrganizationField({
                     <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.assignedTo')}</Text>
                     <TextInput
                         style={[styles.input, inputStyle]}
-                        value={String(editedTask.assignedTo ?? '')}
-                        onChangeText={(assignedTo) => setEditedTask((prev) => ({ ...prev, assignedTo }))}
+                        value={draft.assignedTo}
+                        onChangeText={(assignedTo) => setDraftField('assignedTo', assignedTo)}
                         onFocus={(event) => handleInputFocus(event.nativeEvent.target)}
                         placeholder={t('taskEdit.assignedToPlaceholder')}
                         placeholderTextColor={tc.secondaryText}
@@ -378,12 +382,12 @@ export function TaskEditOrganizationField({
                             <TouchableOpacity
                                 key={option.value || 'none'}
                                 style={getStatusChipStyle(
-                                    editedTask.timeEstimate === option.value || (!option.value && !editedTask.timeEstimate)
+                                    draft.timeEstimate === option.value || (!option.value && !draft.timeEstimate)
                                 )}
-                                onPress={() => setEditedTask((prev) => ({ ...prev, timeEstimate: option.value || undefined }))}
+                                onPress={() => setDraftField('timeEstimate', option.value)}
                             >
                                 <Text style={getStatusTextStyle(
-                                    editedTask.timeEstimate === option.value || (!option.value && !editedTask.timeEstimate)
+                                    draft.timeEstimate === option.value || (!option.value && !draft.timeEstimate)
                                 )}>
                                     {option.label}
                                 </Text>
@@ -432,13 +436,10 @@ export function TaskEditOrganizationField({
                             </Text>
                             <TextInput
                                 style={[styles.input, inputStyle]}
-                                value={typeof editedTask.timeSpentMinutes === 'number' ? String(editedTask.timeSpentMinutes) : ''}
+                                value={typeof draft.timeSpentMinutes === 'number' ? String(draft.timeSpentMinutes) : ''}
                                 onChangeText={(text) => {
                                     const digits = text.replace(/[^0-9]/g, '');
-                                    setEditedTask((prev) => ({
-                                        ...prev,
-                                        timeSpentMinutes: digits ? Number(digits) : undefined,
-                                    }));
+                                    setDraftField('timeSpentMinutes', digits ? Number(digits) : undefined);
                                 }}
                                 keyboardType="number-pad"
                                 onFocus={(event) => handleInputFocus(event.nativeEvent.target)}

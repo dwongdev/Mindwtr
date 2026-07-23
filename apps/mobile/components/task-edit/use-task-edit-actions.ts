@@ -18,14 +18,16 @@ import { buildAIConfig, isAIKeyRequired, loadAIKey } from '../../lib/ai-config';
 import { logTaskError, logTaskWarn } from './task-edit-modal.utils';
 import { parseTokenList } from './task-edit-token-utils';
 import { openProjectScreen, openTaskScreen } from '../../lib/task-meta-navigation';
-import { setTaskDraftField } from '@mindwtr/core/task-draft';
 import {
-    applyTaskEditUpdate,
+    setTaskDraftField,
+    type TaskDraftSetter,
+} from '@mindwtr/core/task-draft';
+import {
     buildTaskEditUpdatePatch,
     isTaskEditDraftDirty,
     type TaskEditDraft,
 } from './task-edit-draft-adapter';
-import type { SetEditedTask } from './use-task-edit-state';
+import type { SetTaskEditDraftValue } from './use-task-edit-state';
 
 type AIResponseModalState = {
     title: string;
@@ -53,7 +55,7 @@ type TaskEditActionsParams = {
     descriptionDraftRef: React.MutableRefObject<string>;
     duplicateTask: (taskId: string, includeDoneSubtasks?: boolean) => Promise<StoreActionResult>;
     promoteTaskToProject?: (taskId: string, options?: { title?: string; color?: string; areaId?: string }) => Promise<StoreActionResult>;
-    editedTask: Partial<Task>;
+    mergedTask: Partial<Task>;
     taskEditDraft: TaskEditDraft | null;
     formatDate: (dateStr?: string) => string;
     formatDueDate: (dateStr?: string) => string;
@@ -69,7 +71,8 @@ type TaskEditActionsParams = {
     restoreTask: (taskId: string) => Promise<unknown>;
     sections: Array<{ id: string; projectId?: string; deletedAt?: string | null }>;
     setAiModal: React.Dispatch<React.SetStateAction<AIResponseModalState>>;
-    setEditedTask: SetEditedTask;
+    setChecklist: SetTaskEditDraftValue<Task['checklist']>;
+    setDraftField: TaskDraftSetter;
     setIsAIWorking: React.Dispatch<React.SetStateAction<boolean>>;
     setTitleImmediate: (text: string) => void;
     settings: Record<string, any>;
@@ -94,7 +97,7 @@ export function useTaskEditActions({
     descriptionDraftRef,
     duplicateTask,
     promoteTaskToProject,
-    editedTask,
+    mergedTask,
     taskEditDraft,
     formatDate,
     formatDueDate,
@@ -110,7 +113,8 @@ export function useTaskEditActions({
     restoreTask,
     sections,
     setAiModal,
-    setEditedTask,
+    setChecklist,
+    setDraftField,
     setIsAIWorking,
     setTitleImmediate,
     settings,
@@ -124,33 +128,27 @@ export function useTaskEditActions({
     titleDraftRef,
 }: TaskEditActionsParams) {
     const applyChecklistUpdate = useCallback((nextChecklist: NonNullable<Task['checklist']>) => {
-        setEditedTask((prev) => {
-            const currentStatus = (prev.status ?? task?.status ?? 'inbox') as TaskStatus;
-            let nextStatus = currentStatus;
-            const isListMode = (prev.taskMode ?? task?.taskMode) === 'list';
-            if (isListMode) {
-                const allComplete = nextChecklist.length > 0 && nextChecklist.every((item) => item.isCompleted);
-                if (allComplete) {
-                    nextStatus = 'done';
-                } else if (currentStatus === 'done') {
-                    nextStatus = 'next';
-                }
+        const currentStatus = taskEditDraft?.draft.status ?? task?.status ?? 'inbox';
+        let nextStatus = currentStatus;
+        if (task?.taskMode === 'list') {
+            const allComplete = nextChecklist.length > 0 && nextChecklist.every((item) => item.isCompleted);
+            if (allComplete) {
+                nextStatus = 'done';
+            } else if (currentStatus === 'done') {
+                nextStatus = 'next';
             }
-            return {
-                ...prev,
-                checklist: nextChecklist,
-                status: nextStatus,
-            };
-        });
-    }, [setEditedTask, task?.status, task?.taskMode]);
+        }
+        setChecklist(nextChecklist);
+        if (nextStatus !== currentStatus) setDraftField('status', nextStatus);
+    }, [setChecklist, setDraftField, task?.status, task?.taskMode, taskEditDraft?.draft.status]);
 
     const handleResetChecklist = useCallback(() => {
-        const current = editedTask.checklist || [];
+        const current = taskEditDraft?.checklist || [];
         if (current.length === 0 || !task) return;
         const reset = current.map((item) => ({ ...item, isCompleted: false }));
         applyChecklistUpdate(reset);
         resetTaskChecklist(task.id).catch((error) => logTaskError('Failed to reset checklist', error));
-    }, [applyChecklistUpdate, editedTask.checklist, resetTaskChecklist, task]);
+    }, [applyChecklistUpdate, resetTaskChecklist, task, taskEditDraft?.checklist]);
 
     const handleSave = useCallback(async () => {
         if (!task) return;
@@ -207,38 +205,38 @@ export function useTaskEditActions({
     const handleShare = useCallback(async () => {
         if (!task) return;
 
-        const title = String(titleDraftRef.current ?? editedTask.title ?? task.title ?? '').trim();
+        const title = String(titleDraftRef.current ?? mergedTask.title ?? task.title ?? '').trim();
         const lines: string[] = [];
         if (title) lines.push(title);
 
-        const status = (editedTask.status ?? task.status) as TaskStatus | undefined;
+        const status = (mergedTask.status ?? task.status) as TaskStatus | undefined;
         if (status) lines.push(`${t('taskEdit.statusLabel')}: ${t(`status.${status}`)}`);
         if (prioritiesEnabled) {
-            const priority = editedTask.priority ?? task.priority;
+            const priority = mergedTask.priority ?? task.priority;
             if (priority) lines.push(`${t('taskEdit.priorityLabel')}: ${t(`priority.${priority}`)}`);
         }
-        if (editedTask.startTime) lines.push(`${t('taskEdit.startDateLabel')}: ${formatDate(editedTask.startTime)}`);
-        if (editedTask.dueDate) lines.push(`${t('taskEdit.dueDateLabel')}: ${formatDueDate(editedTask.dueDate)}`);
-        if (editedTask.reviewAt) lines.push(`${t('taskEdit.reviewDateLabel')}: ${formatDate(editedTask.reviewAt)}`);
+        if (mergedTask.startTime) lines.push(`${t('taskEdit.startDateLabel')}: ${formatDate(mergedTask.startTime)}`);
+        if (mergedTask.dueDate) lines.push(`${t('taskEdit.dueDateLabel')}: ${formatDueDate(mergedTask.dueDate)}`);
+        if (mergedTask.reviewAt) lines.push(`${t('taskEdit.reviewDateLabel')}: ${formatDate(mergedTask.reviewAt)}`);
         if (timeEstimatesEnabled) {
-            const estimate = editedTask.timeEstimate as TimeEstimate | undefined;
+            const estimate = mergedTask.timeEstimate as TimeEstimate | undefined;
             if (estimate) lines.push(`${t('taskEdit.timeEstimateLabel')}: ${formatTimeEstimateLabel(estimate)}`);
         }
 
-        const contexts = (editedTask.contexts ?? []).filter(Boolean);
+        const contexts = (mergedTask.contexts ?? []).filter(Boolean);
         if (contexts.length) lines.push(`${t('taskEdit.contextsLabel')}: ${contexts.join(', ')}`);
 
-        const tags = (editedTask.tags ?? []).filter(Boolean);
+        const tags = (mergedTask.tags ?? []).filter(Boolean);
         if (tags.length) lines.push(`${t('taskEdit.tagsLabel')}: ${tags.join(', ')}`);
 
-        const description = String(editedTask.description ?? '').trim();
+        const description = String(mergedTask.description ?? '').trim();
         if (description) {
             lines.push('');
             lines.push(`${t('taskEdit.descriptionLabel')}:`);
             lines.push(description);
         }
 
-        const checklist = (editedTask.checklist ?? []).filter((item) => item && item.title);
+        const checklist = (mergedTask.checklist ?? []).filter((item) => item && item.title);
         if (checklist.length) {
             lines.push('');
             lines.push(`${t('taskEdit.checklist')}:`);
@@ -258,7 +256,7 @@ export function useTaskEditActions({
         } catch (error) {
             logTaskError('Share failed:', error);
         }
-    }, [editedTask, formatDate, formatDueDate, formatTimeEstimateLabel, prioritiesEnabled, t, task, timeEstimatesEnabled, titleDraftRef]);
+    }, [mergedTask, formatDate, formatDueDate, formatTimeEstimateLabel, prioritiesEnabled, t, task, timeEstimatesEnabled, titleDraftRef]);
 
     const discardAndClose = useCallback(() => {
         if (titleDebounceRef.current) {
@@ -276,25 +274,20 @@ export function useTaskEditActions({
         if (!task || !taskEditDraft) return false;
 
         const baseTask = baseTaskRef.current ?? task;
-        const pendingContexts = isContextInputFocused
-            ? parseTokenList(contextInputDraft, '@')
-            : (editedTask.contexts ?? baseTask.contexts ?? []);
-        const pendingTags = isTagInputFocused
-            ? parseTokenList(tagInputDraft, '#')
-            : (editedTask.tags ?? baseTask.tags ?? []);
-        const pendingDraft = applyTaskEditUpdate(taskEditDraft, baseTask, (current) => ({
-            ...current,
-            title: String(titleDraftRef.current ?? editedTask.title ?? baseTask.title ?? ''),
-            description: String(descriptionDraftRef.current ?? editedTask.description ?? baseTask.description ?? ''),
-            contexts: pendingContexts,
-            tags: pendingTags,
-        }));
-        return isTaskEditDraftDirty(pendingDraft, baseTask);
+        let pendingDraft = taskEditDraft.draft;
+        pendingDraft = setTaskDraftField(pendingDraft, 'title', String(titleDraftRef.current ?? pendingDraft.title));
+        pendingDraft = setTaskDraftField(pendingDraft, 'description', String(descriptionDraftRef.current ?? pendingDraft.description));
+        if (isContextInputFocused) {
+            pendingDraft = setTaskDraftField(pendingDraft, 'contexts', parseTokenList(contextInputDraft, '@').join(', '));
+        }
+        if (isTagInputFocused) {
+            pendingDraft = setTaskDraftField(pendingDraft, 'tags', parseTokenList(tagInputDraft, '#').join(', '));
+        }
+        return isTaskEditDraftDirty({ ...taskEditDraft, draft: pendingDraft }, baseTask);
     }, [
         baseTaskRef,
         contextInputDraft,
         descriptionDraftRef,
-        editedTask,
         isContextInputFocused,
         isTagInputFocused,
         tagInputDraft,
@@ -364,7 +357,7 @@ export function useTaskEditActions({
     const handlePromoteTaskToProject = useCallback(async () => {
         if (!task || !promoteTaskToProject) return;
         try {
-            const title = String(titleDraftRef.current || editedTask.title || task.title || '').trim();
+            const title = String(titleDraftRef.current || mergedTask.title || task.title || '').trim();
             const result = await promoteTaskToProject(task.id, { title });
             if (!result.success || !result.id) {
                 showToast({
@@ -391,7 +384,7 @@ export function useTaskEditActions({
                 tone: 'error',
             });
         }
-    }, [editedTask.title, onClose, promoteTaskToProject, showToast, t, task, titleDraftRef]);
+    }, [mergedTask, onClose, promoteTaskToProject, showToast, t, task, titleDraftRef]);
 
     const handleDeleteTask = useCallback(async () => {
         if (!task) return;
@@ -422,11 +415,17 @@ export function useTaskEditActions({
             pushCount: 0,
         };
         onSave(task.id, referenceUpdate);
-        setEditedTask((prev) => ({
-            ...prev,
-            ...referenceUpdate,
-        }));
-    }, [onSave, setEditedTask, task]);
+        setDraftField('status', 'reference');
+        setDraftField('startTime', '');
+        setDraftField('dueDate', '');
+        setDraftField('reviewAt', '');
+        setDraftField('recurrence', '');
+        setDraftField('recurrenceRRule', '');
+        setDraftField('showFutureRecurrence', false);
+        setDraftField('priority', '');
+        setDraftField('timeEstimate', '');
+        setDraftField('focusedToday', false);
+    }, [onSave, setDraftField, task]);
 
     const getAIProvider = useCallback(async () => {
         if (!aiEnabled) {
@@ -446,22 +445,16 @@ export function useTaskEditActions({
         if (suggested.title) {
             setTitleImmediate(suggested.title);
         }
-        setEditedTask((prev) => {
-            const nextContexts = suggested.context
-                ? Array.from(new Set([...(prev.contexts ?? []), suggested.context]))
-                : prev.contexts;
-            return {
-                ...prev,
-                title: suggested.title ?? prev.title,
-                timeEstimate: suggested.timeEstimate ?? prev.timeEstimate,
-                contexts: nextContexts,
-            };
-        });
-    }, [setEditedTask, setTitleImmediate]);
+        if (suggested.timeEstimate) setDraftField('timeEstimate', suggested.timeEstimate);
+        if (suggested.context) {
+            const contexts = (taskEditDraft?.draft.contexts ?? '').split(',').map((value) => value.trim()).filter(Boolean);
+            setDraftField('contexts', Array.from(new Set([...contexts, suggested.context])).join(', '));
+        }
+    }, [setDraftField, setTitleImmediate, taskEditDraft?.draft.contexts]);
 
     const handleAIClarify = useCallback(async () => {
         if (!task || isAIWorking) return;
-        const title = String(titleDraftRef.current ?? editedTask.title ?? task.title ?? '').trim();
+        const title = String(titleDraftRef.current ?? mergedTask.title ?? task.title ?? '').trim();
         if (!title) return;
         setIsAIWorking(true);
         try {
@@ -469,14 +462,14 @@ export function useTaskEditActions({
             if (!provider) return;
             const contextOptions = Array.from(new Set([
                 ...getUsedTaskTokens(tasks, (item) => item.contexts, { prefix: '@' }),
-                ...(editedTask.contexts ?? []),
+                ...(mergedTask.contexts ?? []),
             ]));
             const response = await provider.clarifyTask({
                 title,
                 contexts: contextOptions,
-                startTime: editedTask.startTime ?? task.startTime,
-                dueDate: editedTask.dueDate ?? task.dueDate,
-                reviewAt: editedTask.reviewAt ?? task.reviewAt,
+                startTime: mergedTask.startTime ?? task.startTime,
+                dueDate: mergedTask.dueDate ?? task.dueDate,
+                reviewAt: mergedTask.reviewAt ?? task.reviewAt,
                 ...(projectContext ?? {}),
             });
             const actions: AIResponseAction[] = response.options.slice(0, 3).map((option) => ({
@@ -514,7 +507,7 @@ export function useTaskEditActions({
     }, [
         applyAISuggestion,
         closeAIModal,
-        editedTask,
+        mergedTask,
         getAIProvider,
         isAIWorking,
         projectContext,
@@ -529,7 +522,7 @@ export function useTaskEditActions({
 
     const handleAIBreakdown = useCallback(async () => {
         if (!task || isAIWorking) return;
-        const title = String(titleDraftRef.current ?? editedTask.title ?? task.title ?? '').trim();
+        const title = String(titleDraftRef.current ?? mergedTask.title ?? task.title ?? '').trim();
         if (!title) return;
         setIsAIWorking(true);
         try {
@@ -560,7 +553,7 @@ export function useTaskEditActions({
                                 title: step,
                                 isCompleted: false,
                             }));
-                            applyChecklistUpdate([...(editedTask.checklist || []), ...newItems]);
+                            applyChecklistUpdate([...(taskEditDraft?.checklist || []), ...newItems]);
                             closeAIModal();
                         },
                     },
@@ -576,8 +569,7 @@ export function useTaskEditActions({
         applyChecklistUpdate,
         closeAIModal,
         descriptionDraft,
-        editedTask.checklist,
-        editedTask.title,
+        mergedTask,
         getAIProvider,
         isAIWorking,
         projectContext,
@@ -585,6 +577,7 @@ export function useTaskEditActions({
         setIsAIWorking,
         t,
         task,
+        taskEditDraft?.checklist,
         titleDraftRef,
     ]);
 

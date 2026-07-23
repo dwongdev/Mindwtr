@@ -18,6 +18,7 @@ import {
     normalizeClockTimeInput,
     shallow,
 } from '@mindwtr/core';
+import { taskDraftToUpdatePatch } from '@mindwtr/core/task-draft';
 import { useLanguage } from '../contexts/language-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { ToastViewport, useToast } from '@/contexts/toast-context';
@@ -41,7 +42,6 @@ import {
 } from './task-edit/recurrence-utils';
 import { getAssignedToSuggestions } from './task-metadata-suggestions';
 import { useTaskEditCopilot } from './task-edit/use-task-edit-copilot';
-import { getEditedTaskValue } from './task-edit/task-edit-modal.utils';
 import {
     parseTokenList,
     replaceTrailingToken,
@@ -156,18 +156,19 @@ function TaskEditModalInner({
         descriptionDraft,
         descriptionDraftRef,
         editTab,
-        editedTask,
         isAIWorking,
         isContextInputFocused,
         isTagInputFocused,
         pendingDueDate,
         pendingStartDate,
         setAiModal,
+        setAttachments,
+        setChecklist,
         setContextInputDraft,
         setCustomWeekdays,
         setDescriptionDraft,
+        setDraftField,
         setEditTab,
-        setEditedTask,
         setIsAIWorking,
         setIsContextInputFocused,
         setIsTagInputFocused,
@@ -202,21 +203,29 @@ function TaskEditModalInner({
     const aiEnabled = settings.ai?.enabled === true;
     const aiProvider = settings.ai?.provider ?? 'openai';
 
+    const draftContexts = useMemo(
+        () => parseTokenList(taskEditDraft?.draft.contexts ?? '', '@'),
+        [taskEditDraft?.draft.contexts],
+    );
+    const draftTags = useMemo(
+        () => parseTokenList(taskEditDraft?.draft.tags ?? '', '#'),
+        [taskEditDraft?.draft.tags],
+    );
     const contextOptions = React.useMemo(() => Array.from(new Set([
             ...allContexts,
-            ...(editedTask.contexts ?? []),
-        ])).filter(Boolean), [allContexts, editedTask.contexts]);
+            ...draftContexts,
+        ])).filter(Boolean), [allContexts, draftContexts]);
     const tagOptions = React.useMemo(() => Array.from(new Set([
             ...allTags,
-            ...(editedTask.tags ?? []),
-        ])).filter(Boolean), [allTags, editedTask.tags]);
+            ...draftTags,
+        ])).filter(Boolean), [allTags, draftTags]);
     const {
         handlePreviewContextPress,
         handlePreviewProjectPress,
         handlePreviewTagPress,
         projectContext,
     } = useTaskEditPreview({
-        editedProjectId: editedTask.projectId,
+        editedProjectId: taskEditDraft?.draft.projectId,
         includeProjectContext: aiEnabled,
         onClose,
         onContextNavigate,
@@ -246,9 +255,9 @@ function TaskEditModalInner({
         descriptionDraft,
         contextOptions,
         tagOptions,
-        editedTask,
+        draft: taskEditDraft?.draft ?? null,
         visible,
-        setEditedTask,
+        setDraftField,
     });
     resetCopilotStateRef.current = resetCopilotState;
 
@@ -283,8 +292,10 @@ function TaskEditModalInner({
         toggleAudioPlayback,
         visibleAttachments,
     } = useTaskEditAttachments({
-        editedTask,
-        setEditedTask,
+        attachments: taskEditDraft?.attachments,
+        setAttachments,
+        setDraftField,
+        taskId: task?.id,
         t,
         visible,
     });
@@ -297,8 +308,8 @@ function TaskEditModalInner({
         selectedContextTokens,
         selectedTagTokens,
     } = useTaskTokenSuggestions({
-        editedContexts: editedTask.contexts,
-        editedTags: editedTask.tags,
+        editedContexts: draftContexts,
+        editedTags: draftTags,
         contextInputDraft,
         tagInputDraft,
         allContexts,
@@ -307,8 +318,8 @@ function TaskEditModalInner({
         tagTokenUsage,
     });
     const assignedToSuggestions = useMemo(
-        () => getAssignedToSuggestions(tasks, String(editedTask.assignedTo ?? ''), MAX_VISIBLE_SUGGESTIONS, people),
-        [editedTask.assignedTo, people, tasks]
+        () => getAssignedToSuggestions(tasks, taskEditDraft?.draft.assignedTo ?? '', MAX_VISIBLE_SUGGESTIONS, people),
+        [people, taskEditDraft?.draft.assignedTo, tasks]
     );
 
     const closeAIModal = () => setAiModal(null);
@@ -319,8 +330,8 @@ function TaskEditModalInner({
         }
         titleDraftRef.current = text;
         setTitleDraft(text);
-        setEditedTask((prev) => ({ ...prev, title: text }));
-    }, [setEditedTask, setTitleDraft, titleDebounceRef, titleDraftRef]);
+        setDraftField('title', text);
+    }, [setDraftField, setTitleDraft, titleDebounceRef, titleDraftRef]);
     const handleTitleDraftChange = useCallback((text: string) => {
         titleDraftRef.current = text;
         setTitleDraft(text);
@@ -329,9 +340,9 @@ function TaskEditModalInner({
             clearTimeout(titleDebounceRef.current);
         }
         titleDebounceRef.current = setTimeout(() => {
-            setEditedTask((prev) => ({ ...prev, title: text }));
+            setDraftField('title', text);
         }, 250);
-    }, [resetCopilotDraft, setEditedTask, setTitleDraft, titleDebounceRef, titleDraftRef]);
+    }, [resetCopilotDraft, setDraftField, setTitleDraft, titleDebounceRef, titleDraftRef]);
     const {
         activeProjectId,
         availableStatusOptions,
@@ -358,7 +369,8 @@ function TaskEditModalInner({
         timeEstimateOptions,
     } = useTaskEditDerivedState({
         task,
-        editedTask,
+        checklist: taskEditDraft?.checklist,
+        draft: taskEditDraft?.draft ?? null,
         settings,
         projects,
         sections,
@@ -370,21 +382,21 @@ function TaskEditModalInner({
         visibleAttachmentsLength: visibleAttachments.length,
         t,
     });
-    const isReference = (editedTask.status ?? task?.status) === 'reference';
+    const isReference = (taskEditDraft?.draft.status ?? task?.status) === 'reference';
 
-    const editedTaskProjectId = getEditedTaskValue(editedTask, task, 'projectId');
-    const editedTaskSectionId = getEditedTaskValue(editedTask, task, 'sectionId');
+    const editedTaskProjectId = taskEditDraft?.draft.projectId;
+    const editedTaskSectionId = taskEditDraft?.draft.sectionId;
     useEffect(() => {
         if (!editedTaskSectionId) return;
         if (!editedTaskProjectId) {
-            setEditedTask(prev => ({ ...prev, sectionId: undefined }));
+            setDraftField('sectionId', '');
             return;
         }
         const isValid = sections.some((section) => section.id === editedTaskSectionId && section.projectId === editedTaskProjectId && !section.deletedAt);
         if (!isValid) {
-            setEditedTask(prev => ({ ...prev, sectionId: undefined }));
+            setDraftField('sectionId', '');
         }
-    }, [editedTaskProjectId, editedTaskSectionId, sections, setEditedTask]);
+    }, [editedTaskProjectId, editedTaskSectionId, sections, setDraftField]);
 
     useEffect(() => {
         if (!activeProjectId) {
@@ -399,10 +411,10 @@ function TaskEditModalInner({
         getSafePickerDateValue,
         onDateChange,
     } = useTaskEditDates({
-        editedTask,
+        draft: taskEditDraft?.draft ?? null,
         pendingDueDate,
         pendingStartDate,
-        setEditedTask,
+        setDraftField,
         setPendingDueDate,
         setPendingStartDate,
         setShowDatePicker,
@@ -411,10 +423,17 @@ function TaskEditModalInner({
         t,
     });
 
-    const mergedTask = useMemo(() => ({
-        ...(task ?? {}),
-        ...editedTask,
-    }), [task, editedTask]);
+    const mergedTask = useMemo(() => {
+        if (!task || !taskEditDraft) return task as Task;
+        const patch = taskDraftToUpdatePatch(taskEditDraft.draft, task, {
+            attachments: taskEditDraft.attachments,
+        }) ?? {};
+        return {
+            ...task,
+            ...patch,
+            checklist: taskEditDraft.checklist,
+        };
+    }, [task, taskEditDraft]);
 
     const [customRecurrenceVisible, setCustomRecurrenceVisible] = useState(false);
     const [customInterval, setCustomInterval] = useState(1);
@@ -475,18 +494,11 @@ function TaskEditModalInner({
                 safeInterval > 1 ? `INTERVAL=${safeInterval}` : null,
                 `BYMONTHDAY=${safeMonthDay}`,
             ].filter(Boolean).join(';');
-        setEditedTask(prev => ({
-            ...prev,
-            recurrence: {
-                rule: 'monthly',
-                strategy: recurrenceStrategyValue,
-                ...(customMode === 'nth' ? { byDay: [`${customOrdinal}${customWeekday}` as RecurrenceByDay] } : {}),
-                ...(customMode === 'date' ? { byMonthDay: [safeMonthDay] } : {}),
-                rrule,
-            },
-        }));
+        setDraftField('recurrence', 'monthly');
+        setDraftField('recurrenceStrategy', recurrenceStrategyValue);
+        setDraftField('recurrenceRRule', rrule);
         setCustomRecurrenceVisible(false);
-    }, [customInterval, customMode, customOrdinal, customWeekday, customMonthDay, recurrenceStrategyValue, setEditedTask]);
+    }, [customInterval, customMode, customOrdinal, customWeekday, customMonthDay, recurrenceStrategyValue, setDraftField]);
 
     const [isMarkdownOverlayOpen, setIsMarkdownOverlayOpen] = useState(false);
     const {
@@ -519,7 +531,7 @@ function TaskEditModalInner({
         descriptionDraftRef,
         setDescriptionDraft,
         descriptionDebounceRef,
-        setEditedTask,
+        setDraftField,
         resetCopilotDraft,
         onMarkdownOverlayVisibilityChange: setIsMarkdownOverlayOpen,
         onInputFocusTracked: handleInputFocus,
@@ -527,12 +539,12 @@ function TaskEditModalInner({
 
     const updateContextInput = useCallback((text: string) => {
         setContextInputDraft(text);
-        setEditedTask((prev) => ({ ...prev, contexts: parseTokenList(text, '@') }));
-    }, [setContextInputDraft, setEditedTask]);
+        setDraftField('contexts', parseTokenList(text, '@').join(', '));
+    }, [setContextInputDraft, setDraftField]);
     const updateTagInput = useCallback((text: string) => {
         setTagInputDraft(text);
-        setEditedTask((prev) => ({ ...prev, tags: parseTokenList(text, '#') }));
-    }, [setEditedTask, setTagInputDraft]);
+        setDraftField('tags', parseTokenList(text, '#').join(', '));
+    }, [setDraftField, setTagInputDraft]);
     const applyContextSuggestion = useCallback((token: string) => {
         updateContextInput(replaceTrailingToken(contextInputDraft, token));
     }, [contextInputDraft, updateContextInput]);
@@ -540,39 +552,40 @@ function TaskEditModalInner({
         updateTagInput(replaceTrailingToken(tagInputDraft, token));
     }, [tagInputDraft, updateTagInput]);
     const applyAssignedToSuggestion = useCallback((assignedTo: string) => {
-        setEditedTask((prev) => ({ ...prev, assignedTo }));
-    }, [setEditedTask]);
+        setDraftField('assignedTo', assignedTo);
+    }, [setDraftField]);
     const createAssignedToPerson = useCallback(async (name: string) => {
         const created = await addPerson(name);
         if (created) {
-            setEditedTask((prev) => ({ ...prev, assignedTo: created.name }));
+            setDraftField('assignedTo', created.name);
         }
         return created;
-    }, [addPerson, setEditedTask]);
+    }, [addPerson, setDraftField]);
     const closeWaitingAssignmentModal = useCallback(() => {
         setWaitingAssignmentModalVisible(false);
     }, []);
     const confirmWaitingAssignment = useCallback(() => {
-        const assignedTo = waitingAssignmentInput.trim() || undefined;
-        setEditedTask((prev) => ({ ...prev, status: 'waiting', assignedTo }));
+        setDraftField('status', 'waiting');
+        setDraftField('assignedTo', waitingAssignmentInput.trim());
         setWaitingAssignmentModalVisible(false);
-    }, [setEditedTask, waitingAssignmentInput]);
+    }, [setDraftField, waitingAssignmentInput]);
     const requestStatusChange = useCallback((status: TaskStatus) => {
-        const currentStatus = editedTask.status ?? task?.status;
+        const currentStatus = taskEditDraft?.draft.status ?? task?.status;
         if (status === 'waiting' && currentStatus !== 'waiting') {
-            setWaitingAssignmentInput(String(editedTask.assignedTo ?? task?.assignedTo ?? ''));
+            setWaitingAssignmentInput(taskEditDraft?.draft.assignedTo ?? task?.assignedTo ?? '');
             setWaitingAssignmentModalVisible(true);
             return;
         }
-        setEditedTask((prev) => ({ ...prev, status }));
-    }, [editedTask.assignedTo, editedTask.status, setEditedTask, task?.assignedTo, task?.status]);
+        setDraftField('status', status);
+    }, [setDraftField, task?.assignedTo, task?.status, taskEditDraft?.draft.assignedTo, taskEditDraft?.draft.status]);
     const requestBackdatedCompletion = useCallback(() => {
         setCompletedAtPickerVisible(true);
     }, []);
     const confirmBackdatedCompletion = useCallback((completedAt: string) => {
         setCompletedAtPickerVisible(false);
-        setEditedTask((prev) => ({ ...prev, status: 'done', completedAt }));
-    }, [setEditedTask]);
+        setDraftField('status', 'done');
+        setDraftField('completedAt', completedAt);
+    }, [setDraftField]);
     const toggleQuickContextToken = useCallback((token: string) => {
         const next = new Set(parseTokenList(contextInputDraft, '@'));
         if (next.has(token)) {
@@ -623,7 +636,7 @@ function TaskEditModalInner({
         descriptionDraftRef,
         duplicateTask,
         promoteTaskToProject,
-        editedTask,
+        mergedTask,
         taskEditDraft,
         formatDate,
         formatDueDate,
@@ -639,7 +652,8 @@ function TaskEditModalInner({
         restoreTask,
         sections,
         setAiModal,
-        setEditedTask,
+        setChecklist,
+        setDraftField,
         setIsAIWorking,
         setTitleImmediate,
         settings,
@@ -686,6 +700,7 @@ function TaskEditModalInner({
         availableStatusOptions,
         commitContextDraft,
         commitTagDraft,
+        checklist: taskEditDraft?.checklist,
         contextInputDraft,
         contextTokenSuggestions,
         createAssignedToPerson,
@@ -705,8 +720,8 @@ function TaskEditModalInner({
         applyQuickDate,
         openDescriptionExpandedEditor: descriptionEditor.openDescriptionExpandedEditor,
         downloadAttachment,
+        draft: taskEditDraft?.draft ?? null,
         editLinkAttachment,
-        editedTask,
         formatDate,
         formatDueDate,
         frequentContextSuggestions,
@@ -739,7 +754,7 @@ function TaskEditModalInner({
         selectedContextTokens,
         selectedTagTokens,
         setCustomWeekdays,
-        setEditedTask,
+        setDraftField,
         setIsContextInputFocused,
         setIsTagInputFocused,
         setLinkInputTouched,
@@ -778,6 +793,7 @@ function TaskEditModalInner({
         availableStatusOptions,
         commitContextDraft,
         commitTagDraft,
+        taskEditDraft?.checklist,
         contextInputDraft,
         contextTokenSuggestions,
         createAssignedToPerson,
@@ -796,8 +812,8 @@ function TaskEditModalInner({
         descriptionEditor.setIsDescriptionInputFocused,
         descriptionToolbarInteractionUntilRef,
         downloadAttachment,
+        taskEditDraft?.draft,
         editLinkAttachment,
-        editedTask,
         formatDate,
         formatDueDate,
         frequentContextSuggestions,
@@ -830,7 +846,7 @@ function TaskEditModalInner({
         selectedContextTokens,
         selectedTagTokens,
         setCustomWeekdays,
-        setEditedTask,
+        setDraftField,
         setIsContextInputFocused,
         setIsTagInputFocused,
         setLinkInputTouched,
@@ -924,8 +940,9 @@ function TaskEditModalInner({
                                 tc={tc}
                                 styles={styles}
                                 inputStyle={inputStyle}
-                                editedTask={editedTask}
-                                setEditedTask={setEditedTask}
+                                attachments={taskEditDraft?.attachments}
+                                checklist={taskEditDraft?.checklist}
+                                draft={taskEditDraft?.draft ?? null}
                                 aiEnabled={aiEnabled}
                                 isAIWorking={isAIWorking}
                                 handleAIClarify={formHandleAIClarify}
@@ -1016,6 +1033,7 @@ function TaskEditModalInner({
                         customOrdinal={customOrdinal}
                         customRecurrenceVisible={customRecurrenceVisible}
                         customWeekday={customWeekday}
+                        draft={taskEditDraft?.draft}
                         filteredProjectsForPicker={filteredProjectsForPicker}
                         imagePreviewAttachment={imagePreviewAttachment}
                         linkInput={linkInput}
@@ -1034,7 +1052,7 @@ function TaskEditModalInner({
                         setCustomOrdinal={setCustomOrdinal}
                         setCustomRecurrenceVisible={setCustomRecurrenceVisible}
                         setCustomWeekday={setCustomWeekday}
-                        setEditedTask={setEditedTask}
+                        setDraftField={setDraftField}
                         setLinkInput={setLinkInput}
                         setLinkInputTouched={setLinkInputTouched}
                         setShowAreaPicker={setShowAreaPicker}

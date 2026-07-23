@@ -11,6 +11,9 @@ import {
     useTaskStore,
     validateAttachmentForUpload,
 } from '@mindwtr/core';
+import {
+    toTaskDraftDateTimeLocalValue,
+} from '@mindwtr/core/task-draft';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
 import * as Sharing from 'expo-sharing';
@@ -27,18 +30,38 @@ import {
     logTaskError,
     logTaskWarn,
 } from './task-edit-modal.utils';
-import type { SetEditedTask } from './use-task-edit-state';
+import type {
+    SetTaskEditDraftField,
+    SetTaskEditDraftValue,
+} from './use-task-edit-state';
+
+const EMPTY_ATTACHMENTS: Attachment[] = [];
 
 type UseTaskEditAttachmentsParams = {
-    editedTask: Partial<Task>;
-    setEditedTask: SetEditedTask;
+    attachments: Attachment[] | undefined;
+    setAttachments: SetTaskEditDraftValue<Attachment[] | undefined>;
+    setDraftField: SetTaskEditDraftField;
+    taskId: string | undefined;
     t: (key: string) => string;
     visible: boolean;
 };
 
+const applySpeechUpdatesToDraft = (updates: Partial<Task>, setDraftField: SetTaskEditDraftField) => {
+    if ('title' in updates) setDraftField('title', updates.title ?? '', false);
+    if ('description' in updates) setDraftField('description', updates.description ?? '', false);
+    if ('dueDate' in updates) setDraftField('dueDate', toTaskDraftDateTimeLocalValue(updates.dueDate), false);
+    if ('startTime' in updates) setDraftField('startTime', toTaskDraftDateTimeLocalValue(updates.startTime), false);
+    if ('tags' in updates) setDraftField('tags', (updates.tags ?? []).join(', '), false);
+    if ('contexts' in updates) setDraftField('contexts', (updates.contexts ?? []).join(', '), false);
+    if ('projectId' in updates) setDraftField('projectId', updates.projectId ?? '', false);
+    if ('areaId' in updates) setDraftField('areaId', updates.areaId ?? '', false);
+};
+
 export function useTaskEditAttachments({
-    editedTask,
-    setEditedTask,
+    attachments = EMPTY_ATTACHMENTS,
+    setAttachments,
+    setDraftField,
+    taskId,
     t,
     visible,
 }: UseTaskEditAttachmentsParams) {
@@ -58,10 +81,6 @@ export function useTaskEditAttachments({
     const audioLoadedRef = React.useRef(false);
     const audioStoppingRef = React.useRef(false);
 
-    const attachments = React.useMemo(
-        () => (editedTask.attachments || []) as Attachment[],
-        [editedTask.attachments]
-    );
     const visibleAttachments = React.useMemo(
         () => attachments.filter((attachment) => !attachment.deletedAt),
         [attachments]
@@ -119,8 +138,8 @@ export function useTaskEditAttachments({
             Alert.alert(t('attachments.title'), t('attachments.fileNotReadable'));
             return;
         }
-        setEditedTask((prev) => ({ ...prev, attachments: [...(prev.attachments || []), cached] }));
-    }, [resolveValidationMessage, setEditedTask, t]);
+        setAttachments((current) => [...(current || []), cached]);
+    }, [resolveValidationMessage, setAttachments, t]);
 
     const addImageAttachment = React.useCallback(async () => {
         let imagePicker: typeof import('expo-image-picker') | null = null;
@@ -182,8 +201,8 @@ export function useTaskEditAttachments({
             Alert.alert(t('attachments.title'), t('attachments.fileNotReadable'));
             return;
         }
-        setEditedTask((prev) => ({ ...prev, attachments: [...(prev.attachments || []), cached] }));
-    }, [resolveValidationMessage, setEditedTask, t]);
+        setAttachments((current) => [...(current || []), cached]);
+    }, [resolveValidationMessage, setAttachments, t]);
 
     const openAddLinkAttachment = React.useCallback(() => {
         setEditingLinkAttachmentId(null);
@@ -216,9 +235,8 @@ export function useTaskEditAttachments({
         }
         const now = new Date().toISOString();
         if (editingLinkAttachmentId) {
-            setEditedTask((prev) => ({
-                ...prev,
-                attachments: (prev.attachments || []).map((attachment) => (
+            setAttachments((current) => (
+                (current || []).map((attachment) => (
                     attachment.id === editingLinkAttachmentId
                         ? {
                             ...attachment,
@@ -228,8 +246,8 @@ export function useTaskEditAttachments({
                             updatedAt: now,
                         }
                         : attachment
-                )),
-            }));
+                ))
+            ));
             setLinkInput('');
             setLinkInputTouched(false);
             setEditingLinkAttachmentId(null);
@@ -244,12 +262,12 @@ export function useTaskEditAttachments({
             createdAt: now,
             updatedAt: now,
         };
-        setEditedTask((prev) => ({ ...prev, attachments: [...(prev.attachments || []), attachment] }));
+        setAttachments((current) => [...(current || []), attachment]);
         setLinkInput('');
         setLinkInputTouched(false);
         setEditingLinkAttachmentId(null);
         setLinkModalVisible(false);
-    }, [editingLinkAttachmentId, linkInput, setEditedTask, t]);
+    }, [editingLinkAttachmentId, linkInput, setAttachments, t]);
 
     const closeLinkModal = React.useCallback(() => {
         setLinkModalVisible(false);
@@ -374,7 +392,6 @@ export function useTaskEditAttachments({
 
     const retryAudioTranscription = React.useCallback(async () => {
         const currentAttachment = audioAttachment;
-        const taskId = editedTask.id;
         if (!currentAttachment || currentAttachment.kind !== 'file' || !currentAttachment.uri || !taskId || audioTranscribing) {
             return;
         }
@@ -453,7 +470,7 @@ export function useTaskEditAttachments({
 
             if (Object.keys(updates).length > 0) {
                 await updateTaskNow(taskId, updates);
-                setEditedTask((prev) => ({ ...prev, ...updates }), false);
+                applySpeechUpdatesToDraft(updates, setDraftField);
             }
             closeAudioModal();
         } catch (error) {
@@ -462,16 +479,16 @@ export function useTaskEditAttachments({
         } finally {
             setAudioTranscribing(false);
         }
-    }, [audioAttachment, audioTranscribing, closeAudioModal, editedTask.id, resolveText, setEditedTask, unloadAudio]);
+    }, [audioAttachment, audioTranscribing, closeAudioModal, resolveText, setDraftField, taskId, unloadAudio]);
 
     const updateAttachmentState = React.useCallback((nextAttachment: Attachment) => {
-        setEditedTask((prev) => {
-            const nextAttachments = (prev.attachments || []).map((item) =>
+        setAttachments((current) => {
+            const nextAttachments = (current || []).map((item) =>
                 item.id === nextAttachment.id ? { ...item, ...nextAttachment } : item
             );
-            return { ...prev, attachments: nextAttachments };
+            return nextAttachments;
         }, false);
-    }, [setEditedTask]);
+    }, [setAttachments]);
 
     const resolveAttachment = React.useCallback(async (attachment: Attachment): Promise<Attachment | null> => {
         if (attachment.kind !== 'file') return attachment;
@@ -541,8 +558,8 @@ export function useTaskEditAttachments({
         const next = attachments.map((attachment) =>
             attachment.id === id ? { ...attachment, deletedAt: now, updatedAt: now } : attachment
         );
-        setEditedTask((prev) => ({ ...prev, attachments: next }));
-    }, [attachments, setEditedTask]);
+        setAttachments(next);
+    }, [attachments, setAttachments]);
 
     React.useEffect(() => {
         if (!visible) {

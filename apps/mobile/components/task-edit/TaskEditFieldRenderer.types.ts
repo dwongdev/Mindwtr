@@ -20,9 +20,8 @@ import type {
     MarkdownToolbarResult,
     Person,
 } from '@mindwtr/core';
+import type { TaskDraft, TaskDraftSetter } from '@mindwtr/core/task-draft';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
-
-import type { SetEditedTask } from './use-task-edit-state';
 
 export type ShowDatePickerMode = 'start' | 'start-time' | 'due' | 'due-time' | 'review' | 'recurrence-end' | null;
 
@@ -49,6 +48,7 @@ export type TaskEditFieldRendererProps = {
     applyQuickDate: (mode: 'start' | 'due' | 'review', selectedDate: Date | null) => void;
     commitContextDraft: () => void;
     commitTagDraft: () => void;
+    checklist: Task['checklist'];
     contextInputDraft: string;
     contextTokenSuggestions: string[];
     createAssignedToPerson: (name: string) => Promise<Person | null>;
@@ -68,8 +68,8 @@ export type TaskEditFieldRendererProps = {
     applyChecklistUpdate: (checklist: NonNullable<Task['checklist']>) => void;
     openDescriptionExpandedEditor: () => void;
     downloadAttachment: (attachment: Attachment) => void | Promise<void>;
+    draft: TaskDraft | null;
     editLinkAttachment: (attachment: Attachment) => void | Promise<void>;
-    editedTask: Partial<Task>;
     formatDate: (dateStr?: string) => string;
     formatDueDate: (dateStr?: string) => string;
     frequentContextSuggestions: string[];
@@ -101,7 +101,7 @@ export type TaskEditFieldRendererProps = {
     selectedContextTokens: Set<string>;
     selectedTagTokens: Set<string>;
     setCustomWeekdays: React.Dispatch<React.SetStateAction<RecurrenceWeekday[]>>;
-    setEditedTask: SetEditedTask;
+    setDraftField: TaskDraftSetter;
     setIsContextInputFocused: React.Dispatch<React.SetStateAction<boolean>>;
     setIsTagInputFocused: React.Dispatch<React.SetStateAction<boolean>>;
     setLinkInputTouched: React.Dispatch<React.SetStateAction<boolean>>;

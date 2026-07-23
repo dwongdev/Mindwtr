@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from '@mindwtr/core';
+import { setTaskDraftField } from '@mindwtr/core/task-draft';
 
 import {
-    applyTaskEditUpdate,
     buildTaskEditUpdatePatch,
     createTaskEditDraft,
     isTaskEditDraftDirty,
-    projectTaskEditDraft,
 } from './task-edit-draft-adapter';
 
 const baseTask: Task = {
@@ -35,7 +34,7 @@ const baseTask: Task = {
 };
 
 describe('mobile task edit draft', () => {
-    it('owns one fresh TaskDraft while projecting the Task shape existing fields consume', () => {
+    it('owns one fresh TaskDraft with independent checklist and attachment buffers', () => {
         const state = createTaskEditDraft(baseTask);
 
         expect(state.draft).toMatchObject({
@@ -44,18 +43,12 @@ describe('mobile task edit draft', () => {
             sectionId: 'section-1',
             contexts: '@office',
         });
-        expect(projectTaskEditDraft(state, baseTask)).toMatchObject({
-            id: 'task-1',
-            title: 'Plan launch',
-            contexts: ['@office'],
-            tags: ['#launch'],
-            checklist: baseTask.checklist,
-            attachments: baseTask.attachments,
-        });
+        expect(state.checklist).toBe(baseTask.checklist);
+        expect(state.attachments).toBe(baseTask.attachments);
         expect(isTaskEditDraftDirty(state, baseTask)).toBe(false);
     });
 
-    it('routes a legacy field update through TaskDraft cascades', () => {
+    it('keeps TaskDraft cascades authoritative', () => {
         const focusedTask: Task = {
             ...baseTask,
             status: 'done',
@@ -64,16 +57,16 @@ describe('mobile task edit draft', () => {
         };
         const state = createTaskEditDraft(focusedTask);
 
-        const next = applyTaskEditUpdate(state, focusedTask, (current) => ({
-            ...current,
-            status: 'inbox',
-        }));
+        const next = {
+            ...state,
+            draft: setTaskDraftField(state.draft, 'status', 'inbox'),
+        };
 
         expect(next).not.toBe(state);
         expect(next.draft.status).toBe('inbox');
         expect(next.draft.focusedToday).toBe(false);
         expect(next.draft.completedAt).toBe('');
-        expect(projectTaskEditDraft(next, focusedTask)).toMatchObject({
+        expect(buildTaskEditUpdatePatch(next, focusedTask)).toMatchObject({
             status: 'inbox',
             isFocusedToday: false,
             completedAt: undefined,
@@ -84,16 +77,12 @@ describe('mobile task edit draft', () => {
         });
     });
 
-    it('preserves accumulated draft edits across sequential partial updates', () => {
-        const described = applyTaskEditUpdate(createTaskEditDraft(baseTask), baseTask, {
-            description: 'Revised brief',
-        });
+    it('preserves accumulated direct draft edits', () => {
+        const state = createTaskEditDraft(baseTask);
+        const described = setTaskDraftField(state.draft, 'description', 'Revised brief');
+        const located = setTaskDraftField(described, 'location', 'Studio');
 
-        const located = applyTaskEditUpdate(described, baseTask, {
-            location: 'Studio',
-        });
-
-        expect(projectTaskEditDraft(located, baseTask)).toMatchObject({
+        expect(buildTaskEditUpdatePatch({ ...state, draft: located }, baseTask)).toMatchObject({
             description: 'Revised brief',
             location: 'Studio',
         });
@@ -108,21 +97,15 @@ describe('mobile task edit draft', () => {
                 completedOccurrences: 2,
             },
         };
-        const state = applyTaskEditUpdate(createTaskEditDraft(recurringTask), recurringTask, (current) => ({
-            ...current,
-            projectId: undefined,
-            sectionId: undefined,
-            areaId: 'area-1',
-            location: '  Studio  ',
-            recurrence: {
-                rule: 'weekly',
-                strategy: 'fluid',
-                byDay: ['MO', 'WE'],
-                rrule: 'FREQ=WEEKLY;BYDAY=MO,WE;COUNT=5',
-            },
-        }));
+        const state = createTaskEditDraft(recurringTask);
+        let draft = setTaskDraftField(state.draft, 'projectId', '');
+        draft = setTaskDraftField(draft, 'sectionId', '');
+        draft = setTaskDraftField(draft, 'areaId', 'area-1');
+        draft = setTaskDraftField(draft, 'location', '  Studio  ');
+        draft = setTaskDraftField(draft, 'recurrenceStrategy', 'fluid');
+        draft = setTaskDraftField(draft, 'recurrenceRRule', 'FREQ=WEEKLY;BYDAY=MO,WE;COUNT=5');
 
-        const patch = buildTaskEditUpdatePatch(state, recurringTask, {
+        const patch = buildTaskEditUpdatePatch({ ...state, draft }, recurringTask, {
             title: '  Plan launch v2  ',
             description: 'Revised brief',
         });
@@ -151,14 +134,14 @@ describe('mobile task edit draft', () => {
 
     it('keeps checklist and attachment buffers independent from scalar draft fields', () => {
         const removedAt = '2026-07-15T00:00:00.000Z';
-        const state = applyTaskEditUpdate(createTaskEditDraft(baseTask), baseTask, (current) => ({
-            ...current,
+        const state = {
+            ...createTaskEditDraft(baseTask),
             checklist: [],
-            attachments: current.attachments?.map((attachment) => ({
+            attachments: baseTask.attachments?.map((attachment) => ({
                 ...attachment,
                 deletedAt: removedAt,
             })),
-        }));
+        };
 
         expect(isTaskEditDraftDirty(state, baseTask)).toBe(true);
         expect(state.draft.description).toBe('');

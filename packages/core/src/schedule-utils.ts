@@ -1,11 +1,35 @@
 import { isAfter } from 'date-fns';
 import { hasTimeComponent, safeParseDate } from './date';
-import type { Task } from './types';
+import type { Project, Task } from './types';
 
-type ScheduleOptions = {
+export type ScheduleOptions = {
     includeStartTime?: boolean;
     includeDueDate?: boolean;
     includeReviewAt?: boolean;
+};
+
+export type TaskReminderIntentKind = 'start' | 'due' | 'review' | 'due-repeat';
+
+export type TaskReminderIntent = {
+    key: string;
+    dedupeKey: string;
+    taskId: string;
+    kind: TaskReminderIntentKind;
+    scheduledAt: Date;
+    repeatIndex?: number;
+};
+
+export type TaskReminderPlan = {
+    next: TaskReminderIntent | null;
+    repeats: TaskReminderIntent[];
+};
+
+export type ProjectReviewReminderIntent = {
+    key: string;
+    dedupeKey: string;
+    projectId: string;
+    kind: 'project-review';
+    scheduledAt: Date;
 };
 
 export const REPEAT_REMINDER_INTERVAL_OPTIONS = [5, 10, 15, 30, 60] as const;
@@ -29,29 +53,65 @@ function parseExplicitReminderDate(value: string | undefined | null): Date | nul
     return safeParseDate(value ?? undefined);
 }
 
+function isInactiveTask(task: Task): boolean {
+    return Boolean(
+        task.deletedAt
+        || task.status === 'done'
+        || task.status === 'archived'
+        || task.status === 'reference',
+    );
+}
+
+function getNextTaskReminderIntent(
+    task: Task,
+    now: Date,
+    options: ScheduleOptions,
+): TaskReminderIntent | null {
+    if (isInactiveTask(task)) return null;
+
+    const includeTaskReminders = task.suppressMindwtrReminders !== true;
+    const candidates: TaskReminderIntent[] = [];
+    const addCandidate = (
+        kind: Exclude<TaskReminderIntentKind, 'due-repeat'>,
+        value: string | undefined,
+        enabled: boolean,
+    ) => {
+        if (!enabled) return;
+        const scheduledAt = parseExplicitReminderDate(value);
+        if (!scheduledAt || !isAfter(scheduledAt, now)) return;
+        candidates.push({
+            key: `task:${task.id}`,
+            dedupeKey: scheduledAt.toISOString(),
+            taskId: task.id,
+            kind,
+            scheduledAt,
+        });
+    };
+
+    addCandidate(
+        'start',
+        task.startTime,
+        includeTaskReminders && options.includeStartTime !== false,
+    );
+    addCandidate(
+        'due',
+        task.dueDate,
+        includeTaskReminders && options.includeDueDate !== false,
+    );
+    addCandidate('review', task.reviewAt, options.includeReviewAt === true);
+
+    candidates.sort((left, right) =>
+        left.scheduledAt.getTime() - right.scheduledAt.getTime(),
+    );
+    return candidates[0] ?? null;
+}
+
 /**
  * Returns the next future scheduled time for a task, based on startTime/dueDate.
  * Used by apps to drive local notification scheduling.
  */
 export function getNextScheduledAt(task: Task, now: Date = new Date(), options: ScheduleOptions = {}): Date | null {
-    if (task.deletedAt) return null;
-    if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return null;
-
-    const candidates: Date[] = [];
-    const includeTaskReminders = task.suppressMindwtrReminders !== true;
-    const includeStartTime = includeTaskReminders && options.includeStartTime !== false;
-    const includeDueDate = includeTaskReminders && options.includeDueDate !== false;
-    const start = includeStartTime ? parseExplicitReminderDate(task.startTime) : null;
-    const due = includeDueDate ? parseExplicitReminderDate(task.dueDate) : null;
-    const review = options.includeReviewAt ? parseExplicitReminderDate(task.reviewAt) : null;
-
-    if (start && isAfter(start, now)) candidates.push(start);
-    if (due && isAfter(due, now)) candidates.push(due);
-    if (review && isAfter(review, now)) candidates.push(review);
-
-    if (candidates.length === 0) return null;
-    candidates.sort((a, b) => a.getTime() - b.getTime());
-    return candidates[0];
+    return getNextTaskReminderIntent(task, now, options)?.scheduledAt ?? null;
 }
 
 /**
@@ -66,8 +126,7 @@ export function getNextScheduledAt(task: Task, now: Date = new Date(), options: 
  * Pure: callers filter by `now` for delivery.
  */
 export function getDueReminderRepeatTimes(task: Task, options: ScheduleOptions = {}): Date[] {
-    if (task.deletedAt) return [];
-    if (task.status === 'done' || task.status === 'archived' || task.status === 'reference') return [];
+    if (isInactiveTask(task)) return [];
     if (task.suppressMindwtrReminders === true) return [];
     if (options.includeDueDate === false) return [];
 
@@ -86,6 +145,43 @@ export function getDueReminderRepeatTimes(task: Task, options: ScheduleOptions =
         times.push(new Date(due.getTime() + i * interval * 60_000));
     }
     return times;
+}
+
+export function getTaskReminderPlan(
+    task: Task,
+    now: Date = new Date(),
+    options: ScheduleOptions = {},
+): TaskReminderPlan {
+    const repeats = getDueReminderRepeatTimes(task, options).map(
+        (scheduledAt, index): TaskReminderIntent => ({
+            key: `task:${task.id}:r${index + 1}`,
+            dedupeKey: `${task.dueDate}#${index + 1}`,
+            taskId: task.id,
+            kind: 'due-repeat',
+            scheduledAt,
+            repeatIndex: index + 1,
+        }),
+    );
+    return {
+        next: getNextTaskReminderIntent(task, now, options),
+        repeats,
+    };
+}
+
+export function getProjectReviewReminderIntent(
+    project: Project,
+    now: Date = new Date(),
+): ProjectReviewReminderIntent | null {
+    if (project.deletedAt || project.status === 'archived') return null;
+    const scheduledAt = parseExplicitReminderDate(project.reviewAt);
+    if (!scheduledAt || !isAfter(scheduledAt, now)) return null;
+    return {
+        key: `project:${project.id}`,
+        dedupeKey: scheduledAt.toISOString(),
+        projectId: project.id,
+        kind: 'project-review',
+        scheduledAt,
+    };
 }
 
 export function getUpcomingSchedules(tasks: Task[], now: Date = new Date(), options: ScheduleOptions = {}) {

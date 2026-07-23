@@ -2,6 +2,7 @@ import React from 'react';
 import { Dimensions, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createTaskDraft } from '@mindwtr/core/task-draft';
 
 import { TaskEditFormTab } from './TaskEditFormTab';
 
@@ -41,6 +42,15 @@ vi.mock('@/hooks/use-theme-colors', () => ({
 }));
 
 const originalPlatformOs = Platform.OS;
+const baseDraft = createTaskDraft({
+  id: 'task-1',
+  title: 'Task',
+  status: 'next',
+  tags: [],
+  contexts: [],
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+});
 
 const setPlatform = (os: typeof Platform.OS) => {
   Object.defineProperty(Platform, 'OS', {
@@ -88,8 +98,9 @@ const baseProps = {
     emptySectionHintText: {},
   },
   inputStyle: {},
-  editedTask: {},
-  setEditedTask: vi.fn(),
+  attachments: [],
+  checklist: [],
+  draft: baseDraft,
   aiEnabled: false,
   isAIWorking: false,
   handleAIClarify: vi.fn(),
@@ -704,7 +715,7 @@ describe('TaskEditFormTab keyboard handling', () => {
       tree = create(
         <TaskEditFormTab
           {...baseProps}
-          editedTask={{ description: 'Notes' }}
+          draft={{ ...baseProps.draft, description: 'Notes' }}
           detailsFields={['description']}
           renderField={renderField}
         />

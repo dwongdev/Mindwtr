@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, TextInput } from 'react-native';
 import renderer, { act } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -60,6 +60,17 @@ const baseProps = {
     areas: [],
     assignedToSuggestions: [],
     availableStatusOptions: [],
+    draft: {
+        projectId: '',
+        sectionId: '',
+        areaId: '',
+        status: 'next',
+        priority: '',
+        energyLevel: '',
+        assignedTo: '',
+        timeEstimate: '',
+        timeSpentMinutes: undefined,
+    },
     editedTask: {},
     energyLevelOptions: [],
     handleInputFocus: vi.fn(),
@@ -70,7 +81,7 @@ const baseProps = {
     projects: [],
     requestBackdatedCompletion: vi.fn(),
     requestStatusChange: vi.fn(),
-    setEditedTask: vi.fn(),
+    setDraftField: vi.fn(),
     setShowAreaPicker: vi.fn(),
     setShowProjectPicker: vi.fn(),
     setShowSectionPicker: vi.fn(),
@@ -203,7 +214,7 @@ describe('TaskEditOrganizationField', () => {
                 <TaskEditOrganizationField
                     {...(baseProps as any)}
                     fieldId="assignedTo"
-                    editedTask={{ assignedTo: 'Morgan' }}
+                    draft={{ ...baseProps.draft, assignedTo: 'Morgan' }}
                     assignedToSuggestions={[]}
                     createAssignedToPerson={createAssignedToPerson}
                 />
@@ -216,5 +227,26 @@ describe('TaskEditOrganizationField', () => {
         });
 
         expect(createAssignedToPerson).toHaveBeenCalledWith('Morgan');
+    });
+
+    it('writes organization fields straight to the Task draft', () => {
+        const setDraftField = vi.fn();
+
+        let tree!: renderer.ReactTestRenderer;
+        act(() => {
+            tree = renderer.create(
+                <TaskEditOrganizationField
+                    {...(baseProps as any)}
+                    fieldId="assignedTo"
+                    setDraftField={setDraftField}
+                />
+            );
+        });
+
+        act(() => {
+            tree.root.findByType(TextInput).props.onChangeText('Morgan');
+        });
+
+        expect(setDraftField).toHaveBeenCalledWith('assignedTo', 'Morgan');
     });
 });

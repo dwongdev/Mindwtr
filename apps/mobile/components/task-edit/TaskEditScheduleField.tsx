@@ -6,7 +6,6 @@ import {
     computeRelativeStartTime,
     getProjectedRecurringTaskCalendarDate,
     getTaskDateCoherenceIssues,
-    getRecurrenceUntilValue,
     hasTimeComponent,
     parseRRuleString,
     RECURRENCE_INTERVAL_MAX,
@@ -55,7 +54,7 @@ export function TaskEditScheduleField({
     applyQuickDate,
     customWeekdays,
     dailyInterval,
-    editedTask,
+    draft,
     fieldId,
     formatDate,
     formatDueDate,
@@ -71,7 +70,7 @@ export function TaskEditScheduleField({
     recurrenceStrategyValue,
     recurrenceWeekdayButtons,
     setCustomWeekdays,
-    setEditedTask,
+    setDraftField,
     setShowDatePicker,
     showDatePicker,
     styles,
@@ -80,6 +79,7 @@ export function TaskEditScheduleField({
     task,
 }: TaskEditScheduleFieldProps) {
     const [repeatReminderOptionsExpanded, setRepeatReminderOptionsExpanded] = React.useState(false);
+    if (!draft) return null;
     const getStatusChipStyle = (active: boolean) => ([
         styles.statusChip,
         { backgroundColor: active ? tc.tint : tc.filterBg, borderColor: active ? tc.tint : tc.border },
@@ -99,7 +99,7 @@ export function TaskEditScheduleField({
             : 'never';
     const recurrenceDefaultEndDate = parsedRecurrenceRRule.until
         || safeFormatDate(
-            safeParseDate(editedTask.dueDate ?? editedTask.startTime ?? task?.dueDate ?? task?.startTime) ?? new Date(),
+            safeParseDate(draft.dueDate || draft.startTime || task?.dueDate || task?.startTime) ?? new Date(),
             'yyyy-MM-dd'
         );
     const buildEditedRecurrence = (
@@ -116,14 +116,12 @@ export function TaskEditScheduleField({
     ) => {
         const hasOverride = <TKey extends keyof typeof overrides>(key: TKey) =>
             Object.prototype.hasOwnProperty.call(overrides, key);
-        const completedOccurrences = editedTask.recurrence && typeof editedTask.recurrence === 'object'
-            ? editedTask.recurrence.completedOccurrences
+        const completedOccurrences = task?.recurrence && typeof task.recurrence === 'object'
+            ? task.recurrence.completedOccurrences
             : undefined;
         const byDay = hasOverride('byDay')
             ? overrides.byDay
-            : (editedTask.recurrence && typeof editedTask.recurrence === 'object' && editedTask.recurrence.byDay?.length
-                ? editedTask.recurrence.byDay
-                : parsedRecurrenceRRule.byDay);
+            : parsedRecurrenceRRule.byDay;
         const interval = hasOverride('interval') ? overrides.interval : parsedRecurrenceRRule.interval;
         const byMonthDay = hasOverride('byMonthDay') ? overrides.byMonthDay : parsedRecurrenceRRule.byMonthDay;
         const count = hasOverride('count') ? overrides.count : parsedRecurrenceRRule.count;
@@ -140,19 +138,36 @@ export function TaskEditScheduleField({
             rrule,
         });
     };
+    const applyRecurrence = (recurrence: Task['recurrence']) => {
+        if (!recurrence) {
+            setDraftField('recurrence', '');
+            setDraftField('recurrenceStrategy', 'strict');
+            setDraftField('recurrenceRRule', '');
+            return;
+        }
+        if (typeof recurrence === 'string') {
+            setDraftField('recurrence', recurrence);
+            setDraftField('recurrenceStrategy', 'strict');
+            setDraftField('recurrenceRRule', '');
+            return;
+        }
+        setDraftField('recurrence', recurrence.rule);
+        setDraftField('recurrenceStrategy', recurrence.strategy === 'fluid' ? 'fluid' : 'strict');
+        setDraftField('recurrenceRRule', recurrence.rrule ?? '');
+    };
     const openDatePicker = (mode: NonNullable<ShowDatePickerMode>) => {
         Keyboard.dismiss();
         setShowDatePicker(mode);
     };
     const getDatePickerValue = (mode: NonNullable<ShowDatePickerMode>) => {
-        if (mode === 'start') return getSafePickerDateValue(editedTask.startTime);
-        if (mode === 'start-time') return pendingStartDate ?? getSafePickerDateValue(editedTask.startTime);
-        if (mode === 'review') return getSafePickerDateValue(editedTask.reviewAt);
+        if (mode === 'start') return getSafePickerDateValue(draft.startTime);
+        if (mode === 'start-time') return pendingStartDate ?? getSafePickerDateValue(draft.startTime);
+        if (mode === 'review') return getSafePickerDateValue(draft.reviewAt);
         if (mode === 'recurrence-end') {
-            return getSafePickerDateValue(getRecurrenceUntilValue(editedTask.recurrence) || recurrenceDefaultEndDate);
+            return getSafePickerDateValue(parsedRecurrenceRRule.until || recurrenceDefaultEndDate);
         }
-        if (mode === 'due-time') return pendingDueDate ?? getSafePickerDateValue(editedTask.dueDate);
-        return getSafePickerDateValue(editedTask.dueDate);
+        if (mode === 'due-time') return pendingDueDate ?? getSafePickerDateValue(draft.dueDate);
+        return getSafePickerDateValue(draft.dueDate);
     };
     const getDatePickerMode = (mode: NonNullable<ShowDatePickerMode>) =>
         mode === 'start-time' || mode === 'due-time' ? 'time' : 'date';
@@ -207,8 +222,8 @@ export function TaskEditScheduleField({
     };
     const dateOnlyLabel = t('taskEdit.dateOnly');
     const dateIssueLabel = getTaskDateCoherenceIssues({
-        startTime: editedTask.startTime,
-        dueDate: editedTask.dueDate,
+        startTime: draft.startTime,
+        dueDate: draft.dueDate,
     }).some((issue) => issue.code === 'start_after_due')
         ? tFallback(t, 'task.dateIssue.startAfterDue', 'Starts after due date')
         : '';
@@ -219,24 +234,27 @@ export function TaskEditScheduleField({
             </Text>
         ) : null
     );
-    const clearTimePart = (value?: string): string | undefined => {
+    const clearTimePart = (value?: string): string => {
         const parsed = safeParseDate(value);
-        return parsed ? safeFormatDate(parsed, 'yyyy-MM-dd') : undefined;
+        return parsed ? safeFormatDate(parsed, 'yyyy-MM-dd') : '';
     };
     const projectedRecurrenceDateLabel = (() => {
-        const recurrence = editedTask.recurrence ?? task?.recurrence;
+        const recurrence = draft.recurrence ? buildEditedRecurrence(draft.recurrence) : undefined;
         if (!recurrenceRuleValue || !recurrence) return '';
         const nowIso = new Date().toISOString();
+        const splitTokens = (value: string) => value.split(',').map((token) => token.trim()).filter(Boolean);
         const previewTask = {
             ...(task ?? {}),
-            ...editedTask,
-            id: editedTask.id ?? task?.id ?? 'draft-recurrence-preview',
-            title: String(editedTask.title ?? task?.title ?? ''),
-            status: editedTask.status ?? task?.status ?? 'next',
-            tags: editedTask.tags ?? task?.tags ?? [],
-            contexts: editedTask.contexts ?? task?.contexts ?? [],
-            createdAt: editedTask.createdAt ?? task?.createdAt ?? nowIso,
-            updatedAt: editedTask.updatedAt ?? task?.updatedAt ?? nowIso,
+            id: task?.id ?? 'draft-recurrence-preview',
+            title: draft.title,
+            status: draft.status,
+            tags: splitTokens(draft.tags),
+            contexts: splitTokens(draft.contexts),
+            createdAt: task?.createdAt ?? nowIso,
+            updatedAt: task?.updatedAt ?? nowIso,
+            startTime: draft.startTime || undefined,
+            dueDate: draft.dueDate || undefined,
+            reviewAt: draft.reviewAt || undefined,
             recurrence,
             showFutureRecurrence: true,
         } as Task;
@@ -245,10 +263,10 @@ export function TaskEditScheduleField({
     const projectedRecurrenceDateHint = projectedRecurrenceDateLabel
         ? `${tFallback(t, 'recurrence.nextCalendarPreview', 'Next calendar preview')}: ${projectedRecurrenceDateLabel}.`
         : '';
-    const hasReminderHandoffSchedule = hasTimeComponent(editedTask.startTime) || hasTimeComponent(editedTask.dueDate);
+    const hasReminderHandoffSchedule = hasTimeComponent(draft.startTime) || hasTimeComponent(draft.dueDate);
     const renderReminderHandoffControl = () => {
         if (fieldId !== 'dueDate' || !hasReminderHandoffSchedule) return null;
-        const enabled = editedTask.suppressMindwtrReminders === true;
+        const enabled = draft.suppressMindwtrReminders === true;
         return (
             <TouchableOpacity
                 accessibilityRole="switch"
@@ -261,10 +279,7 @@ export function TaskEditScheduleField({
                         borderColor: enabled ? tc.tint : tc.border,
                     },
                 ]}
-                onPress={() => setEditedTask((prev) => ({
-                    ...prev,
-                    suppressMindwtrReminders: prev.suppressMindwtrReminders ? undefined : true,
-                }))}
+                onPress={() => setDraftField('suppressMindwtrReminders', !draft.suppressMindwtrReminders)}
             >
                 <Text style={[styles.modalLabel, { color: tc.text }]}>
                     {tFallback(t, 'taskEdit.suppressMindwtrReminders', 'Skip reminders')}
@@ -276,10 +291,10 @@ export function TaskEditScheduleField({
         );
     };
     const renderRepeatReminderControl = () => {
-        if (fieldId !== 'dueDate' || !hasTimeComponent(editedTask.dueDate)) return null;
-        if (editedTask.suppressMindwtrReminders === true) return null;
+        if (fieldId !== 'dueDate' || !hasTimeComponent(draft.dueDate)) return null;
+        if (draft.suppressMindwtrReminders === true) return null;
         const label = tFallback(t, 'taskEdit.repeatReminderLabel', 'Repeat reminder');
-        const current = editedTask.repeatReminderMinutes ?? 0;
+        const current = draft.repeatReminderMinutes ?? 0;
         const options = [0, ...REPEAT_REMINDER_INTERVAL_OPTIONS];
         const formatValue = (minutes: number) => (
             minutes === 0
@@ -321,10 +336,7 @@ export function TaskEditScheduleField({
                                 accessibilityLabel={formatOption(minutes)}
                                 style={getStatusChipStyle(current === minutes)}
                                 onPress={() => {
-                                    setEditedTask((prev) => ({
-                                        ...prev,
-                                        repeatReminderMinutes: minutes > 0 ? minutes : undefined,
-                                    }));
+                                    setDraftField('repeatReminderMinutes', minutes > 0 ? minutes : undefined);
                                     setRepeatReminderOptionsExpanded(false);
                                 }}
                             >
@@ -340,34 +352,29 @@ export function TaskEditScheduleField({
     };
 
     const applyRelativeStartOffset = (amountValue: number, unitValue: NonNullable<Task['relativeStartOffset']>['unit']) => {
-        if (!editedTask.dueDate || !Number.isFinite(amountValue)) return;
-        const unit = normalizeRelativeStartUnitForDueDate(editedTask.dueDate, unitValue);
+        if (!draft.dueDate || !Number.isFinite(amountValue)) return;
+        const unit = normalizeRelativeStartUnitForDueDate(draft.dueDate, unitValue);
         // 0 is valid: start on the due date itself.
         const magnitude = Math.max(0, Math.floor(amountValue));
         const offset = { amount: magnitude === 0 ? 0 : -magnitude, unit };
-        const computedStart = computeRelativeStartTime(editedTask.dueDate, offset);
+        const computedStart = computeRelativeStartTime(draft.dueDate, offset);
         if (!computedStart) {
-            setEditedTask((prev) => ({ ...prev, relativeStartOffset: undefined }));
+            setDraftField('relativeStartOffset', undefined);
             return;
         }
-        setEditedTask((prev) => ({
-            ...prev,
-            relativeStartOffset: offset,
-            startTime: computedStart,
-        }));
+        setDraftField('relativeStartOffset', offset);
+        setDraftField('startTime', computedStart);
     };
 
     const updateDueDate = (dueDate: string | undefined) => {
-        setEditedTask((prev) => {
-            if (!dueDate) return { ...prev, dueDate: undefined, relativeStartOffset: undefined };
-            const computedStart = computeRelativeStartTime(dueDate, prev.relativeStartOffset);
-            return {
-                ...prev,
-                dueDate,
-                ...(computedStart ? { startTime: computedStart } : {}),
-                ...(prev.relativeStartOffset && !computedStart ? { relativeStartOffset: undefined } : {}),
-            };
-        });
+        setDraftField('dueDate', dueDate ?? '');
+        if (!dueDate) {
+            setDraftField('relativeStartOffset', undefined);
+            return;
+        }
+        const computedStart = computeRelativeStartTime(dueDate, draft.relativeStartOffset);
+        if (computedStart) setDraftField('startTime', computedStart);
+        if (draft.relativeStartOffset && !computedStart) setDraftField('relativeStartOffset', undefined);
     };
 
     switch (fieldId) {
@@ -387,56 +394,44 @@ export function TaskEditScheduleField({
                                         setCustomWeekdays([]);
                                     }
                                     if (!option.value) {
-                                        setEditedTask((prev) => ({ ...prev, recurrence: undefined }));
+                                        applyRecurrence(undefined);
                                         return;
                                     }
                                     if (option.value === 'daily') {
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence('daily', {
-                                                byDay: undefined,
-                                                byMonthDay: undefined,
-                                                interval: parsedRecurrenceRRule.rule === 'daily' && parsedRecurrenceRRule.interval && parsedRecurrenceRRule.interval > 0
-                                                    ? parsedRecurrenceRRule.interval
-                                                    : 1,
-                                            }),
+                                        applyRecurrence(buildEditedRecurrence('daily', {
+                                            byDay: undefined,
+                                            byMonthDay: undefined,
+                                            interval: parsedRecurrenceRRule.rule === 'daily' && parsedRecurrenceRRule.interval && parsedRecurrenceRRule.interval > 0
+                                                ? parsedRecurrenceRRule.interval
+                                                : 1,
                                         }));
                                         return;
                                     }
                                     if (option.value === 'monthly') {
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence('monthly', {
-                                                byDay: undefined,
-                                                byMonthDay: undefined,
-                                                interval: parsedRecurrenceRRule.rule === 'monthly' && parsedRecurrenceRRule.interval && parsedRecurrenceRRule.interval > 0
-                                                    ? parsedRecurrenceRRule.interval
-                                                    : 1,
-                                            }),
+                                        applyRecurrence(buildEditedRecurrence('monthly', {
+                                            byDay: undefined,
+                                            byMonthDay: undefined,
+                                            interval: parsedRecurrenceRRule.rule === 'monthly' && parsedRecurrenceRRule.interval && parsedRecurrenceRRule.interval > 0
+                                                ? parsedRecurrenceRRule.interval
+                                                : 1,
                                         }));
                                         return;
                                     }
                                     if (option.value === 'weekly') {
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence('weekly', {
-                                                byDay: undefined,
-                                                byMonthDay: undefined,
-                                                interval: undefined,
-                                            }),
+                                        applyRecurrence(buildEditedRecurrence('weekly', {
+                                            byDay: undefined,
+                                            byMonthDay: undefined,
+                                            interval: undefined,
                                         }));
                                         return;
                                     }
                                     if (option.value === 'yearly') {
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence('yearly', {
-                                                byDay: undefined,
-                                                byMonthDay: undefined,
-                                                interval: parsedRecurrenceRRule.rule === 'yearly' && parsedRecurrenceRRule.interval && parsedRecurrenceRRule.interval > 0
-                                                    ? parsedRecurrenceRRule.interval
-                                                    : 1,
-                                            }),
+                                        applyRecurrence(buildEditedRecurrence('yearly', {
+                                            byDay: undefined,
+                                            byMonthDay: undefined,
+                                            interval: parsedRecurrenceRRule.rule === 'yearly' && parsedRecurrenceRRule.interval && parsedRecurrenceRRule.interval > 0
+                                                ? parsedRecurrenceRRule.interval
+                                                : 1,
                                         }));
                                         return;
                                     }
@@ -459,13 +454,10 @@ export function TaskEditScheduleField({
                                     onChangeText={(value) => {
                                         const parsed = Number.parseInt(value, 10);
                                         const interval = normalizeRecurrenceIntervalInput(parsed);
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence('weekly', {
-                                                ...(customWeekdays.length > 0 ? { byDay: customWeekdays } : {}),
-                                                byMonthDay: undefined,
-                                                interval,
-                                            }),
+                                        applyRecurrence(buildEditedRecurrence('weekly', {
+                                            ...(customWeekdays.length > 0 ? { byDay: customWeekdays } : {}),
+                                            byMonthDay: undefined,
+                                            interval,
                                         }));
                                     }}
                                     keyboardType="number-pad"
@@ -493,12 +485,9 @@ export function TaskEditScheduleField({
                                                     ? customWeekdays.filter((value) => value !== day.key)
                                                     : [...customWeekdays, day.key];
                                                 setCustomWeekdays(next);
-                                                setEditedTask((prev) => ({
-                                                    ...prev,
-                                                    recurrence: buildEditedRecurrence('weekly', {
-                                                        byDay: next,
-                                                        byMonthDay: undefined,
-                                                    }),
+                                                applyRecurrence(buildEditedRecurrence('weekly', {
+                                                    byDay: next,
+                                                    byMonthDay: undefined,
                                                 }));
                                             }}
                                         >
@@ -517,13 +506,10 @@ export function TaskEditScheduleField({
                                 onChangeText={(value) => {
                                     const parsed = Number.parseInt(value, 10);
                                     const interval = normalizeRecurrenceIntervalInput(parsed);
-                                    setEditedTask((prev) => ({
-                                        ...prev,
-                                        recurrence: buildEditedRecurrence('daily', {
-                                            byDay: undefined,
-                                            byMonthDay: undefined,
-                                            interval,
-                                        }),
+                                    applyRecurrence(buildEditedRecurrence('daily', {
+                                        byDay: undefined,
+                                        byMonthDay: undefined,
+                                        interval,
                                     }));
                                 }}
                                 keyboardType="number-pad"
@@ -543,10 +529,7 @@ export function TaskEditScheduleField({
                                     onChangeText={(value) => {
                                         const parsed = Number.parseInt(value, 10);
                                         const interval = normalizeRecurrenceIntervalInput(parsed);
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence('monthly', { interval }),
-                                        }));
+                                        applyRecurrence(buildEditedRecurrence('monthly', { interval }));
                                     }}
                                     keyboardType="number-pad"
                                     style={[styles.customInput, { backgroundColor: tc.inputBg, borderColor: tc.border, color: tc.text }]}
@@ -559,12 +542,9 @@ export function TaskEditScheduleField({
                                 <TouchableOpacity
                                     style={getStatusChipStyle(monthlyPattern === 'date')}
                                     onPress={() => {
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence('monthly', {
-                                                byDay: undefined,
-                                                byMonthDay: undefined,
-                                            }),
+                                        applyRecurrence(buildEditedRecurrence('monthly', {
+                                            byDay: undefined,
+                                            byMonthDay: undefined,
                                         }));
                                     }}
                                 >
@@ -591,13 +571,10 @@ export function TaskEditScheduleField({
                                 onChangeText={(value) => {
                                     const parsed = Number.parseInt(value, 10);
                                     const interval = normalizeRecurrenceIntervalInput(parsed);
-                                    setEditedTask((prev) => ({
-                                        ...prev,
-                                        recurrence: buildEditedRecurrence('yearly', {
-                                            byDay: undefined,
-                                            byMonthDay: undefined,
-                                            interval,
-                                        }),
+                                    applyRecurrence(buildEditedRecurrence('yearly', {
+                                        byDay: undefined,
+                                        byMonthDay: undefined,
+                                        interval,
                                     }));
                                 }}
                                 keyboardType="number-pad"
@@ -616,12 +593,9 @@ export function TaskEditScheduleField({
                                     style={getStatusChipStyle(recurrenceEndMode === 'never')}
                                     onPress={() => {
                                         setShowDatePicker(null);
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence(recurrenceRuleValue, {
-                                                count: undefined,
-                                                until: undefined,
-                                            }),
+                                        applyRecurrence(buildEditedRecurrence(recurrenceRuleValue, {
+                                            count: undefined,
+                                            until: undefined,
                                         }));
                                     }}
                                 >
@@ -632,12 +606,9 @@ export function TaskEditScheduleField({
                                 <TouchableOpacity
                                     style={getStatusChipStyle(recurrenceEndMode === 'until')}
                                     onPress={() => {
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence(recurrenceRuleValue, {
-                                                count: undefined,
-                                                until: parsedRecurrenceRRule.until || recurrenceDefaultEndDate,
-                                            }),
+                                        applyRecurrence(buildEditedRecurrence(recurrenceRuleValue, {
+                                            count: undefined,
+                                            until: parsedRecurrenceRRule.until || recurrenceDefaultEndDate,
                                         }));
                                         openDatePicker('recurrence-end');
                                     }}
@@ -650,12 +621,9 @@ export function TaskEditScheduleField({
                                     style={getStatusChipStyle(recurrenceEndMode === 'count')}
                                     onPress={() => {
                                         setShowDatePicker(null);
-                                        setEditedTask((prev) => ({
-                                            ...prev,
-                                            recurrence: buildEditedRecurrence(recurrenceRuleValue, {
-                                                count: parsedRecurrenceRRule.count ?? 1,
-                                                until: undefined,
-                                            }),
+                                        applyRecurrence(buildEditedRecurrence(recurrenceRuleValue, {
+                                            count: parsedRecurrenceRRule.count ?? 1,
+                                            until: undefined,
                                         }));
                                     }}
                                 >
@@ -684,12 +652,9 @@ export function TaskEditScheduleField({
                                         onChangeText={(value) => {
                                             const parsed = Number.parseInt(value, 10);
                                             const count = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 999) : 1;
-                                            setEditedTask((prev) => ({
-                                                ...prev,
-                                                recurrence: buildEditedRecurrence(recurrenceRuleValue, {
-                                                    count,
-                                                    until: undefined,
-                                                }),
+                                            applyRecurrence(buildEditedRecurrence(recurrenceRuleValue, {
+                                                count,
+                                                until: undefined,
                                             }));
                                         }}
                                         keyboardType="number-pad"
@@ -708,14 +673,11 @@ export function TaskEditScheduleField({
                                 style={getStatusChipStyle(recurrenceStrategyValue === 'fluid')}
                                 onPress={() => {
                                     const nextStrategy = recurrenceStrategyValue === 'fluid' ? 'strict' : 'fluid';
-                                    setEditedTask((prev) => ({
-                                        ...prev,
-                                        recurrence: buildEditedRecurrence(recurrenceRuleValue, {
-                                            strategy: nextStrategy,
-                                            byDay: recurrenceRuleValue === 'weekly' && customWeekdays.length > 0
-                                                ? customWeekdays
-                                                : undefined,
-                                        }),
+                                    applyRecurrence(buildEditedRecurrence(recurrenceRuleValue, {
+                                        strategy: nextStrategy,
+                                        byDay: recurrenceRuleValue === 'weekly' && customWeekdays.length > 0
+                                            ? customWeekdays
+                                            : undefined,
                                     }));
                                 }}
                             >
@@ -728,19 +690,16 @@ export function TaskEditScheduleField({
                     {!!recurrenceRuleValue && (
                         <TouchableOpacity
                             accessibilityRole="switch"
-                            accessibilityState={{ checked: editedTask.showFutureRecurrence === true }}
+                            accessibilityState={{ checked: draft.showFutureRecurrence === true }}
                             style={[
                                 styles.dateBtn,
                                 {
                                     marginTop: 8,
-                                    backgroundColor: editedTask.showFutureRecurrence ? tc.filterBg : tc.cardBg,
-                                    borderColor: editedTask.showFutureRecurrence ? tc.tint : tc.border,
+                                    backgroundColor: draft.showFutureRecurrence ? tc.filterBg : tc.cardBg,
+                                    borderColor: draft.showFutureRecurrence ? tc.tint : tc.border,
                                 },
                             ]}
-                            onPress={() => setEditedTask((prev) => ({
-                                ...prev,
-                                showFutureRecurrence: prev.showFutureRecurrence ? undefined : true,
-                            }))}
+                            onPress={() => setDraftField('showFutureRecurrence', !draft.showFutureRecurrence)}
                         >
                             <Text style={[styles.modalLabel, { color: tc.text }]}>
                                 {tFallback(t, 'recurrence.showFutureInCalendar', 'Show next occurrence in Calendar')}
@@ -754,8 +713,8 @@ export function TaskEditScheduleField({
                 </View>
             );
         case 'startTime': {
-            const parsed = editedTask.startTime ? safeParseDate(editedTask.startTime) : null;
-            const hasTime = hasTimeComponent(editedTask.startTime);
+            const parsed = draft.startTime ? safeParseDate(draft.startTime) : null;
+            const hasTime = hasTimeComponent(draft.startTime);
             const timeOnly = hasTime && parsed ? safeFormatDate(parsed, 'HH:mm') : '';
             return (
                 <View style={styles.formGroup}>
@@ -766,9 +725,9 @@ export function TaskEditScheduleField({
                                 style={[styles.dateBtn, styles.flex1, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
                                 onPress={() => openDatePicker('start')}
                             >
-                                <Text style={{ color: tc.text }}>{formatStartDateTime(editedTask.startTime)}</Text>
+                                <Text style={{ color: tc.text }}>{formatStartDateTime(draft.startTime)}</Text>
                             </TouchableOpacity>
-                            {!!editedTask.startTime && (
+                            {!!draft.startTime && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
                                     onPress={() => openDatePicker('start-time')}
@@ -778,18 +737,24 @@ export function TaskEditScheduleField({
                                     </Text>
                                 </TouchableOpacity>
                             )}
-                            {!!editedTask.startTime && hasTime && (
+                            {!!draft.startTime && hasTime && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                    onPress={() => setEditedTask((prev) => ({ ...prev, startTime: clearTimePart(prev.startTime), relativeStartOffset: undefined }))}
+                                    onPress={() => {
+                                        setDraftField('startTime', clearTimePart(draft.startTime));
+                                        setDraftField('relativeStartOffset', undefined);
+                                    }}
                                 >
                                     <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{dateOnlyLabel}</Text>
                                 </TouchableOpacity>
                             )}
-                            {!!editedTask.startTime && (
+                            {!!draft.startTime && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                    onPress={() => setEditedTask((prev) => ({ ...prev, startTime: undefined, relativeStartOffset: undefined }))}
+                                    onPress={() => {
+                                        setDraftField('startTime', '');
+                                        setDraftField('relativeStartOffset', undefined);
+                                    }}
                                 >
                                     <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
                                 </TouchableOpacity>
@@ -797,16 +762,16 @@ export function TaskEditScheduleField({
                         </View>
                         {renderQuickDateChips('start', parsed)}
                         {renderDateIssue()}
-                        {!!editedTask.dueDate && (() => {
-                            const dueDateHasTime = hasTimeComponent(editedTask.dueDate);
+                        {!!draft.dueDate && (() => {
+                            const dueDateHasTime = hasTimeComponent(draft.dueDate);
                             const relativeUnit = normalizeRelativeStartUnitForDueDate(
-                                editedTask.dueDate,
-                                editedTask.relativeStartOffset?.unit ?? 'day'
+                                draft.dueDate,
+                                draft.relativeStartOffset?.unit ?? 'day'
                             );
-                            const relativeAmount = editedTask.relativeStartOffset ? Math.abs(editedTask.relativeStartOffset.amount) : 3;
+                            const relativeAmount = draft.relativeStartOffset ? Math.abs(draft.relativeStartOffset.amount) : 3;
                             const modeOptions = [
-                                { label: t('taskEdit.startModeAbsolute'), active: !editedTask.relativeStartOffset, onPress: () => setEditedTask((prev) => ({ ...prev, relativeStartOffset: undefined })) },
-                                { label: t('taskEdit.startModeRelative'), active: Boolean(editedTask.relativeStartOffset), onPress: () => applyRelativeStartOffset(relativeAmount, relativeUnit) },
+                                { label: t('taskEdit.startModeAbsolute'), active: !draft.relativeStartOffset, onPress: () => setDraftField('relativeStartOffset', undefined) },
+                                { label: t('taskEdit.startModeRelative'), active: Boolean(draft.relativeStartOffset), onPress: () => applyRelativeStartOffset(relativeAmount, relativeUnit) },
                             ];
                             const unitOptions: Array<{ value: NonNullable<Task['relativeStartOffset']>['unit']; label: string }> = dueDateHasTime
                                 ? [
@@ -837,7 +802,7 @@ export function TaskEditScheduleField({
                                             </TouchableOpacity>
                                         ))}
                                     </View>
-                                    {!!editedTask.relativeStartOffset && (
+                                    {!!draft.relativeStartOffset && (
                                         <View style={{ gap: 8 }}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                                 <TextInput
@@ -881,10 +846,10 @@ export function TaskEditScheduleField({
             );
         }
         case 'dueDate': {
-            const parsed = editedTask.dueDate ? safeParseDate(editedTask.dueDate) : null;
-            const hasTime = hasTimeComponent(editedTask.dueDate);
+            const parsed = draft.dueDate ? safeParseDate(draft.dueDate) : null;
+            const hasTime = hasTimeComponent(draft.dueDate);
             const timeOnly = hasTime && parsed ? safeFormatDate(parsed, 'HH:mm') : '';
-            if (!editedTask.dueDate) {
+            if (!draft.dueDate) {
                 const notSetLabel = t('common.notSet');
                 return (
                     <View style={styles.formGroup}>
@@ -922,9 +887,9 @@ export function TaskEditScheduleField({
                                 style={[styles.dateBtn, styles.flex1, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
                                 onPress={() => openDatePicker('due')}
                             >
-                                <Text style={{ color: tc.text }}>{formatDueDate(editedTask.dueDate)}</Text>
+                                <Text style={{ color: tc.text }}>{formatDueDate(draft.dueDate)}</Text>
                             </TouchableOpacity>
-                            {!!editedTask.dueDate && (
+                            {!!draft.dueDate && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
                                     onPress={() => openDatePicker('due-time')}
@@ -934,15 +899,15 @@ export function TaskEditScheduleField({
                                     </Text>
                                 </TouchableOpacity>
                             )}
-                            {!!editedTask.dueDate && hasTime && (
+                            {!!draft.dueDate && hasTime && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                    onPress={() => updateDueDate(clearTimePart(editedTask.dueDate))}
+                                    onPress={() => updateDueDate(clearTimePart(draft.dueDate))}
                                 >
                                     <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{dateOnlyLabel}</Text>
                                 </TouchableOpacity>
                             )}
-                            {!!editedTask.dueDate && (
+                            {!!draft.dueDate && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
                                     onPress={() => updateDueDate(undefined)}
@@ -961,8 +926,8 @@ export function TaskEditScheduleField({
             );
         }
         case 'reviewAt': {
-            const parsed = editedTask.reviewAt ? safeParseDate(editedTask.reviewAt) : null;
-            const hasTime = hasTimeComponent(editedTask.reviewAt);
+            const parsed = draft.reviewAt ? safeParseDate(draft.reviewAt) : null;
+            const hasTime = hasTimeComponent(draft.reviewAt);
             return (
                 <View style={styles.formGroup}>
                     <Text style={[styles.label, { color: tc.secondaryText }]}>{t('taskEdit.reviewDateLabel')}</Text>
@@ -972,20 +937,20 @@ export function TaskEditScheduleField({
                                 style={[styles.dateBtn, styles.flex1, { backgroundColor: tc.inputBg, borderColor: tc.border }]}
                                 onPress={() => openDatePicker('review')}
                             >
-                                <Text style={{ color: tc.text }}>{formatStartDateTime(editedTask.reviewAt)}</Text>
+                                <Text style={{ color: tc.text }}>{formatStartDateTime(draft.reviewAt)}</Text>
                             </TouchableOpacity>
-                            {!!editedTask.reviewAt && hasTime && (
+                            {!!draft.reviewAt && hasTime && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                    onPress={() => setEditedTask((prev) => ({ ...prev, reviewAt: clearTimePart(prev.reviewAt) }))}
+                                    onPress={() => setDraftField('reviewAt', clearTimePart(draft.reviewAt))}
                                 >
                                     <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{dateOnlyLabel}</Text>
                                 </TouchableOpacity>
                             )}
-                            {!!editedTask.reviewAt && (
+                            {!!draft.reviewAt && (
                                 <TouchableOpacity
                                     style={[styles.clearDateBtn, { borderColor: tc.border, backgroundColor: tc.filterBg }]}
-                                    onPress={() => setEditedTask((prev) => ({ ...prev, reviewAt: undefined }))}
+                                    onPress={() => setDraftField('reviewAt', '')}
                                 >
                                     <Text style={[styles.clearDateText, { color: tc.secondaryText }]}>{t('common.clear')}</Text>
                                 </TouchableOpacity>

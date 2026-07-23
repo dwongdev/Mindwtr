@@ -3,6 +3,8 @@ import { Platform } from 'react-native';
 import * as Calendar from 'expo-calendar';
 import {
     generateUUID,
+    isMindwtrMirrorCalendar,
+    mergeExternalCalendarSources,
     normalizeExternalCalendarColor,
     parseIcs,
     type ExternalCalendarEvent,
@@ -14,9 +16,6 @@ export const EXTERNAL_CALENDARS_KEY = 'mindwtr-external-calendars';
 export const SYSTEM_CALENDAR_SETTINGS_KEY = 'mindwtr-system-calendar-settings';
 
 const SYSTEM_CALENDAR_SOURCE_PREFIX = 'system';
-const MINDWTR_CALENDAR_TITLE = 'Mindwtr';
-const MINDWTR_CALENDAR_NAME = 'mindwtr';
-const MINDWTR_PUSHED_EVENT_PREFIX = 'Mindwtr: ';
 
 export type SystemCalendarPermissionStatus = 'undetermined' | 'granted' | 'denied';
 
@@ -91,15 +90,11 @@ function getCalendarDisplayName(calendar: Calendar.Calendar): string {
 }
 
 function isMindwtrNamedCalendar(calendar: Calendar.Calendar): boolean {
-    const title = getCalendarDisplayName(calendar).trim().toLowerCase();
-    const name = typeof calendar.name === 'string' ? calendar.name.trim().toLowerCase() : '';
-    return title === MINDWTR_CALENDAR_TITLE.toLowerCase() || name === MINDWTR_CALENDAR_NAME;
-}
-
-function isMindwtrPushedEvent(event: Calendar.Event, calendar: Calendar.Calendar | undefined): boolean {
-    if (calendar && isMindwtrNamedCalendar(calendar)) return true;
-    const title = typeof event.title === 'string' ? event.title.trim() : '';
-    return title.toLowerCase().startsWith(MINDWTR_PUSHED_EVENT_PREFIX.toLowerCase());
+    if (isMindwtrMirrorCalendar({ name: getCalendarDisplayName(calendar) })) {
+        return true;
+    }
+    return typeof calendar.name === 'string'
+        && isMindwtrMirrorCalendar({ name: calendar.name });
 }
 
 function getSystemCalendarSourceId(calendarId: string): string {
@@ -412,8 +407,6 @@ async function fetchSystemCalendarEvents(rangeStart: Date, rangeEnd: Date, signa
         const eventCalendarId = typeof event.calendarId === 'string' && event.calendarId.trim().length > 0
             ? event.calendarId
             : selectedIds[0];
-        const eventCalendar = availableById.get(eventCalendarId);
-        if (isMindwtrPushedEvent(event, eventCalendar)) continue;
 
         const sourceId = getSystemCalendarSourceId(eventCalendarId);
         const start = toDateSafe(event.startDate);
@@ -460,20 +453,7 @@ export async function fetchExternalCalendarEvents(
             fetchSystemCalendarEvents(rangeStart, rangeEnd, signal),
         ]);
 
-        const calendarsById = new Map<string, ExternalCalendarSubscription>();
-        for (const calendar of [...icsData.calendars, ...systemData.calendars]) {
-            calendarsById.set(calendar.id, calendar);
-        }
-
-        const events = [...icsData.events, ...systemData.events].sort((a, b) => {
-            if (a.start === b.start) return a.title.localeCompare(b.title);
-            return a.start.localeCompare(b.start);
-        });
-
-        return {
-            calendars: Array.from(calendarsById.values()),
-            events,
-        };
+        return mergeExternalCalendarSources([icsData, systemData]);
     } finally {
         cleanup();
     }

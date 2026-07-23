@@ -16,10 +16,10 @@ afterEach(() => {
 
 function DateFormatterProbe({ startDate, dueDate }: { startDate: string; dueDate: string }) {
     const { formatDate, formatDueDate } = useTaskEditDates({
-        editedTask: {},
+        draft: null,
         pendingDueDate: null,
         pendingStartDate: null,
-        setEditedTask: vi.fn(),
+        setDraftField: vi.fn(),
         setPendingDueDate: vi.fn(),
         setPendingStartDate: vi.fn(),
         setShowDatePicker: vi.fn(),

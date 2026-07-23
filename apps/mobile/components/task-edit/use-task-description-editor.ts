@@ -11,6 +11,7 @@ import {
     type MarkdownToolbarResult,
     type Task,
 } from '@mindwtr/core';
+import type { TaskDraftSetter } from '@mindwtr/core/task-draft';
 
 import {
     applyMarkdownPairInsertionWithSelectionFallback,
@@ -20,7 +21,6 @@ import {
     type IgnoredNativePairChange,
     isRangeSelection,
 } from '../markdown-selection-utils';
-import type { SetEditedTask } from './use-task-edit-state';
 
 const selectionsEqual = (left: MarkdownSelection, right: MarkdownSelection) => (
     left.start === right.start && left.end === right.end
@@ -32,7 +32,7 @@ type UseTaskDescriptionEditorParams = {
     descriptionDraftRef: React.MutableRefObject<string>;
     setDescriptionDraft: React.Dispatch<React.SetStateAction<string>>;
     descriptionDebounceRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
-    setEditedTask: SetEditedTask;
+    setDraftField: TaskDraftSetter;
     resetCopilotDraft: () => void;
     onMarkdownOverlayVisibilityChange: (visible: boolean) => void;
     onInputFocusTracked: (targetInput?: number | string) => void;
@@ -46,7 +46,7 @@ export function useTaskDescriptionEditor({
     descriptionDraftRef,
     setDescriptionDraft,
     descriptionDebounceRef,
-    setEditedTask,
+    setDraftField,
     resetCopilotDraft,
     onMarkdownOverlayVisibilityChange,
     onInputFocusTracked,
@@ -180,7 +180,7 @@ export function useTaskDescriptionEditor({
             clearTimeout(descriptionDebounceRef.current);
         }
         descriptionDebounceRef.current = setTimeout(() => {
-            setEditedTask((prev) => ({ ...prev, description: text }));
+            setDraftField('description', text);
         }, 250);
     }, [
         descriptionDebounceRef,
@@ -188,7 +188,7 @@ export function useTaskDescriptionEditor({
         pushDescriptionUndoEntry,
         resetCopilotDraft,
         setDescriptionDraft,
-        setEditedTask,
+        setDraftField,
     ]);
 
     const handleDescriptionChange = React.useCallback((text: string) => {

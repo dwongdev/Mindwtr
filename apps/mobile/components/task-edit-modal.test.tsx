@@ -505,17 +505,12 @@ describe('TaskEditModal', () => {
       );
     });
 
-    const formTab = tree!.root.findAll((node) =>
-      typeof node.props.setEditedTask === 'function'
-      && typeof node.props.renderField === 'function'
-    )[0];
+    const formTab = tree!.root.find((node) => typeof node.props.renderField === 'function');
+    const projectField = formTab.props.renderField('project');
     act(() => {
-      formTab.props.setEditedTask((prev: any) => ({
-        ...prev,
-        projectId: undefined,
-        sectionId: undefined,
-        areaId: 'area-1',
-      }));
+      projectField.props.setDraftField('projectId', '');
+      projectField.props.setDraftField('sectionId', '');
+      projectField.props.setDraftField('areaId', 'area-1');
     });
 
     const header = tree!.root.find((node) =>
@@ -613,10 +608,7 @@ describe('TaskEditModal', () => {
       );
     });
 
-    const formTab = tree!.root.findAll((node) =>
-      typeof node.props.setEditedTask === 'function'
-      && typeof node.props.renderField === 'function'
-    )[0];
+    const formTab = tree!.root.find((node) => typeof node.props.renderField === 'function');
     let projectField!: renderer.ReactTestRenderer;
     act(() => {
       projectField = renderer.create(formTab.props.renderField('project'));
@@ -673,10 +665,7 @@ describe('TaskEditModal', () => {
       );
     });
 
-    const formTab = tree!.root.findAll((node) =>
-      typeof node.props.setEditedTask === 'function'
-      && typeof node.props.renderField === 'function'
-    )[0];
+    const formTab = tree!.root.find((node) => typeof node.props.renderField === 'function');
     let projectField!: renderer.ReactTestRenderer;
     act(() => {
       projectField = renderer.create(formTab.props.renderField('project'));

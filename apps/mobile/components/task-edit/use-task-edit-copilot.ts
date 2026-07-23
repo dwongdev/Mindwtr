@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'react';
-import type { AppData, Task, TimeEstimate } from '@mindwtr/core';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { AppData, TimeEstimate } from '@mindwtr/core';
 import { createAIProvider } from '@mindwtr/core';
 import type { AIProviderId } from '@mindwtr/core';
+import type { TaskDraft, TaskDraftSetter } from '@mindwtr/core/task-draft';
 import { buildCopilotConfig, isAIKeyRequired, loadAIKey } from '../../lib/ai-config';
 import { logError } from '../../lib/app-log';
 
@@ -20,9 +21,9 @@ type UseTaskEditCopilotArgs = {
     descriptionDraft: string;
     contextOptions: string[];
     tagOptions: string[];
-    editedTask: Partial<Task>;
+    draft: TaskDraft | null;
     visible: boolean;
-    setEditedTask: (value: SetStateAction<Partial<Task>>, markDirty?: boolean) => void;
+    setDraftField: TaskDraftSetter;
 };
 
 export function useTaskEditCopilot({
@@ -34,9 +35,9 @@ export function useTaskEditCopilot({
     descriptionDraft,
     contextOptions,
     tagOptions,
-    editedTask,
+    draft,
     visible,
-    setEditedTask,
+    setDraftField,
 }: UseTaskEditCopilotArgs) {
     const [aiKey, setAiKey] = useState('');
     const keyRequired = isAIKeyRequired(settings);
@@ -157,24 +158,27 @@ export function useTaskEditCopilot({
 
     const applyCopilotSuggestion = useCallback(() => {
         if (!copilotSuggestion) return;
+        const splitTokens = (value: string | undefined) => (
+            (value ?? '').split(',').map((token) => token.trim()).filter(Boolean)
+        );
         if (copilotSuggestion.context) {
-            const current = editedTask.contexts ?? [];
+            const current = splitTokens(draft?.contexts);
             const next = Array.from(new Set([...current, copilotSuggestion.context]));
-            setEditedTask((prev) => ({ ...prev, contexts: next }));
+            setDraftField('contexts', next.join(', '));
             setCopilotContext(copilotSuggestion.context);
         }
         if (copilotSuggestion.tags?.length) {
-            const currentTags = editedTask.tags ?? [];
+            const currentTags = splitTokens(draft?.tags);
             const nextTags = Array.from(new Set([...currentTags, ...copilotSuggestion.tags]));
-            setEditedTask((prev) => ({ ...prev, tags: nextTags }));
+            setDraftField('tags', nextTags.join(', '));
             setCopilotTags(copilotSuggestion.tags);
         }
         if (copilotSuggestion.timeEstimate && timeEstimatesEnabled) {
-            setEditedTask((prev) => ({ ...prev, timeEstimate: copilotSuggestion.timeEstimate }));
+            setDraftField('timeEstimate', copilotSuggestion.timeEstimate);
             setCopilotEstimate(copilotSuggestion.timeEstimate);
         }
         setCopilotApplied(true);
-    }, [copilotSuggestion, editedTask.contexts, editedTask.tags, setEditedTask, timeEstimatesEnabled]);
+    }, [copilotSuggestion, draft?.contexts, draft?.tags, setDraftField, timeEstimatesEnabled]);
 
     return {
         aiKey,

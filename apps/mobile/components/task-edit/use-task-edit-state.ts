@@ -1,18 +1,26 @@
 import React from 'react';
-import { type RecurrenceWeekday, type Task } from '@mindwtr/core';
+import { type Attachment, type RecurrenceWeekday, type Task } from '@mindwtr/core';
+import {
+    setTaskDraftField,
+    type TaskDraft,
+    type TaskDraftField,
+} from '@mindwtr/core/task-draft';
 import { getRecurrenceByDayValue } from './recurrence-utils';
 import {
-    applyTaskEditUpdate,
     createTaskEditDraft,
-    projectTaskEditDraft,
     type TaskEditDraft,
-    type TaskEditUpdate,
 } from './task-edit-draft-adapter';
 
 export type TaskEditTab = 'task' | 'view';
 
-export type SetEditedTask = (
-    value: TaskEditUpdate,
+export type SetTaskEditDraftValue<T> = (
+    value: T | ((current: T) => T),
+    markDirty?: boolean,
+) => void;
+
+export type SetTaskEditDraftField = <K extends TaskDraftField>(
+    field: K,
+    value: TaskDraft[K],
     markDirty?: boolean,
 ) => void;
 
@@ -45,23 +53,30 @@ export function useTaskEditState({
     const [taskEditDraft, setTaskEditDraftState] = React.useState<TaskEditDraft | null>(null);
     const isDirtyRef = React.useRef(false);
     const baseTaskRef = React.useRef<Task | null>(null);
-    const editedTask = React.useMemo<Partial<Task>>(() => {
-        if (!taskEditDraft || !baseTaskRef.current) return {};
-        return projectTaskEditDraft(taskEditDraft, baseTaskRef.current);
-    }, [taskEditDraft]);
-    const setEditedTask = React.useCallback<SetEditedTask>(
-        (value, markDirty = true) => {
-            if (markDirty) {
-                isDirtyRef.current = true;
-            }
-            setTaskEditDraftState((current) => (
-                current && baseTaskRef.current
-                    ? applyTaskEditUpdate(current, baseTaskRef.current, value)
-                    : current
-            ));
-        },
-        []
-    );
+    const setDraftField = React.useCallback<SetTaskEditDraftField>((field, value, markDirty = true) => {
+        if (markDirty) isDirtyRef.current = true;
+        setTaskEditDraftState((current) => {
+            if (!current) return current;
+            const draft = setTaskDraftField(current.draft, field, value);
+            return draft === current.draft ? current : { ...current, draft };
+        });
+    }, []);
+    const setChecklist = React.useCallback<SetTaskEditDraftValue<Task['checklist']>>((value, markDirty = true) => {
+        if (markDirty) isDirtyRef.current = true;
+        setTaskEditDraftState((current) => {
+            if (!current) return current;
+            const checklist = typeof value === 'function' ? value(current.checklist) : value;
+            return checklist === current.checklist ? current : { ...current, checklist };
+        });
+    }, []);
+    const setAttachments = React.useCallback<SetTaskEditDraftValue<Attachment[] | undefined>>((value, markDirty = true) => {
+        if (markDirty) isDirtyRef.current = true;
+        setTaskEditDraftState((current) => {
+            if (!current) return current;
+            const attachments = typeof value === 'function' ? value(current.attachments) : value;
+            return attachments === current.attachments ? current : { ...current, attachments };
+        });
+    }, []);
 
     const [showDatePicker, setShowDatePicker] = React.useState<'start' | 'start-time' | 'due' | 'due-time' | 'review' | 'recurrence-end' | null>(null);
     const [pendingStartDate, setPendingStartDate] = React.useState<Date | null>(null);
@@ -178,19 +193,19 @@ export function useTaskEditState({
 
     React.useEffect(() => {
         if (!visible || isContextInputFocused) return;
-        const normalized = (editedTask.contexts ?? []).join(', ');
+        const normalized = taskEditDraft?.draft.contexts ?? '';
         if (contextInputDraft !== normalized) {
             setContextInputDraft(normalized);
         }
-    }, [contextInputDraft, editedTask.contexts, isContextInputFocused, visible]);
+    }, [contextInputDraft, isContextInputFocused, taskEditDraft?.draft.contexts, visible]);
 
     React.useEffect(() => {
         if (!visible || isTagInputFocused) return;
-        const normalized = (editedTask.tags ?? []).join(', ');
+        const normalized = taskEditDraft?.draft.tags ?? '';
         if (tagInputDraft !== normalized) {
             setTagInputDraft(normalized);
         }
-    }, [editedTask.tags, isTagInputFocused, tagInputDraft, visible]);
+    }, [isTagInputFocused, tagInputDraft, taskEditDraft?.draft.tags, visible]);
 
     React.useEffect(() => () => {
         if (titleDebounceRef.current) {
@@ -212,7 +227,6 @@ export function useTaskEditState({
         descriptionDraft,
         descriptionDraftRef,
         editTab,
-        editedTask,
         isAIWorking,
         isContextInputFocused,
         isDirtyRef,
@@ -221,11 +235,13 @@ export function useTaskEditState({
         pendingDueDate,
         pendingStartDate,
         setAiModal,
+        setAttachments,
+        setChecklist,
         setContextInputDraft,
         setCustomWeekdays,
         setDescriptionDraft,
+        setDraftField,
         setEditTab,
-        setEditedTask,
         setIsAIWorking,
         setIsContextInputFocused,
         setIsTagInputFocused,

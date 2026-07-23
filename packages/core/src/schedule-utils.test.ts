@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
     getDueReminderRepeatTimes,
     getNextScheduledAt,
+    getProjectReviewReminderIntent,
+    getTaskReminderPlan,
     normalizeRepeatReminderMinutes,
     REPEAT_REMINDER_INTERVAL_OPTIONS,
 } from './schedule-utils';
-import type { Task } from './types';
+import type { Project, Task } from './types';
 
 const buildTask = (overrides: Partial<Task>): Task => ({
     id: 'task-1',
@@ -157,5 +159,65 @@ describe('getDueReminderRepeatTimes', () => {
     it('caps by window for long intervals (60min -> 2 occurrences over 120min)', () => {
         const times = getDueReminderRepeatTimes(dueTask({ repeatReminderMinutes: 60 }));
         expect(times.map((d) => d.getTime() - dueMs)).toEqual([60 * 60_000, 120 * 60_000]);
+    });
+});
+
+describe('reminder intent planning', () => {
+    it('returns a typed next intent and stable repeat keys', () => {
+        const task = buildTask({
+            startTime: '2026-06-17T08:30:00.000Z',
+            dueDate: '2026-06-17T09:00:00.000Z',
+            reviewAt: '2026-06-18T09:00:00.000Z',
+            repeatReminderMinutes: 10,
+        });
+
+        const plan = getTaskReminderPlan(
+            task,
+            new Date('2026-06-17T08:00:00.000Z'),
+            { includeReviewAt: true },
+        );
+
+        expect(plan.next).toMatchObject({
+            key: 'task:task-1',
+            taskId: 'task-1',
+            kind: 'start',
+            scheduledAt: new Date('2026-06-17T08:30:00.000Z'),
+        });
+        expect(plan.repeats[0]).toMatchObject({
+            key: 'task:task-1:r1',
+            dedupeKey: '2026-06-17T09:00:00.000Z#1',
+            taskId: 'task-1',
+            kind: 'due-repeat',
+            repeatIndex: 1,
+            scheduledAt: new Date('2026-06-17T09:10:00.000Z'),
+        });
+    });
+
+    it('does not invent a time for date-only project reviews', () => {
+        const project: Project = {
+            id: 'project-1',
+            title: 'Launch',
+            status: 'active',
+            color: '#000000',
+            order: 0,
+            tagIds: [],
+            reviewAt: '2026-06-18',
+            createdAt: '2026-06-01T00:00:00.000Z',
+            updatedAt: '2026-06-01T00:00:00.000Z',
+        };
+
+        expect(getProjectReviewReminderIntent(
+            project,
+            new Date('2026-06-17T08:00:00.000Z'),
+        )).toBeNull();
+        expect(getProjectReviewReminderIntent(
+            { ...project, reviewAt: '2026-06-18T09:00:00.000Z' },
+            new Date('2026-06-17T08:00:00.000Z'),
+        )).toMatchObject({
+            key: 'project:project-1',
+            projectId: 'project-1',
+            kind: 'project-review',
+            scheduledAt: new Date('2026-06-18T09:00:00.000Z'),
+        });
     });
 });

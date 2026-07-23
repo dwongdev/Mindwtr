@@ -15,6 +15,7 @@ import {
     type TaskPriority,
     type TimeEstimate,
 } from '@mindwtr/core';
+import type { TaskDraft } from '@mindwtr/core/task-draft';
 import {
     getRecurrenceRRuleValue,
     getRecurrenceRuleValue,
@@ -24,7 +25,6 @@ import {
 import {
     DEFAULT_TASK_EDITOR_ORDER,
     DEFAULT_TASK_EDITOR_VISIBLE,
-    getEditedTaskValue,
     getTaskEditorSectionAssignments,
     getTaskEditorSectionOpenDefaults,
     STATUS_OPTIONS,
@@ -47,13 +47,10 @@ const REFERENCE_HIDDEN_FIELDS = new Set<TaskEditorFieldId>([
     'checklist',
 ]);
 
-export const getMonthlyRecurrenceAnchorDate = (editedTask: Partial<Task>, task: Task | null): Date => (
-    safeParseDate(editedTask.dueDate || editedTask.startTime || task?.dueDate || task?.startTime) ?? new Date()
-);
-
 type UseTaskEditDerivedStateArgs = {
     task: Task | null;
-    editedTask: Partial<Task>;
+    checklist: Task['checklist'];
+    draft: TaskDraft | null;
     settings: AppData['settings'];
     projects: Project[];
     sections: Section[];
@@ -68,7 +65,8 @@ type UseTaskEditDerivedStateArgs = {
 
 export function useTaskEditDerivedState({
     task,
-    editedTask,
+    checklist,
+    draft,
     settings,
     projects,
     sections,
@@ -80,11 +78,8 @@ export function useTaskEditDerivedState({
     visibleAttachmentsLength,
     t,
 }: UseTaskEditDerivedStateArgs) {
-    const activeProjectId = getEditedTaskValue(editedTask, task, 'projectId');
-    const projectFilterAreaId =
-        typeof editedTask.areaId === 'string' && editedTask.areaId.trim().length > 0
-            ? editedTask.areaId
-            : undefined;
+    const activeProjectId = draft ? draft.projectId : task?.projectId;
+    const projectFilterAreaId = draft ? draft.areaId : task?.areaId;
     const filteredProjectsForPicker = useMemo(
         () => filterProjectsBySelectedArea(projects, projectFilterAreaId),
         [projectFilterAreaId, projects]
@@ -100,15 +95,17 @@ export function useTaskEditDerivedState({
         ],
         [t]
     );
-    const recurrenceRuleValue = getRecurrenceRuleValue(editedTask.recurrence);
-    const recurrenceStrategyValue = getRecurrenceStrategyValue(editedTask.recurrence);
-    const recurrenceRRuleValue = getRecurrenceRRuleValue(editedTask.recurrence);
+    const recurrenceRuleValue = draft?.recurrence ?? getRecurrenceRuleValue(task?.recurrence);
+    const recurrenceStrategyValue = draft?.recurrenceStrategy ?? getRecurrenceStrategyValue(task?.recurrence);
+    const recurrenceRRuleValue = draft?.recurrenceRRule ?? getRecurrenceRRuleValue(task?.recurrence);
     const dailyInterval = useMemo(() => {
         if (recurrenceRuleValue !== 'daily') return 1;
         const parsed = parseRRuleString(recurrenceRRuleValue);
         return parsed.interval && parsed.interval > 0 ? parsed.interval : 1;
     }, [recurrenceRRuleValue, recurrenceRuleValue]);
-    const monthlyAnchorSource = editedTask.dueDate || editedTask.startTime || task?.dueDate || task?.startTime;
+    const monthlyAnchorSource = draft
+        ? draft.dueDate || draft.startTime
+        : task?.dueDate || task?.startTime;
     const monthlyAnchorDate = useMemo(
         () => safeParseDate(monthlyAnchorSource) ?? new Date(),
         [monthlyAnchorSource]
@@ -126,7 +123,7 @@ export function useTaskEditDerivedState({
 
     const formatTimeEstimateLabel = useCallback((value: TimeEstimate) => formatCoreTimeEstimateLabel(value), []);
 
-    const currentEstimate = editedTask.timeEstimate as TimeEstimate | undefined;
+    const currentEstimate = draft ? draft.timeEstimate : task?.timeEstimate;
     const timeEstimateOptions: { value: TimeEstimate | ''; label: string }[] = useMemo(
         () => {
             const savedPresets = settings.gtd?.timeEstimatePresets;
@@ -153,7 +150,7 @@ export function useTaskEditDerivedState({
         );
         return settings.gtd?.taskEditor?.hidden ?? defaultHidden;
     }, [prioritiesEnabled, settings.gtd?.taskEditor?.hidden, timeEstimatesEnabled]);
-    const isReference = (editedTask.status ?? task?.status) === 'reference';
+    const isReference = (draft?.status ?? task?.status) === 'reference';
     const availableStatusOptions = useMemo(
         () => (isReference ? STATUS_OPTIONS : STATUS_OPTIONS.filter((status) => status !== 'reference')),
         [isReference]
@@ -193,8 +190,8 @@ export function useTaskEditDerivedState({
         },
         [taskEditorOrder]
     );
-    const activeSectionId = getEditedTaskValue(editedTask, task, 'sectionId');
-    const activeAreaId = getEditedTaskValue(editedTask, task, 'areaId');
+    const activeSectionId = draft ? draft.sectionId : task?.sectionId;
+    const activeAreaId = draft ? draft.areaId : task?.areaId;
     const hasValue = useCallback((fieldId: TaskEditorFieldId) => {
         switch (fieldId) {
             case 'status':
@@ -207,34 +204,34 @@ export function useTaskEditDerivedState({
                 return Boolean(activeAreaId);
             case 'priority':
                 if (!prioritiesEnabled) return false;
-                return Boolean(editedTask.priority ?? task?.priority);
+                return Boolean(draft ? draft.priority : task?.priority);
             case 'energyLevel':
-                return Boolean(editedTask.energyLevel ?? task?.energyLevel);
+                return Boolean(draft ? draft.energyLevel : task?.energyLevel);
             case 'assignedTo':
-                return Boolean(String(editedTask.assignedTo ?? task?.assignedTo ?? '').trim());
+                return Boolean((draft ? draft.assignedTo : task?.assignedTo)?.trim());
             case 'contexts':
                 return Boolean(contextInputDraft.trim());
             case 'description':
                 return Boolean(descriptionDraft.trim());
             case 'location':
-                return Boolean(String(editedTask.location ?? task?.location ?? '').trim());
+                return Boolean((draft ? draft.location : task?.location)?.trim());
             case 'tags':
                 return Boolean(tagInputDraft.trim());
             case 'timeEstimate':
                 if (!timeEstimatesEnabled) return false;
-                return Boolean(editedTask.timeEstimate ?? task?.timeEstimate);
+                return Boolean(draft ? draft.timeEstimate : task?.timeEstimate);
             case 'recurrence':
-                return Boolean(editedTask.recurrence ?? task?.recurrence);
+                return Boolean(draft ? draft.recurrence : task?.recurrence);
             case 'startTime':
-                return Boolean(editedTask.startTime ?? task?.startTime);
+                return Boolean(draft ? draft.startTime : task?.startTime);
             case 'dueDate':
-                return Boolean(editedTask.dueDate ?? task?.dueDate);
+                return Boolean(draft ? draft.dueDate : task?.dueDate);
             case 'reviewAt':
-                return Boolean(editedTask.reviewAt ?? task?.reviewAt);
+                return Boolean(draft ? draft.reviewAt : task?.reviewAt);
             case 'attachments':
                 return visibleAttachmentsLength > 0;
             case 'checklist':
-                return (editedTask.checklist ?? task?.checklist ?? []).length > 0;
+                return (checklist ?? task?.checklist ?? []).length > 0;
             default:
                 return false;
         }
@@ -244,16 +241,8 @@ export function useTaskEditDerivedState({
         activeSectionId,
         contextInputDraft,
         descriptionDraft,
-        editedTask.assignedTo,
-        editedTask.checklist,
-        editedTask.dueDate,
-        editedTask.energyLevel,
-        editedTask.location,
-        editedTask.priority,
-        editedTask.recurrence,
-        editedTask.reviewAt,
-        editedTask.startTime,
-        editedTask.timeEstimate,
+        draft,
+        checklist,
         prioritiesEnabled,
         tagInputDraft,
         task?.assignedTo,

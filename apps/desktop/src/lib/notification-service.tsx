@@ -1,4 +1,17 @@
-import { getDailyDigestSummary, getDueReminderRepeatTimes, getNextScheduledAt, stripMarkdown, type Language, Task, parseTimeOfDay, getTranslationsSync, loadTranslations, loadStoredLanguageSync, safeParseDate, hasTimeComponent, getSystemDefaultLanguage } from '@mindwtr/core';
+import {
+    getDailyDigestSummary,
+    getProjectReviewReminderIntent,
+    getTaskReminderPlan,
+    stripMarkdown,
+    type Language,
+    type Task,
+    type TaskReminderIntentKind,
+    parseTimeOfDay,
+    getTranslationsSync,
+    loadTranslations,
+    loadStoredLanguageSync,
+    getSystemDefaultLanguage,
+} from '@mindwtr/core';
 import { useTaskStore } from '@mindwtr/core';
 import { isFlatpakRuntime, isTauriRuntime } from './runtime';
 
@@ -24,8 +37,6 @@ let tauriNotificationApi: TauriNotificationApi | null = null;
 
 const CHECK_INTERVAL_MS = 15_000;
 const REPEAT_CATCH_UP_MS = CHECK_INTERVAL_MS;
-type TaskReminderKind = 'start' | 'due' | 'review' | 'task';
-
 /**
  * Picks the due-time repeat occurrence to fire on this poll tick, or null.
  *
@@ -41,20 +52,21 @@ export function resolveDueRepeatToFire(
     alreadyNotifiedKey: string | undefined,
     options: { includeDueDate: boolean },
 ): { key: string; index: number } | null {
-    const times = getDueReminderRepeatTimes(task, { includeDueDate: options.includeDueDate });
-    if (times.length === 0) return null;
+    const repeats = getTaskReminderPlan(task, now, {
+        includeDueDate: options.includeDueDate,
+    }).repeats;
+    if (repeats.length === 0) return null;
     const nowMs = now.getTime();
-    let chosenIndex = -1;
-    for (let i = 0; i < times.length; i += 1) {
-        const t = times[i].getTime();
+    let chosen = null as (typeof repeats)[number] | null;
+    for (const repeat of repeats) {
+        const t = repeat.scheduledAt.getTime();
         if (t <= nowMs && nowMs - t <= REPEAT_CATCH_UP_MS) {
-            chosenIndex = i + 1; // occurrence index is 1-based (times[0] = due + N)
+            chosen = repeat;
         }
     }
-    if (chosenIndex === -1) return null;
-    const key = `${task.dueDate}#${chosenIndex}`;
-    if (alreadyNotifiedKey === key) return null;
-    return { key, index: chosenIndex };
+    if (!chosen || chosen.repeatIndex === undefined) return null;
+    if (alreadyNotifiedKey === chosen.dedupeKey) return null;
+    return { key: chosen.dedupeKey, index: chosen.repeatIndex };
 }
 
 function getCurrentLanguage(): Language {
@@ -69,33 +81,14 @@ function localDateKey(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-function isSameScheduleTime(left: Date | null, right: Date | null): boolean {
-    if (!left || !right) return false;
-    return Math.abs(left.getTime() - right.getTime()) < 1_000;
-}
-
-export function resolveDesktopTaskReminderKind(task: Task, scheduledAt: Date): TaskReminderKind {
-    const start = hasTimeComponent(task.startTime) ? safeParseDate(task.startTime) : null;
-    if (isSameScheduleTime(scheduledAt, start)) return 'start';
-
-    const due = hasTimeComponent(task.dueDate) ? safeParseDate(task.dueDate) : null;
-    if (isSameScheduleTime(scheduledAt, due)) return 'due';
-
-    const review = hasTimeComponent(task.reviewAt) ? safeParseDate(task.reviewAt) : null;
-    if (isSameScheduleTime(scheduledAt, review)) return 'review';
-
-    return 'task';
-}
-
 export function buildDesktopTaskNotificationBody(
     task: Task,
-    scheduledAt: Date,
+    kind: TaskReminderIntentKind,
     translations: Record<string, string>
 ): string | undefined {
-    const kind = resolveDesktopTaskReminderKind(task, scheduledAt);
     const reminderLabel = kind === 'start'
         ? (translations['settings.startDateNotifications'] ?? 'Start date reminder')
-        : kind === 'due'
+        : kind === 'due' || kind === 'due-repeat'
             ? (translations['settings.dueDateNotifications'] ?? 'Due date reminder')
             : kind === 'review'
                 ? (translations['settings.reviewAtNotifications'] ?? 'Review date reminder')
@@ -211,40 +204,37 @@ function checkDueAndNotify() {
     const includeDueDate = settings.dueDateNotificationsEnabled !== false;
     const includeReviewAt = settings.reviewAtNotificationsEnabled !== false;
     tasks.forEach((task: Task) => {
+        const plan = getTaskReminderPlan(task, now, {
+            includeStartTime,
+            includeDueDate,
+            includeReviewAt,
+        });
         const repeat = resolveDueRepeatToFire(task, now, repeatNotifiedByTask.get(task.id), { includeDueDate });
         if (repeat) {
-            const dueAt = safeParseDate(task.dueDate);
-            void sendNotification(task.title, dueAt ? buildDesktopTaskNotificationBody(task, dueAt, tr) : task.title);
+            void sendNotification(task.title, buildDesktopTaskNotificationBody(task, 'due-repeat', tr));
             repeatNotifiedByTask.set(task.id, repeat.key);
         }
 
-        const next = getNextScheduledAt(task, now, { includeStartTime, includeDueDate, includeReviewAt });
+        const next = plan.next;
         if (!next) return;
-        const diffMs = next.getTime() - now.getTime();
+        const diffMs = next.scheduledAt.getTime() - now.getTime();
         if (diffMs > CHECK_INTERVAL_MS) return;
 
-        const key = next.toISOString();
-        if (notifiedAtByTask.get(task.id) === key) return;
+        if (notifiedAtByTask.get(task.id) === next.dedupeKey) return;
 
-        void sendNotification(task.title, buildDesktopTaskNotificationBody(task, next, tr));
-        notifiedAtByTask.set(task.id, key);
+        void sendNotification(task.title, buildDesktopTaskNotificationBody(task, next.kind, tr));
+        notifiedAtByTask.set(task.id, next.dedupeKey);
     });
 
     if (includeReviewAt) {
         projects.forEach((project) => {
-            if (project.deletedAt) return;
-            if (project.status === 'archived') return;
-            const review = safeParseDate(project.reviewAt);
-            if (!review) return;
-            if (!hasTimeComponent(project.reviewAt)) {
-                review.setHours(9, 0, 0, 0);
-            }
-            const diffMs = review.getTime() - now.getTime();
-            if (diffMs < 0 || diffMs > CHECK_INTERVAL_MS) return;
-            const key = review.toISOString();
-            if (notifiedAtByProject.get(project.id) === key) return;
+            const reminder = getProjectReviewReminderIntent(project, now);
+            if (!reminder) return;
+            const diffMs = reminder.scheduledAt.getTime() - now.getTime();
+            if (diffMs > CHECK_INTERVAL_MS) return;
+            if (notifiedAtByProject.get(project.id) === reminder.dedupeKey) return;
             void sendNotification(project.title, tr['review.projectsStep'] ?? 'Review project');
-            notifiedAtByProject.set(project.id, key);
+            notifiedAtByProject.set(project.id, reminder.dedupeKey);
         });
     }
 

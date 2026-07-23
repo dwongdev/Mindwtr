@@ -63,6 +63,7 @@ const baseProps: any = {
   applyQuickDate: vi.fn(),
   commitContextDraft: vi.fn(),
   commitTagDraft: vi.fn(),
+  checklist: undefined,
   contextInputDraft: '',
   contextTokenSuggestions: [],
   customWeekdays: [],
@@ -81,8 +82,8 @@ const baseProps: any = {
   applyDescriptionResult: vi.fn(),
   openDescriptionExpandedEditor: vi.fn(),
   downloadAttachment: vi.fn(),
+  draft: null,
   editLinkAttachment: vi.fn(),
-  editedTask: { id: 'task-1', title: 'Task' },
   formatDate: vi.fn((value) => value ?? ''),
   formatDueDate: vi.fn((value) => value ?? ''),
   frequentContextSuggestions: [],
@@ -112,7 +113,7 @@ const baseProps: any = {
   selectedContextTokens: new Set<string>(),
   selectedTagTokens: new Set<string>(),
   setCustomWeekdays: vi.fn(),
-  setEditedTask: vi.fn(),
+  setDraftField: vi.fn(),
   setIsContextInputFocused: vi.fn(),
   setIsTagInputFocused: vi.fn(),
   setLinkInputTouched: vi.fn(),
@@ -197,16 +198,12 @@ const createChecklistState = (checklist = [{ id: 'check-1', title: 'Item 1', isC
     title: 'Task',
     checklist,
   };
-  const setEditedTask = vi.fn((next: any) => {
-    state = typeof next === 'function' ? next(state) : next;
-  });
   const applyChecklistUpdate = vi.fn((nextChecklist: any) => {
     state = { ...state, checklist: nextChecklist };
   });
   return {
     getState: () => state,
     applyChecklistUpdate,
-    setEditedTask,
   };
 };
 
@@ -222,10 +219,7 @@ describe('TaskEditContentField', () => {
       tree = create(
         <TaskEditContentField
           {...baseProps}
-          editedTask={{
-            ...baseProps.editedTask,
-            checklist: [{ id: 'check-1', title: 'Item 1', isCompleted: true }],
-          }}
+          checklist={[{ id: 'check-1', title: 'Item 1', isCompleted: true }]}
           fieldId="checklist"
         />
       );
@@ -419,7 +413,7 @@ describe('TaskEditContentField', () => {
   });
 
   it('wraps selected checklist item text when the native change replaces the range', () => {
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState();
+    const { getState, applyChecklistUpdate } = createChecklistState();
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -427,9 +421,8 @@ describe('TaskEditContentField', () => {
         <TaskEditContentField
           {...baseProps}
           fieldId="checklist"
-          editedTask={getState()}
+          checklist={getState().checklist}
           applyChecklistUpdate={applyChecklistUpdate}
-          setEditedTask={setEditedTask}
         />
       );
     });
@@ -456,7 +449,7 @@ describe('TaskEditContentField', () => {
   });
 
   it('splits multi-line pasted text into separate checklist items', () => {
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState([
+    const { getState, applyChecklistUpdate } = createChecklistState([
       { id: 'check-1', title: 'Item 1', isCompleted: false },
       { id: 'check-2', title: 'Item 2', isCompleted: false },
     ]);
@@ -467,9 +460,8 @@ describe('TaskEditContentField', () => {
         <TaskEditContentField
           {...baseProps}
           fieldId="checklist"
-          editedTask={getState()}
+          checklist={getState().checklist}
           applyChecklistUpdate={applyChecklistUpdate}
-          setEditedTask={setEditedTask}
         />
       );
     });
@@ -492,7 +484,7 @@ describe('TaskEditContentField', () => {
   });
 
   it('inserts a new checklist item after the current one when submitting a filled item', () => {
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState([
+    const { getState, applyChecklistUpdate } = createChecklistState([
       { id: 'check-1', title: 'Item 1', isCompleted: false },
       { id: 'check-2', title: 'Item 2', isCompleted: false },
     ]);
@@ -503,9 +495,8 @@ describe('TaskEditContentField', () => {
         <TaskEditContentField
           {...baseProps}
           fieldId="checklist"
-          editedTask={getState()}
+          checklist={getState().checklist}
           applyChecklistUpdate={applyChecklistUpdate}
-          setEditedTask={setEditedTask}
         />
       );
     });
@@ -525,7 +516,7 @@ describe('TaskEditContentField', () => {
   });
 
   it('does not add a checklist item when submitting an empty item', () => {
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState([
+    const { getState, applyChecklistUpdate } = createChecklistState([
       { id: 'check-1', title: '', isCompleted: false },
     ]);
     let tree!: ReturnType<typeof create>;
@@ -535,9 +526,8 @@ describe('TaskEditContentField', () => {
         <TaskEditContentField
           {...baseProps}
           fieldId="checklist"
-          editedTask={getState()}
+          checklist={getState().checklist}
           applyChecklistUpdate={applyChecklistUpdate}
-          setEditedTask={setEditedTask}
         />
       );
     });
@@ -554,7 +544,7 @@ describe('TaskEditContentField', () => {
 
   it('leaves checklist typing to native text input when editor assist is disabled', () => {
     useTaskStore.setState({ settings: { markdownEditorAssist: false } });
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState();
+    const { getState, applyChecklistUpdate } = createChecklistState();
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -562,9 +552,8 @@ describe('TaskEditContentField', () => {
         <TaskEditContentField
           {...baseProps}
           fieldId="checklist"
-          editedTask={getState()}
+          checklist={getState().checklist}
           applyChecklistUpdate={applyChecklistUpdate}
-          setEditedTask={setEditedTask}
         />
       );
     });
@@ -584,7 +573,7 @@ describe('TaskEditContentField', () => {
 
   it('types a literal "(" with no auto-close when typing help is disabled (#742)', () => {
     useTaskStore.setState({ settings: { markdownEditorAssist: false } });
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState([
+    const { getState, applyChecklistUpdate } = createChecklistState([
       { id: 'check-1', title: '', isCompleted: false },
     ]);
     let tree!: ReturnType<typeof create>;
@@ -594,9 +583,8 @@ describe('TaskEditContentField', () => {
         <TaskEditContentField
           {...baseProps}
           fieldId="checklist"
-          editedTask={getState()}
+          checklist={getState().checklist}
           applyChecklistUpdate={applyChecklistUpdate}
-          setEditedTask={setEditedTask}
         />
       );
     });
@@ -611,7 +599,7 @@ describe('TaskEditContentField', () => {
   });
 
   it('keeps Android checklist cursor inside a collapsed pair and ignores duplicate native insertion', () => {
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState([
+    const { getState, applyChecklistUpdate } = createChecklistState([
       { id: 'check-1', title: '', isCompleted: false },
     ]);
     let tree!: ReturnType<typeof create>;
@@ -622,9 +610,8 @@ describe('TaskEditContentField', () => {
           <TaskEditContentField
             {...baseProps}
             fieldId="checklist"
-            editedTask={getState()}
+            checklist={getState().checklist}
             applyChecklistUpdate={applyChecklistUpdate}
-            setEditedTask={setEditedTask}
           />
         );
       });
@@ -659,7 +646,7 @@ describe('TaskEditContentField', () => {
   });
 
   it('tracks the focused Android checklist row handle for measured scrolling', () => {
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState();
+    const { getState, applyChecklistUpdate } = createChecklistState();
     const handleInputFocus = vi.fn();
     let tree!: ReturnType<typeof create>;
 
@@ -669,10 +656,9 @@ describe('TaskEditContentField', () => {
           <TaskEditContentField
             {...baseProps}
             fieldId="checklist"
-            editedTask={getState()}
+            checklist={getState().checklist}
             applyChecklistUpdate={applyChecklistUpdate}
             handleInputFocus={handleInputFocus}
-            setEditedTask={setEditedTask}
           />
         );
       });
@@ -688,7 +674,7 @@ describe('TaskEditContentField', () => {
   });
 
   it('does not add another blank checklist item while one is already empty', () => {
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState([
+    const { getState, applyChecklistUpdate } = createChecklistState([
       { id: 'check-1', title: '', isCompleted: false },
     ]);
     let tree!: ReturnType<typeof create>;
@@ -698,9 +684,8 @@ describe('TaskEditContentField', () => {
         <TaskEditContentField
           {...baseProps}
           fieldId="checklist"
-          editedTask={getState()}
+          checklist={getState().checklist}
           applyChecklistUpdate={applyChecklistUpdate}
-          setEditedTask={setEditedTask}
         />
       );
     });
@@ -716,7 +701,7 @@ describe('TaskEditContentField', () => {
   });
 
   it('wraps selected checklist item text from native mobile text changes', () => {
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState();
+    const { getState, applyChecklistUpdate } = createChecklistState();
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -724,9 +709,8 @@ describe('TaskEditContentField', () => {
         <TaskEditContentField
           {...baseProps}
           fieldId="checklist"
-          editedTask={getState()}
+          checklist={getState().checklist}
           applyChecklistUpdate={applyChecklistUpdate}
-          setEditedTask={setEditedTask}
         />
       );
     });
@@ -743,7 +727,7 @@ describe('TaskEditContentField', () => {
 
   it('keeps native checklist text changes plain when editor assist is disabled', () => {
     useTaskStore.setState({ settings: { markdownEditorAssist: false } });
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState();
+    const { getState, applyChecklistUpdate } = createChecklistState();
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -751,9 +735,8 @@ describe('TaskEditContentField', () => {
         <TaskEditContentField
           {...baseProps}
           fieldId="checklist"
-          editedTask={getState()}
+          checklist={getState().checklist}
           applyChecklistUpdate={applyChecklistUpdate}
-          setEditedTask={setEditedTask}
         />
       );
     });
@@ -774,7 +757,7 @@ describe('TaskEditContentField', () => {
       { id: 'check-2', title: 'Item 2', isCompleted: false },
       { id: 'check-3', title: 'Item 3', isCompleted: true },
     ];
-    const { getState, applyChecklistUpdate, setEditedTask } = createChecklistState(checklist);
+    const { getState, applyChecklistUpdate } = createChecklistState(checklist);
     let tree!: ReturnType<typeof create>;
 
     act(() => {
@@ -782,9 +765,8 @@ describe('TaskEditContentField', () => {
         <TaskEditContentField
           {...baseProps}
           fieldId="checklist"
-          editedTask={getState()}
+          checklist={getState().checklist}
           applyChecklistUpdate={applyChecklistUpdate}
-          setEditedTask={setEditedTask}
         />
       );
     });

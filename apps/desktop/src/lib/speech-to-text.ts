@@ -1,34 +1,25 @@
-import type { AudioCaptureMode, AudioFieldStrategy } from '@mindwtr/core';
-import { resolveGeminiModel } from '@mindwtr/core';
+import type {
+    SpeechToTaskCaptureConfig,
+    SpeechToTaskResult,
+} from '@mindwtr/core';
+import {
+    buildSpeechToTaskPrompt,
+    normalizeSpeechLanguage,
+    parseSpeechToTaskResult,
+    resolveGeminiModel,
+    runSpeechToTaskCapture,
+} from '@mindwtr/core';
 
 import { isTauriRuntime } from './runtime';
 import { logWarn } from './app-log';
 
-type SpeechProvider = 'openai' | 'gemini' | 'whisper' | 'parakeet';
+export type SpeechToTextResult = SpeechToTaskResult;
 
-export type SpeechToTextResult = {
-    transcript: string;
-    title?: string | null;
-    description?: string | null;
-    dueDate?: string | null;
-    startTime?: string | null;
-    projectTitle?: string | null;
-    tags?: string[] | null;
-    contexts?: string[] | null;
-    language?: string | null;
-};
-
-export type SpeechToTextConfig = {
-    provider: SpeechProvider;
+export type SpeechToTextConfig = SpeechToTaskCaptureConfig & {
     apiKey?: string;
     model: string;
-    language?: string;
-    mode?: AudioCaptureMode;
-    fieldStrategy?: AudioFieldStrategy;
     parseModel?: string;
     modelPath?: string;
-    now?: Date;
-    timeZone?: string;
 };
 
 export type AudioInput = {
@@ -70,28 +61,6 @@ const bytesToBase64 = (bytes: Uint8Array) => {
     return out;
 };
 
-const parseJsonResponse = (text: string): SpeechToTextResult => {
-    const cleaned = text.replace(/```json|```/gi, '').trim();
-    return JSON.parse(cleaned) as SpeechToTextResult;
-};
-
-const resolveLanguage = (value?: string) => {
-    if (!value) return 'auto';
-    const trimmed = value.trim();
-    if (!trimmed) return 'auto';
-    const normalized = trimmed.toLowerCase();
-    if (normalized === 'auto') return 'auto';
-    const base = normalized.split(/[-_]/)[0];
-    const map: Record<string, string> = {
-        english: 'en',
-        en: 'en',
-        spanish: 'es',
-        espanol: 'es',
-        es: 'es',
-    };
-    return map[base] ?? base;
-};
-
 const normalizeLocalAsrTranscript = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return '';
@@ -119,60 +88,6 @@ const normalizeLocalAsrTranscript = (value: string) => {
     }
 
     return trimmed;
-};
-
-const buildSmartPrompt = ({
-    fieldStrategy,
-    language,
-    now,
-    timeZone,
-}: {
-    fieldStrategy: AudioFieldStrategy;
-    language: string;
-    now: Date;
-    timeZone?: string;
-}) => {
-    return `
-You are a personal assistant converting a voice note into a GTD task.
-
-Audio language: ${language === 'auto' ? 'Detect automatically' : language}
-Current date/time: ${now.toISOString()}
-Time zone: ${timeZone || 'local'}
-
-Return ONLY valid JSON with these keys:
-{
-  "transcript": "string",
-  "title": "string or null",
-  "description": "string or null",
-  "dueDate": "ISO 8601 string or null",
-  "startTime": "ISO 8601 string or null",
-  "projectTitle": "string or null",
-  "tags": ["#tag"] or [],
-  "contexts": ["@context"] or [],
-  "language": "detected language name or code"
-}
-
-Field strategy: ${fieldStrategy}
-- smart: If transcript is short (<= 15 words), use it verbatim as title and leave description empty. If longer, create a concise 3-7 word title and put the full transcript in description.
-- title_only: Put the full transcript in title and leave description empty.
-- description_only: Keep title empty and put the full transcript in description.
-
-Extract any dates/times and convert to ISO 8601 using the current date/time for relative phrases (e.g., "tomorrow 5pm").
-If a field is unknown, return null or an empty array.
-  `.trim();
-};
-
-const buildTranscriptionPrompt = (language: string) => {
-    return `
-Transcribe the audio into plain text.
-Audio language: ${language === 'auto' ? 'Detect automatically' : language}
-
-Return ONLY valid JSON with these keys:
-{
-  "transcript": "string",
-  "language": "detected language name or code"
-}
-  `.trim();
 };
 
 const fetchJson = async (url: string, init: RequestInit, options?: FetchOptions) => {
@@ -206,7 +121,7 @@ const transcribeOpenAI = async (audio: AudioInput, config: SpeechToTextConfig) =
     const form = new FormData();
     form.append('file', file);
     form.append('model', config.model);
-    const language = resolveLanguage(config.language);
+    const language = normalizeSpeechLanguage(config.language);
     if (language !== 'auto') {
         form.append('language', language);
     }
@@ -258,9 +173,9 @@ const parseWithOpenAIResponses = async (transcript: string, config: SpeechToText
         throw new Error('OpenAI API key missing');
     }
     const now = config.now ?? new Date();
-    const prompt = buildSmartPrompt({
+    const prompt = buildSpeechToTaskPrompt({
         fieldStrategy: config.fieldStrategy ?? 'smart',
-        language: resolveLanguage(config.language),
+        language: normalizeSpeechLanguage(config.language),
         now,
         timeZone: config.timeZone,
     });
@@ -289,7 +204,7 @@ const parseWithOpenAIResponses = async (transcript: string, config: SpeechToText
     if (!content) {
         throw new Error('OpenAI returned no content.');
     }
-    return parseJsonResponse(content);
+    return parseSpeechToTaskResult(content);
 };
 
 const parseWithOpenAIChat = async (transcript: string, config: SpeechToTextConfig, overrideModel?: string) => {
@@ -297,9 +212,9 @@ const parseWithOpenAIChat = async (transcript: string, config: SpeechToTextConfi
         throw new Error('OpenAI API key missing');
     }
     const now = config.now ?? new Date();
-    const prompt = buildSmartPrompt({
+    const prompt = buildSpeechToTaskPrompt({
         fieldStrategy: config.fieldStrategy ?? 'smart',
-        language: resolveLanguage(config.language),
+        language: normalizeSpeechLanguage(config.language),
         now,
         timeZone: config.timeZone,
     });
@@ -328,7 +243,7 @@ const parseWithOpenAIChat = async (transcript: string, config: SpeechToTextConfi
     if (!content) {
         throw new Error('OpenAI returned no content.');
     }
-    return parseJsonResponse(content);
+    return parseSpeechToTaskResult(content);
 };
 
 const parseWithOpenAI = async (transcript: string, config: SpeechToTextConfig, overrideModel?: string) => {
@@ -343,17 +258,10 @@ const parseWithOpenAI = async (transcript: string, config: SpeechToTextConfig, o
     }
 };
 
-const requestGemini = async (audio: AudioInput, config: SpeechToTextConfig, promptOverride?: string) => {
+const requestGemini = async (audio: AudioInput, config: SpeechToTextConfig, prompt: string) => {
     if (!config.apiKey) {
         throw new Error('Gemini API key missing');
     }
-    const now = config.now ?? new Date();
-    const prompt = promptOverride ?? buildSmartPrompt({
-        fieldStrategy: config.fieldStrategy ?? 'smart',
-        language: resolveLanguage(config.language),
-        now,
-        timeZone: config.timeZone,
-    });
     const base64Audio = bytesToBase64(audio.bytes);
     const geminiModel = resolveGeminiModel(config.model);
     const url = `${GEMINI_BASE_URL}/${geminiModel}:generateContent`;
@@ -398,7 +306,7 @@ const requestGemini = async (audio: AudioInput, config: SpeechToTextConfig, prom
     if (!text) {
         throw new Error('Gemini returned no content.');
     }
-    return parseJsonResponse(text);
+    return parseSpeechToTaskResult(text);
 };
 
 const transcribeWhisper = async (audio: AudioInput, config: SpeechToTextConfig) => {
@@ -411,7 +319,7 @@ const transcribeWhisper = async (audio: AudioInput, config: SpeechToTextConfig) 
     if (!isTauriRuntime()) {
         throw new Error('Whisper is only available in the desktop app');
     }
-    const language = resolveLanguage(config.language);
+    const language = normalizeSpeechLanguage(config.language);
     const { invoke } = await import('@tauri-apps/api/core');
     const text = await invoke<string>('transcribe_whisper', {
         modelPath: config.modelPath,
@@ -432,7 +340,7 @@ const transcribeParakeet = async (audio: AudioInput, config: SpeechToTextConfig)
     if (!isTauriRuntime()) {
         throw new Error('Parakeet is only available in the desktop app');
     }
-    const language = resolveLanguage(config.language);
+    const language = normalizeSpeechLanguage(config.language);
     const { invoke } = await import('@tauri-apps/api/core');
     const text = await invoke<string>('transcribe_parakeet', {
         modelPath: config.modelPath,
@@ -446,46 +354,24 @@ export async function processAudioCapture(
     audio: AudioInput,
     config: SpeechToTextConfig
 ): Promise<SpeechToTextResult> {
-    const mode = config.mode ?? 'smart_parse';
-    if (config.provider === 'whisper') {
-        const transcript = await transcribeWhisper(audio, config);
-        return { transcript };
-    }
-    if (config.provider === 'parakeet') {
-        const transcript = await transcribeParakeet(audio, config);
-        return { transcript };
-    }
-    if (config.provider === 'gemini') {
-        if (mode === 'transcribe_only') {
-            const prompt = buildTranscriptionPrompt(resolveLanguage(config.language));
-            return requestGemini(audio, config, prompt);
-        }
-        return requestGemini(audio, config);
-    }
-
-    const transcript = await transcribeOpenAI(audio, config);
-    if (mode === 'transcribe_only') {
-        return { transcript };
-    }
-    try {
-        const parsed = await parseWithOpenAI(transcript, config);
-        return {
-            ...parsed,
-            transcript: parsed.transcript || transcript,
-        };
-    } catch (error) {
-        try {
-            const parsed = await parseWithOpenAI(transcript, config, 'gpt-4o-mini');
-            return {
-                ...parsed,
-                transcript: parsed.transcript || transcript,
-            };
-        } catch (retryError) {
+    return runSpeechToTaskCapture(config, {
+        transcribe: () => {
+            if (config.provider === 'whisper') {
+                return transcribeWhisper(audio, config);
+            }
+            if (config.provider === 'parakeet') {
+                return transcribeParakeet(audio, config);
+            }
+            return transcribeOpenAI(audio, config);
+        },
+        direct: (prompt) => requestGemini(audio, config, prompt),
+        parse: (transcript, overrideModel) =>
+            parseWithOpenAI(transcript, config, overrideModel),
+        onParseFallback: (error) => {
             void logWarn('OpenAI smart parse failed, falling back to transcript', {
                 scope: 'speech',
-                extra: { error: retryError instanceof Error ? retryError.message : String(retryError) },
+                extra: { error: error.message },
             });
-            return { transcript };
-        }
-    }
+        },
+    });
 }

@@ -1,18 +1,17 @@
 import React from 'react';
 import { Platform } from 'react-native';
 import type { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { buildRRuleString, computeRelativeStartTime, hasTimeComponent, parseRRuleString, safeFormatDate, safeParseDate, safeParseDueDate, type Task } from '@mindwtr/core';
+import { buildRRuleString, computeRelativeStartTime, hasTimeComponent, parseRRuleString, safeFormatDate, safeParseDate, safeParseDueDate } from '@mindwtr/core';
+import type { TaskDraft, TaskDraftSetter } from '@mindwtr/core/task-draft';
 
-import type { SetEditedTask } from './use-task-edit-state';
-import { buildRecurrenceValue } from './recurrence-utils';
 
 type TaskEditDatePickerMode = 'start' | 'start-time' | 'due' | 'due-time' | 'review' | 'recurrence-end';
 
 type UseTaskEditDatesParams = {
-    editedTask: Partial<Task>;
+    draft: TaskDraft | null;
     pendingDueDate: Date | null;
     pendingStartDate: Date | null;
-    setEditedTask: SetEditedTask;
+    setDraftField: TaskDraftSetter;
     setPendingDueDate: React.Dispatch<React.SetStateAction<Date | null>>;
     setPendingStartDate: React.Dispatch<React.SetStateAction<Date | null>>;
     setShowDatePicker: React.Dispatch<React.SetStateAction<'start' | 'start-time' | 'due' | 'due-time' | 'review' | 'recurrence-end' | null>>;
@@ -39,27 +38,26 @@ const applyClockTime = (date: Date, time: string): Date => {
 };
 
 
-const applyStartTimeUpdate = (setEditedTask: SetEditedTask, startTime: string | undefined) => {
-    setEditedTask((prev) => ({ ...prev, startTime, relativeStartOffset: undefined }));
+const applyStartTimeUpdate = (setDraftField: TaskDraftSetter, startTime: string) => {
+    setDraftField('startTime', startTime);
+    setDraftField('relativeStartOffset', undefined);
 };
 
-const applyDueDateUpdate = (setEditedTask: SetEditedTask, dueDate: string | undefined) => {
-    setEditedTask((prev) => {
-        if (!dueDate) return { ...prev, dueDate: undefined, relativeStartOffset: undefined };
-        const computedStart = computeRelativeStartTime(dueDate, prev.relativeStartOffset);
-        return {
-            ...prev,
-            dueDate,
-            ...(computedStart ? { startTime: computedStart } : {}),
-        };
-    });
+const applyDueDateUpdate = (draft: TaskDraft | null, setDraftField: TaskDraftSetter, dueDate: string) => {
+    setDraftField('dueDate', dueDate);
+    if (!dueDate) {
+        setDraftField('relativeStartOffset', undefined);
+        return;
+    }
+    const computedStart = computeRelativeStartTime(dueDate, draft?.relativeStartOffset);
+    if (computedStart) setDraftField('startTime', computedStart);
 };
 
 export function useTaskEditDates({
-    editedTask,
+    draft,
     pendingDueDate,
     pendingStartDate,
-    setEditedTask,
+    setDraftField,
     setPendingDueDate,
     setPendingStartDate,
     setShowDatePicker,
@@ -68,40 +66,15 @@ export function useTaskEditDates({
     t,
 }: UseTaskEditDatesParams) {
     const updateRecurrenceEndDate = React.useCallback((until: string) => {
-        setEditedTask((prev) => {
-            const recurrence = prev.recurrence;
-            if (!recurrence) return prev;
-            const rule = typeof recurrence === 'string' ? recurrence : recurrence.rule;
-            if (!rule) return prev;
-            const strategy = typeof recurrence === 'object' && recurrence.strategy === 'fluid' ? 'fluid' : 'strict';
-            const parsed = typeof recurrence === 'object' && recurrence.rrule
-                ? parseRRuleString(recurrence.rrule)
-                : {};
-            const byDay = typeof recurrence === 'object' && recurrence.byDay?.length
-                ? recurrence.byDay
-                : parsed.byDay;
-            const byMonthDay = typeof recurrence === 'object' && recurrence.byMonthDay?.length
-                ? recurrence.byMonthDay
-                : parsed.byMonthDay;
-            const completedOccurrences = typeof recurrence === 'object'
-                ? recurrence.completedOccurrences
-                : undefined;
-            const rrule = buildRRuleString(rule, byDay, parsed.interval, {
-                byMonthDay,
-                until,
-            });
-            return {
-                ...prev,
-                recurrence: buildRecurrenceValue(rule, strategy, {
-                    byDay,
-                    byMonthDay,
-                    until,
-                    completedOccurrences,
-                    rrule,
-                }),
-            };
-        });
-    }, [setEditedTask]);
+        if (!draft?.recurrence) return;
+        const parsed = parseRRuleString(draft.recurrenceRRule);
+        setDraftField('recurrenceRRule', buildRRuleString(
+            draft.recurrence,
+            parsed.byDay,
+            parsed.interval,
+            { byMonthDay: parsed.byMonthDay, until },
+        ));
+    }, [draft?.recurrence, draft?.recurrenceRRule, setDraftField]);
 
     const applySelectedDate = React.useCallback((
         currentMode: TaskEditDatePickerMode,
@@ -110,31 +83,31 @@ export function useTaskEditDates({
     ) => {
         if (currentMode === 'start') {
             const dateOnly = safeFormatDate(selectedDate, 'yyyy-MM-dd');
-            const existing = editedTask.startTime && hasTimeComponent(editedTask.startTime)
-                ? safeParseDate(editedTask.startTime)
+            const existing = draft?.startTime && hasTimeComponent(draft.startTime)
+                ? safeParseDate(draft.startTime)
                 : null;
             if (existing) {
                 const combined = new Date(selectedDate);
                 combined.setHours(existing.getHours(), existing.getMinutes(), 0, 0);
                 setPendingStartDate(combined);
-                applyStartTimeUpdate(setEditedTask, combined.toISOString());
+                applyStartTimeUpdate(setDraftField, combined.toISOString());
             } else if (defaultScheduleTime) {
                 const combined = applyClockTime(selectedDate, defaultScheduleTime);
                 setPendingStartDate(combined);
-                applyStartTimeUpdate(setEditedTask, buildDateWithTimeValue(selectedDate, defaultScheduleTime));
+                applyStartTimeUpdate(setDraftField, buildDateWithTimeValue(selectedDate, defaultScheduleTime));
             } else {
                 setPendingStartDate(new Date(selectedDate));
-                applyStartTimeUpdate(setEditedTask, dateOnly);
+                applyStartTimeUpdate(setDraftField, dateOnly);
             }
             if (closePicker) setShowDatePicker(null);
             return;
         }
 
         if (currentMode === 'start-time') {
-            const base = pendingStartDate ?? safeParseDate(editedTask.startTime) ?? new Date();
+            const base = pendingStartDate ?? safeParseDate(draft?.startTime) ?? new Date();
             const combined = new Date(base);
             combined.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
-            applyStartTimeUpdate(setEditedTask, combined.toISOString());
+            applyStartTimeUpdate(setDraftField, combined.toISOString());
             setPendingStartDate(null);
             if (closePicker) setShowDatePicker(null);
             return;
@@ -142,16 +115,16 @@ export function useTaskEditDates({
 
         if (currentMode === 'review') {
             const dateOnly = safeFormatDate(selectedDate, 'yyyy-MM-dd');
-            const existing = editedTask.reviewAt && hasTimeComponent(editedTask.reviewAt)
-                ? safeParseDate(editedTask.reviewAt)
+            const existing = draft?.reviewAt && hasTimeComponent(draft.reviewAt)
+                ? safeParseDate(draft.reviewAt)
                 : null;
             if (existing) {
                 const existingTime = safeFormatDate(existing, 'HH:mm');
-                setEditedTask((prev) => ({ ...prev, reviewAt: buildDateWithTimeValue(selectedDate, existingTime) }));
+                setDraftField('reviewAt', buildDateWithTimeValue(selectedDate, existingTime));
             } else if (defaultScheduleTime) {
-                setEditedTask((prev) => ({ ...prev, reviewAt: buildDateWithTimeValue(selectedDate, defaultScheduleTime) }));
+                setDraftField('reviewAt', buildDateWithTimeValue(selectedDate, defaultScheduleTime));
             } else {
-                setEditedTask((prev) => ({ ...prev, reviewAt: dateOnly }));
+                setDraftField('reviewAt', dateOnly);
             }
             if (closePicker) setShowDatePicker(null);
             return;
@@ -165,40 +138,38 @@ export function useTaskEditDates({
 
         if (currentMode === 'due') {
             const dateOnly = safeFormatDate(selectedDate, 'yyyy-MM-dd');
-            const existing = editedTask.dueDate && hasTimeComponent(editedTask.dueDate)
-                ? safeParseDate(editedTask.dueDate)
+            const existing = draft?.dueDate && hasTimeComponent(draft.dueDate)
+                ? safeParseDate(draft.dueDate)
                 : null;
             if (existing) {
                 const combined = new Date(selectedDate);
                 combined.setHours(existing.getHours(), existing.getMinutes(), 0, 0);
                 setPendingDueDate(combined);
-                applyDueDateUpdate(setEditedTask, combined.toISOString());
+                applyDueDateUpdate(draft, setDraftField, combined.toISOString());
             } else if (defaultScheduleTime) {
                 const combined = applyClockTime(selectedDate, defaultScheduleTime);
                 setPendingDueDate(combined);
-                applyDueDateUpdate(setEditedTask, buildDateWithTimeValue(selectedDate, defaultScheduleTime));
+                applyDueDateUpdate(draft, setDraftField, buildDateWithTimeValue(selectedDate, defaultScheduleTime));
             } else {
                 setPendingDueDate(new Date(selectedDate));
-                applyDueDateUpdate(setEditedTask, dateOnly);
+                applyDueDateUpdate(draft, setDraftField, dateOnly);
             }
             if (closePicker) setShowDatePicker(null);
             return;
         }
 
-        const base = pendingDueDate ?? safeParseDate(editedTask.dueDate) ?? new Date();
+        const base = pendingDueDate ?? safeParseDate(draft?.dueDate) ?? new Date();
         const combined = new Date(base);
         combined.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
-        applyDueDateUpdate(setEditedTask, combined.toISOString());
+        applyDueDateUpdate(draft, setDraftField, combined.toISOString());
         setPendingDueDate(null);
         if (closePicker) setShowDatePicker(null);
     }, [
-        editedTask.dueDate,
-        editedTask.reviewAt,
-        editedTask.startTime,
+        draft,
         defaultScheduleTime,
         pendingDueDate,
         pendingStartDate,
-        setEditedTask,
+        setDraftField,
         setPendingDueDate,
         setPendingStartDate,
         setShowDatePicker,
@@ -212,12 +183,12 @@ export function useTaskEditDates({
         if (!selectedDate) {
             if (mode === 'start') {
                 setPendingStartDate(null);
-                applyStartTimeUpdate(setEditedTask, undefined);
+                applyStartTimeUpdate(setDraftField, '');
             } else if (mode === 'due') {
                 setPendingDueDate(null);
-                applyDueDateUpdate(setEditedTask, undefined);
+                applyDueDateUpdate(draft, setDraftField, '');
             } else {
-                setEditedTask((prev) => ({ ...prev, reviewAt: undefined }));
+                setDraftField('reviewAt', '');
             }
             setShowDatePicker(null);
             return;
@@ -226,7 +197,8 @@ export function useTaskEditDates({
         applySelectedDate(mode, selectedDate, true);
     }, [
         applySelectedDate,
-        setEditedTask,
+        draft,
+        setDraftField,
         setPendingDueDate,
         setPendingStartDate,
         setShowDatePicker,

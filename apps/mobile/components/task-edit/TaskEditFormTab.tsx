@@ -17,7 +17,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { getRecurrenceUntilValue, tFallback, type Task, type TaskEditorFieldId, type TaskEditorSectionId, type TimeEstimate } from '@mindwtr/core';
+import { parseRRuleString, tFallback, type Attachment, type Task, type TaskEditorFieldId, type TaskEditorSectionId, type TimeEstimate } from '@mindwtr/core';
+import type { TaskDraft } from '@mindwtr/core/task-draft';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
 import { CollapsibleSection } from './CollapsibleSection';
 
@@ -28,8 +29,9 @@ type TaskEditFormTabProps = {
     tc: ThemeColors;
     styles: Record<string, any>;
     inputStyle: Record<string, any>;
-    editedTask: Partial<Task>;
-    setEditedTask: React.Dispatch<React.SetStateAction<Partial<Task>>>;
+    attachments: Attachment[] | undefined;
+    checklist: Task['checklist'];
+    draft: TaskDraft | null;
     aiEnabled: boolean;
     isAIWorking: boolean;
     handleAIClarify: () => void;
@@ -72,8 +74,9 @@ function TaskEditFormTabComponent({
     tc,
     styles,
     inputStyle,
-    editedTask,
-    setEditedTask,
+    attachments,
+    checklist,
+    draft,
     aiEnabled,
     isAIWorking,
     handleAIClarify,
@@ -294,31 +297,31 @@ function TaskEditFormTabComponent({
         return fieldIds.filter((fieldId) => {
             switch (fieldId) {
                 case 'startTime':
-                    return Boolean(editedTask.startTime);
+                    return Boolean(draft?.startTime);
                 case 'recurrence':
-                    return Boolean(editedTask.recurrence);
+                    return Boolean(draft?.recurrence);
                 case 'reviewAt':
-                    return Boolean(editedTask.reviewAt);
+                    return Boolean(draft?.reviewAt);
                 case 'contexts':
-                    return (editedTask.contexts?.length ?? 0) > 0;
+                    return Boolean(draft?.contexts.trim());
                 case 'tags':
-                    return (editedTask.tags?.length ?? 0) > 0;
+                    return Boolean(draft?.tags.trim());
                 case 'priority':
-                    return Boolean(editedTask.priority);
+                    return Boolean(draft?.priority);
                 case 'energyLevel':
-                    return Boolean(editedTask.energyLevel);
+                    return Boolean(draft?.energyLevel);
                 case 'assignedTo':
-                    return Boolean(String(editedTask.assignedTo ?? '').trim());
+                    return Boolean(draft?.assignedTo.trim());
                 case 'timeEstimate':
-                    return Boolean(editedTask.timeEstimate);
+                    return Boolean(draft?.timeEstimate);
                 case 'description':
-                    return Boolean(String(editedTask.description ?? '').trim());
+                    return Boolean(draft?.description.trim());
                 case 'location':
-                    return Boolean(String(editedTask.location ?? '').trim());
+                    return Boolean(draft?.location.trim());
                 case 'checklist':
-                    return (editedTask.checklist?.length ?? 0) > 0;
+                    return (checklist?.length ?? 0) > 0;
                 case 'attachments':
-                    return (editedTask.attachments || []).some((attachment) => !attachment.deletedAt);
+                    return (attachments || []).some((attachment) => !attachment.deletedAt);
                 default:
                     return false;
             }
@@ -507,14 +510,14 @@ function TaskEditFormTabComponent({
                         <View>
                             <DateTimePicker
                                 value={(() => {
-                                    if (showDatePicker === 'start') return getSafePickerDateValue(editedTask.startTime);
-                                    if (showDatePicker === 'start-time') return pendingStartDate ?? getSafePickerDateValue(editedTask.startTime);
-                                    if (showDatePicker === 'review') return getSafePickerDateValue(editedTask.reviewAt);
+                                    if (showDatePicker === 'start') return getSafePickerDateValue(draft?.startTime);
+                                    if (showDatePicker === 'start-time') return pendingStartDate ?? getSafePickerDateValue(draft?.startTime);
+                                    if (showDatePicker === 'review') return getSafePickerDateValue(draft?.reviewAt);
                                     if (showDatePicker === 'recurrence-end') {
-                                        return getSafePickerDateValue(getRecurrenceUntilValue(editedTask.recurrence));
+                                        return getSafePickerDateValue(parseRRuleString(draft?.recurrenceRRule ?? '').until);
                                     }
-                                    if (showDatePicker === 'due-time') return pendingDueDate ?? getSafePickerDateValue(editedTask.dueDate);
-                                    return getSafePickerDateValue(editedTask.dueDate);
+                                    if (showDatePicker === 'due-time') return pendingDueDate ?? getSafePickerDateValue(draft?.dueDate);
+                                    return getSafePickerDateValue(draft?.dueDate);
                                 })()}
                                 mode={
                                     showDatePicker === 'start-time' || showDatePicker === 'due-time'

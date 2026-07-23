@@ -1,7 +1,7 @@
 import {
-  getDueReminderRepeatTimes,
-  getNextScheduledAt,
+  getProjectReviewReminderIntent,
   getSystemDefaultLanguage,
+  getTaskReminderPlan,
   getTranslations,
   hasTimeComponent,
   loadStoredLanguage,
@@ -92,8 +92,6 @@ const LOCAL_SMALL_ICON = 'ic_launcher';
 const LOCAL_DIGEST_MORNING_KEY = 'digest:morning';
 const LOCAL_DIGEST_EVENING_KEY = 'digest:evening';
 const LOCAL_WEEKLY_REVIEW_KEY = 'digest:weekly-review';
-const LOCAL_TASK_KEY_PREFIX = 'task:';
-const LOCAL_PROJECT_KEY_PREFIX = 'project:';
 const MAX_DUPLICATE_ALARM_RETRIES = 59;
 const MAX_PENDING_ONE_SHOT_REMINDER_ALARMS_IOS = 60;
 const MAX_PENDING_ONE_SHOT_REMINDER_ALARMS_ANDROID = 200;
@@ -173,18 +171,6 @@ async function clearPomodoroAlarmEntry(): Promise<void> {
   } catch (error) {
     logNotificationError('Failed to clear pomodoro alarm', error);
   }
-}
-
-function getTaskKey(taskId: string): string {
-  return `${LOCAL_TASK_KEY_PREFIX}${taskId}`;
-}
-
-function getTaskRepeatKey(taskId: string, index: number): string {
-  return `${getTaskKey(taskId)}:r${index}`;
-}
-
-function getProjectKey(projectId: string): string {
-  return `${LOCAL_PROJECT_KEY_PREFIX}${projectId}`;
 }
 
 function resetRuntimeState(): void {
@@ -421,10 +407,6 @@ function parseEventPayload(value: unknown): Record<string, string> | null {
   } catch {
     return null;
   }
-}
-
-function isSameScheduleTime(left: Date | null, right: Date | null): boolean {
-  return Boolean(left && right && left.getTime() === right.getTime());
 }
 
 function attachNativeEventListeners(): void {
@@ -776,18 +758,21 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
       // Bounded due-time repeat occurrences (after the due moment). Scheduled independently of the
       // base reminder below: a task whose due time already passed has no future `next`, but its
       // remaining repeat occurrences must still fire. Past occurrences are reaped via activeKeys.
-      const repeatTimes = getDueReminderRepeatTimes(task, { includeStartTime, includeDueDate, includeReviewAt });
-      for (let repeatIndex = 0; repeatIndex < repeatTimes.length; repeatIndex += 1) {
-        const repeatFireAt = repeatTimes[repeatIndex];
-        const repeatFireAtMs = repeatFireAt.getTime();
+      const plan = getTaskReminderPlan(task, now, {
+        includeStartTime,
+        includeDueDate,
+        includeReviewAt,
+      });
+      for (const repeat of plan.repeats) {
+        const repeatFireAtMs = repeat.scheduledAt.getTime();
         if (repeatFireAtMs <= nowMs) continue;
         oneShotReminders.push({
-          key: getTaskRepeatKey(task.id, repeatIndex + 1), // 1-based: repeatTimes[0] = due + N => :r1
+          key: repeat.key,
           fireAtMs: repeatFireAtMs,
           config: {
             title: task.title,
             message: task.description || '',
-            fireAt: repeatFireAt,
+            fireAt: repeat.scheduledAt,
             hasSnoozeAction: true,
             hasCompleteAction: true,
             data: {
@@ -798,26 +783,22 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
         });
       }
 
-      const next = getNextScheduledAt(task, now, { includeStartTime, includeDueDate, includeReviewAt });
-      const fireAtMs = next?.getTime() ?? NaN;
+      const next = plan.next;
+      const fireAtMs = next?.scheduledAt.getTime() ?? NaN;
       if (!next || fireAtMs <= nowMs) continue;
-      const reviewAt = includeReviewAt && hasTimeComponent(task.reviewAt)
-        ? safeParseDate(task.reviewAt)
-        : null;
-      const kind = isSameScheduleTime(next, reviewAt) ? 'task-review' : 'task-reminder';
+      const kind = next.kind === 'review' ? 'task-review' : 'task-reminder';
       if (kind === 'task-review') {
         taskReviewReminderCount += 1;
       } else {
         taskReminderCount += 1;
       }
-      const key = getTaskKey(task.id);
       oneShotReminders.push({
-        key,
+        key: next.key,
         fireAtMs,
         config: {
           title: task.title,
           message: task.description || '',
-          fireAt: next,
+          fireAt: next.scheduledAt,
           hasSnoozeAction: true,
           hasCompleteAction: kind === 'task-reminder',
           data: {
@@ -832,24 +813,17 @@ async function runRescheduleCycle(api: AlarmNotificationsApi): Promise<void> {
   if (includeReviewAt) {
     const reviewLabel = tr['review.projectsStep'] ?? 'Review project';
     for (const project of projects) {
-      if (project.deletedAt) continue;
-      if (project.status === 'archived') continue;
-      const reviewAt = safeParseDate(project.reviewAt);
-      if (!reviewAt) continue;
-      if (!hasTimeComponent(project.reviewAt)) {
-        reviewAt.setHours(9, 0, 0, 0);
-      }
-      const fireAtMs = reviewAt.getTime();
-      if (fireAtMs <= nowMs) continue;
+      const reminder = getProjectReviewReminderIntent(project, now);
+      if (!reminder) continue;
+      const fireAtMs = reminder.scheduledAt.getTime();
       projectReviewReminderCount += 1;
-      const key = getProjectKey(project.id);
       oneShotReminders.push({
-        key,
+        key: reminder.key,
         fireAtMs,
         config: {
           title: project.title,
           message: reviewLabel,
-          fireAt: reviewAt,
+          fireAt: reminder.scheduledAt,
           data: {
             kind: 'project-review',
             projectId: project.id,

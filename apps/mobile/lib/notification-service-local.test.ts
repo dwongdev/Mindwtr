@@ -17,6 +17,7 @@ const {
   mockRestorePersistentCaptureNotification,
   mockGetNextScheduledAt,
   mockGetDueReminderRepeatTimes,
+  mockGetProjectReviewReminderIntent,
   mockHasTimeComponent,
   mockLogInfo,
   mockPlatform,
@@ -50,6 +51,7 @@ const {
   mockRestorePersistentCaptureNotification: vi.fn(),
   mockGetNextScheduledAt: vi.fn<(...args: unknown[]) => Date | null>(() => null),
   mockGetDueReminderRepeatTimes: vi.fn<(...args: unknown[]) => Date[]>(() => []),
+  mockGetProjectReviewReminderIntent: vi.fn(() => null),
   mockHasTimeComponent: vi.fn(() => false),
   mockLogInfo: vi.fn(async () => undefined),
   mockPlatform: {
@@ -98,8 +100,40 @@ vi.mock('react-native-alarm-notification', () => ({
 }));
 
 vi.mock('@mindwtr/core', () => ({
-  getNextScheduledAt: mockGetNextScheduledAt,
-  getDueReminderRepeatTimes: mockGetDueReminderRepeatTimes,
+  getTaskReminderPlan: (...args: unknown[]) => {
+    const task = args[0] as {
+      id: string;
+      dueDate?: string;
+      reviewAt?: string;
+    };
+    const next = mockGetNextScheduledAt(...args);
+    const repeatTimes = mockGetDueReminderRepeatTimes(...args);
+    const isReview = Boolean(
+      next
+      && task.reviewAt
+      && new Date(task.reviewAt).getTime() === next.getTime(),
+    );
+    return {
+      next: next
+        ? {
+          key: `task:${task.id}`,
+          dedupeKey: next.toISOString(),
+          taskId: task.id,
+          kind: isReview ? 'review' : 'due',
+          scheduledAt: next,
+        }
+        : null,
+      repeats: repeatTimes.map((scheduledAt, index) => ({
+        key: `task:${task.id}:r${index + 1}`,
+        dedupeKey: `${task.dueDate}#${index + 1}`,
+        taskId: task.id,
+        kind: 'due-repeat',
+        scheduledAt,
+        repeatIndex: index + 1,
+      })),
+    };
+  },
+  getProjectReviewReminderIntent: mockGetProjectReviewReminderIntent,
   getSystemDefaultLanguage: vi.fn(() => 'en'),
   getTranslations: vi.fn(async () => ({
     'digest.morningTitle': 'Morning',
@@ -172,6 +206,8 @@ describe('notification-service-local', () => {
     mockGetNextScheduledAt.mockReturnValue(null);
     mockGetDueReminderRepeatTimes.mockReset();
     mockGetDueReminderRepeatTimes.mockReturnValue([]);
+    mockGetProjectReviewReminderIntent.mockReset();
+    mockGetProjectReviewReminderIntent.mockReturnValue(null);
     mockHasTimeComponent.mockReset();
     mockHasTimeComponent.mockReturnValue(false);
     mockLogInfo.mockClear();
