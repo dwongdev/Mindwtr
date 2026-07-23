@@ -1,5 +1,6 @@
 // Split from i18n-translations.ts to make community translation contributions easier.
 export const frOverrides: Record<string, string> = {
+        'taskEdit.quickAddTokenHint': 'Ajout rapide : {{token}}',
         // App
         'app.name': 'Mindwtr',
         'donationPrompt.title': "Gardez Mindwtr gratuit et indépendant",

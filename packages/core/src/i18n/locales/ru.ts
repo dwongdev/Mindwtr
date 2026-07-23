@@ -1,5 +1,6 @@
 // Split from i18n-translations.ts to make community translation contributions easier.
 export const ruOverrides: Record<string, string> = {
+        'taskEdit.quickAddTokenHint': 'Быстрое добавление: {{token}}',
         'app.name': 'Mindwtr',
         'donationPrompt.title': "Помогите Mindwtr оставаться бесплатным и независимым",
         'donationPrompt.body': "В Mindwtr нет рекламы, отслеживания и платных ограничений. Его создаёт один человек, а поддерживают люди, которым он полезен. Если Mindwtr помогает вам сохранять ясность, небольшое пожертвование помогает продолжать его улучшать.",

@@ -1,1 +1,29 @@
+import { formatI18nTemplate, tFallback } from '@mindwtr/core';
+
 export const taskEditorLabelClassName = 'text-xs text-muted-foreground font-semibold';
+
+// Quick-add tokens each editor field maps to, verified against parseQuickAdd
+// (packages/core/src/quick-add.ts). Fields whose token the parser does not
+// accept get no hint. Tokens are language-neutral and never translated.
+export const QUICK_ADD_FIELD_TOKENS = {
+    status: '/inbox /next /waiting /someday /done',
+    energyLevel: '/energy:',
+    assignedTo: '%Name',
+    contexts: '@context',
+    tags: '#tag',
+    startTime: '/start:',
+    dueDate: '/due:',
+    reviewAt: '/review:',
+    note: '/note:',
+    link: '/link:',
+    area: '!Area',
+    project: '+Project',
+} as const;
+
+// Localized "Quick add: <token>" hint for a field label's `title` tooltip (#918).
+export function quickAddTokenHint(t: (key: string) => string, token: string): string {
+    return formatI18nTemplate(
+        tFallback(t, 'taskEdit.quickAddTokenHint', 'Quick add: {{token}}'),
+        { token },
+    );
+}

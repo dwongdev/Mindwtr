@@ -1375,3 +1375,37 @@ describe('TaskItemFieldRenderer skip-reminders toggle', () => {
         expect('suppressMindwtrReminders' in (offPatch ?? {})).toBe(true);
     });
 });
+
+describe('TaskItemFieldRenderer quick-add token hints (#918)', () => {
+    afterEach(cleanup);
+
+    it.each([
+        ['status' as const, 'Status', 'Quick add: /inbox /next /waiting /someday /done'],
+        ['startTime' as const, 'Start Date', 'Quick add: /start:'],
+        ['dueDate' as const, 'Due Date', 'Quick add: /due:'],
+        ['reviewAt' as const, 'Review Date', 'Quick add: /review:'],
+        ['energyLevel' as const, 'Energy Level', 'Quick add: /energy:'],
+        ['assignedTo' as const, 'Assigned to', 'Quick add: %Name'],
+        ['contexts' as const, 'Contexts', 'Quick add: @context'],
+        ['tags' as const, 'Tags', 'Quick add: #tag'],
+        ['description' as const, 'Description', 'Quick add: /note:'],
+        ['attachments' as const, 'Attachments', 'Quick add: /link:'],
+    ])('names the %s field quick-add token in the label tooltip', (fieldId, label, title) => {
+        const { getByText } = render(
+            <TaskItemFieldRenderer fieldId={fieldId} {...createProps()} />
+        );
+
+        expect(getByText(label)).toHaveAttribute('title', title);
+    });
+
+    it.each([
+        ['priority' as const, 'Priority'],
+        ['location' as const, 'Location'],
+    ])('leaves the %s field label without a token tooltip', (fieldId, label) => {
+        const { getByText } = render(
+            <TaskItemFieldRenderer fieldId={fieldId} {...createProps()} />
+        );
+
+        expect(getByText(label)).not.toHaveAttribute('title');
+    });
+});

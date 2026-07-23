@@ -177,6 +177,7 @@ export const zhHant: Record<string, string> = {
         'taskEdit.itemNamePlaceholder': '項目名稱',
         'taskEdit.titleLabel': '標題',
         'taskEdit.statusLabel': '狀態',
+        'taskEdit.quickAddTokenHint': '快速新增：{{token}}',
         'taskEdit.priorityLabel': '優先級',
         'taskEdit.contextsLabel': '地點',
         'taskEdit.contextsPlaceholder': '@家庭, @工作',

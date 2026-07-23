@@ -1,4 +1,5 @@
 export const viOverrides: Record<string, string> = {
+        'taskEdit.quickAddTokenHint': 'Thêm nhanh: {{token}}',
         // App
         'app.name': 'Mindwtr',
         'donationPrompt.title': "Giữ Mindwtr miễn phí và độc lập",

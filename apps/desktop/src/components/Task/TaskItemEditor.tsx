@@ -19,7 +19,7 @@ import { ProjectSelector } from '../ui/ProjectSelector';
 import { SectionSelector } from '../ui/SectionSelector';
 import { TaskInput, type TaskInputAcceptedSuggestion } from './TaskInput';
 import { cn } from '../../lib/utils';
-import { taskEditorLabelClassName } from './task-editor-label';
+import { QUICK_ADD_FIELD_TOKENS, quickAddTokenHint, taskEditorLabelClassName } from './task-editor-label';
 import { FocusStarIcon } from '../FocusStarIcon';
 
 interface TaskItemEditorProps {
@@ -478,7 +478,7 @@ export function TaskItemEditor({
                         if (fieldId === 'area') {
                             return (
                                 <div key={fieldId} className="flex flex-col gap-1 flex-1 min-w-0">
-                                    <label className={taskEditorLabelClassName}>{t('taskEdit.areaLabel')}</label>
+                                    <label className={taskEditorLabelClassName} title={quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.area)}>{t('taskEdit.areaLabel')}</label>
                                     <AreaSelector
                                         areas={sortedAreas}
                                         value={editAreaId}
@@ -497,7 +497,7 @@ export function TaskItemEditor({
                         if (fieldId === 'project') {
                             return (
                                 <div key={fieldId} className="flex flex-col gap-1 flex-1 min-w-0">
-                                    <label className={taskEditorLabelClassName}>{t('projects.title')}</label>
+                                    <label className={taskEditorLabelClassName} title={quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.project)}>{t('projects.title')}</label>
                                     <ProjectSelector
                                         projects={filteredProjects}
                                         allProjects={sortedProjects}

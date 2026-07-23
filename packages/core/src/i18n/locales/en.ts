@@ -207,6 +207,7 @@ export const en: Record<string, string> = {
         'taskEdit.itemNamePlaceholder': 'Item name',
         'taskEdit.titleLabel': 'Title',
         'taskEdit.statusLabel': 'Status',
+        'taskEdit.quickAddTokenHint': 'Quick add: {{token}}',
         'taskEdit.priorityLabel': 'Priority',
         'taskEdit.energyLevel': 'Energy Level',
         'taskEdit.assignedTo': 'Assigned To',

@@ -8,7 +8,7 @@ import { MarkdownFormatToolbar } from '../../MarkdownFormatToolbar';
 import { MarkdownReferenceAutocompleteMenu, useMarkdownReferenceAutocomplete } from '../../MarkdownReferenceAutocomplete';
 import { RichMarkdown } from '../../RichMarkdown';
 import { AutosizeTextarea } from '../../ui/AutosizeTextarea';
-import { taskEditorLabelClassName } from '../task-editor-label';
+import { QUICK_ADD_FIELD_TOKENS, quickAddTokenHint, taskEditorLabelClassName } from '../task-editor-label';
 
 type DescriptionAudioState = 'idle' | 'recording' | 'transcribing';
 
@@ -93,7 +93,7 @@ export function DescriptionField({
     return (
         <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-                <label className={taskEditorLabelClassName}>{t('taskEdit.descriptionLabel')}</label>
+                <label className={taskEditorLabelClassName} title={quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.note)}>{t('taskEdit.descriptionLabel')}</label>
                 <div className="flex items-center gap-2">
                     <button
                         type="button"

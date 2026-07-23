@@ -58,7 +58,7 @@ import { useMarkdownReferenceAutocomplete } from '../MarkdownReferenceAutocomple
 import { AttachmentsField } from './TaskForm/AttachmentsField';
 import { ChecklistField } from './TaskForm/ChecklistField';
 import { normalizeDateInputValue } from './task-item-helpers';
-import { taskEditorLabelClassName } from './task-editor-label';
+import { QUICK_ADD_FIELD_TOKENS, quickAddTokenHint, taskEditorLabelClassName } from './task-editor-label';
 import { DescriptionField } from './fields/DescriptionField';
 import { RecurrenceField } from './fields/RecurrenceField';
 import {
@@ -259,6 +259,7 @@ function parseDateInputDisplay(value: string, order: DateInputOrder, calendarSys
 type DateFieldProps = {
     t: (key: string) => string;
     label: string;
+    labelTitle?: string;
     dateAriaLabel: string;
     dateValue: string;
     selectedDate: Date | null;
@@ -275,6 +276,7 @@ type DateFieldProps = {
 export function DateField({
     t,
     label,
+    labelTitle,
     dateAriaLabel,
     dateValue,
     selectedDate,
@@ -428,7 +430,7 @@ export function DateField({
                 });
             }}
         >
-            <label className={taskEditorLabelClassName}>{label}</label>
+            <label className={taskEditorLabelClassName} title={labelTitle}>{label}</label>
             <div className="flex w-full max-w-[min(22rem,100%)] items-center gap-2">
                 <div className="relative min-w-0 flex-1">
                     <input
@@ -1213,6 +1215,7 @@ export function TaskItemFieldRenderer({
         : '';
     const renderDateField = ({
         label,
+        labelTitle,
         dateAriaLabel,
         dateValue,
         selectedDate,
@@ -1224,6 +1227,7 @@ export function TaskItemFieldRenderer({
         warning,
     }: {
         label: string;
+        labelTitle?: string;
         dateAriaLabel: string;
         dateValue: string;
         selectedDate: Date | null;
@@ -1238,6 +1242,7 @@ export function TaskItemFieldRenderer({
             <DateField
                 t={t}
                 label={label}
+                labelTitle={labelTitle}
                 dateAriaLabel={dateAriaLabel}
                 dateValue={dateValue}
                 selectedDate={selectedDate}
@@ -1377,6 +1382,7 @@ export function TaskItemFieldRenderer({
                     <>
                         {renderDateField({
                             label: t('taskEdit.startDateLabel'),
+                            labelTitle: quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.startTime),
                             dateAriaLabel: t('task.aria.startDate'),
                             dateValue,
                             selectedDate: parsed,
@@ -1496,6 +1502,7 @@ export function TaskItemFieldRenderer({
                     <>
                         {renderDateField({
                             label: t('taskEdit.dueDateLabel'),
+                            labelTitle: quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.dueDate),
                             dateAriaLabel: t('task.aria.dueDate'),
                             dateValue,
                             selectedDate: parsed,
@@ -1626,6 +1633,7 @@ export function TaskItemFieldRenderer({
                 };
                 return renderDateField({
                     label: t('taskEdit.reviewDateLabel'),
+                    labelTitle: quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.reviewAt),
                     dateAriaLabel: t('task.aria.reviewDate'),
                     dateValue,
                     selectedDate: parsed,
