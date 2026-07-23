@@ -623,9 +623,9 @@ export class SqliteAdapter {
         }
         // FTS operations are optional - don't block startup if they fail
         try {
-            await this.ensureFtsSchema();
-            const triggersChanged = await this.ensureFtsTriggers();
-            await this.ensureFtsPopulated(triggersChanged);
+            const schemaChanged = await this.ensureFtsSchema();
+            const triggersChanged = await this.ensureFtsTriggers(schemaChanged);
+            await this.ensureFtsPopulated(schemaChanged || triggersChanged);
         } catch (error) {
             logWarn('FTS setup failed, search may not work', {
                 scope: 'sqlite',
@@ -645,11 +645,11 @@ export class SqliteAdapter {
         await this.schemaReadyPromise;
     }
 
-    private async ensureFtsSchema() {
+    private async ensureFtsSchema(): Promise<boolean> {
         const columns = await this.client.all<{ name?: string }>('PRAGMA table_info(tasks_fts)');
         const hasChecklist = columns.some((column) => column.name === 'checklist');
         const hasAssignedTo = columns.some((column) => column.name === 'assignedTo');
-        if (hasChecklist && hasAssignedTo) return;
+        if (hasChecklist && hasAssignedTo) return false;
 
         await this.client.run('DROP TRIGGER IF EXISTS tasks_ai');
         await this.client.run('DROP TRIGGER IF EXISTS tasks_ad');
@@ -668,14 +668,17 @@ export class SqliteAdapter {
               content=''
             )
         `);
+        return true;
     }
 
-    private async ensureFtsTriggers(): Promise<boolean> {
-        const hasCurrentTriggers = await this.client.get<{ applied?: number }>(
-            'SELECT 1 as applied FROM schema_migrations WHERE version = ? LIMIT 1',
-            [FTS_TRIGGER_MIGRATION_VERSION]
-        );
-        if (hasCurrentTriggers?.applied === 1) return false;
+    private async ensureFtsTriggers(force = false): Promise<boolean> {
+        if (!force) {
+            const hasCurrentTriggers = await this.client.get<{ applied?: number }>(
+                'SELECT 1 as applied FROM schema_migrations WHERE version = ? LIMIT 1',
+                [FTS_TRIGGER_MIGRATION_VERSION]
+            );
+            if (hasCurrentTriggers?.applied === 1) return false;
+        }
 
         try {
             // DDL is transactional in SQLite. BEGIN IMMEDIATE keeps another app/MCP
@@ -686,7 +689,7 @@ export class SqliteAdapter {
                     'SELECT 1 as applied FROM schema_migrations WHERE version = ? LIMIT 1',
                     [FTS_TRIGGER_MIGRATION_VERSION]
                 );
-                if (alreadyMigrated?.applied === 1) {
+                if (!force && alreadyMigrated?.applied === 1) {
                     await this.client.run('COMMIT');
                     return false;
                 }

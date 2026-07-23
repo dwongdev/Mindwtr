@@ -1328,6 +1328,37 @@ describeSqlite('SqliteAdapter', () => {
             .toBe(false);
     });
 
+    it('restores task FTS triggers when a marked database has an old FTS schema', async () => {
+        db.exec(SQLITE_BASE_SCHEMA);
+        db.exec(`
+            CREATE VIRTUAL TABLE tasks_fts USING fts5(
+              id UNINDEXED,
+              title,
+              description,
+              tags,
+              contexts,
+              location,
+              content=''
+            )
+        `);
+        db.exec('INSERT OR IGNORE INTO schema_migrations (version) VALUES (3)');
+
+        await adapter.ensureSchema();
+
+        const triggerNames = allSql<{ name: string }>(
+            db,
+            `SELECT name FROM sqlite_master WHERE type = 'trigger' AND name IN ('tasks_ai', 'tasks_ad', 'tasks_au')`
+        ).map((row) => row.name);
+        expect(triggerNames).toEqual(expect.arrayContaining(['tasks_ai', 'tasks_ad', 'tasks_au']));
+
+        runSql(db, `
+            INSERT INTO tasks (id, title, status, tags, contexts, checklist, createdAt, updatedAt)
+            VALUES ('task-after-fts-repair', 'Search survives repair', 'next', '[]', '[]', '[]', '2026-07-23', '2026-07-23')
+        `);
+        expect(allSql(db, `SELECT rowid FROM tasks_fts WHERE tasks_fts MATCH 'survives'`))
+            .toHaveLength(1);
+    });
+
     it('rejects invalid task status values at the database layer', async () => {
         await adapter.ensureSchema();
 
