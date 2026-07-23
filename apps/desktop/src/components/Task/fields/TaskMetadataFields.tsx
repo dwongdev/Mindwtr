@@ -13,11 +13,17 @@ import {
 } from '@mindwtr/core';
 
 import { cn } from '../../../lib/utils';
-import { QUICK_ADD_FIELD_TOKENS, quickAddTokenHint, taskEditorLabelClassName } from '../task-editor-label';
+import {
+    QUICK_ADD_FIELD_TOKENS,
+    QUICK_ADD_STATUS_TOKENS,
+    QuickAddTokenBadge,
+    taskEditorLabelClassName,
+} from '../task-editor-label';
 
 type PillOption<TValue extends string> = {
     value: TValue;
     label: string;
+    quickAddToken?: string;
 };
 
 const selectedPillClassName = 'border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90';
@@ -157,17 +163,19 @@ function SuggestionList({
 }
 
 function PillOptionField<TValue extends string>({
+    t,
     ariaLabel,
     label,
-    labelTitle,
+    labelToken,
     options,
     value,
     onChange,
     activeClassName,
 }: {
+    t: (key: string) => string;
     ariaLabel: string;
     label: string;
-    labelTitle?: string;
+    labelToken?: string;
     options: Array<PillOption<TValue>>;
     value: TValue;
     onChange: (value: TValue) => void;
@@ -202,7 +210,10 @@ function PillOptionField<TValue extends string>({
 
     return (
         <div className="flex flex-col gap-1">
-            <label className={taskEditorLabelClassName} title={labelTitle}>{label}</label>
+            <label className={`${taskEditorLabelClassName} inline-flex items-center gap-1.5`}>
+                {label}
+                {labelToken && <QuickAddTokenBadge t={t} token={labelToken} />}
+            </label>
             <div role="group" aria-label={ariaLabel} className="flex flex-wrap gap-1.5">
                 {options.map((option, index) => {
                     const isActive = value === option.value;
@@ -213,17 +224,21 @@ function PillOptionField<TValue extends string>({
                                 buttonRefs.current[index] = element;
                             }}
                             type="button"
+                            aria-label={option.label}
                             aria-pressed={isActive}
                             onKeyDown={(event) => handleOptionKeyDown(event, index)}
                             onClick={() => onChange(option.value)}
                             className={cn(
-                                'inline-flex min-h-7 items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40',
+                                'inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40',
                                 isActive
                                     ? activeClassName ?? selectedPillClassName
                                     : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground'
                             )}
                         >
                             {option.label}
+                            {option.quickAddToken && (
+                                <QuickAddTokenBadge t={t} token={option.quickAddToken} />
+                            )}
                         </button>
                     );
                 })}
@@ -233,18 +248,20 @@ function PillOptionField<TValue extends string>({
 }
 
 function ToggleTokenField({
+    t,
     ariaLabel,
     label,
-    labelTitle,
+    labelToken,
     options,
     suggestions = options,
     placeholder,
     value,
     onChange,
 }: {
+    t: (key: string) => string;
     ariaLabel: string;
     label: string;
-    labelTitle?: string;
+    labelToken?: string;
     options: string[];
     suggestions?: string[];
     placeholder: string;
@@ -313,7 +330,10 @@ function ToggleTokenField({
 
     return (
         <div className="flex flex-col gap-1 w-full">
-            <label className={taskEditorLabelClassName} title={labelTitle}>{label}</label>
+            <label className={`${taskEditorLabelClassName} inline-flex items-center gap-1.5`}>
+                {label}
+                {labelToken && <QuickAddTokenBadge t={t} token={labelToken} />}
+            </label>
             <div className="relative">
                 <input
                     ref={inputRef}
@@ -373,20 +393,22 @@ function ToggleTokenField({
 }
 
 function AutocompleteTextField({
+    t,
     ariaLabel,
     createLabel,
     label,
-    labelTitle,
+    labelToken,
     onCreate,
     options,
     placeholder,
     value,
     onChange,
 }: {
+    t: (key: string) => string;
     ariaLabel: string;
     createLabel?: string;
     label: string;
-    labelTitle?: string;
+    labelToken?: string;
     onCreate?: (value: string) => void | Promise<void>;
     options: string[];
     placeholder: string;
@@ -461,7 +483,10 @@ function AutocompleteTextField({
 
     return (
         <div className="flex flex-col gap-1">
-            <label className={taskEditorLabelClassName} title={labelTitle}>{label}</label>
+            <label className={`${taskEditorLabelClassName} inline-flex items-center gap-1.5`}>
+                {label}
+                {labelToken && <QuickAddTokenBadge t={t} token={labelToken} />}
+            </label>
             <div className="relative">
                 <input
                     ref={inputRef}
@@ -541,20 +566,20 @@ export function StatusField({
     onChange: (value: TaskStatus) => void;
 }) {
     const options: Array<PillOption<TaskStatus>> = [
-        { value: 'inbox', label: t('status.inbox') },
-        { value: 'next', label: t('status.next') },
-        { value: 'waiting', label: t('status.waiting') },
-        { value: 'someday', label: t('status.someday') },
+        { value: 'inbox', label: t('status.inbox'), quickAddToken: QUICK_ADD_STATUS_TOKENS.inbox },
+        { value: 'next', label: t('status.next'), quickAddToken: QUICK_ADD_STATUS_TOKENS.next },
+        { value: 'waiting', label: t('status.waiting'), quickAddToken: QUICK_ADD_STATUS_TOKENS.waiting },
+        { value: 'someday', label: t('status.someday'), quickAddToken: QUICK_ADD_STATUS_TOKENS.someday },
         ...(value === 'reference' ? [{ value: 'reference' as const, label: t('status.reference') }] : []),
-        { value: 'done', label: t('status.done') },
-        { value: 'archived', label: t('status.archived') },
+        { value: 'done', label: t('status.done'), quickAddToken: QUICK_ADD_STATUS_TOKENS.done },
+        { value: 'archived', label: t('status.archived'), quickAddToken: QUICK_ADD_STATUS_TOKENS.archived },
     ];
 
     return (
         <PillOptionField
+            t={t}
             ariaLabel={t('task.aria.status')}
             label={t('taskEdit.statusLabel')}
-            labelTitle={quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.status)}
             options={options}
             value={value}
             onChange={onChange}
@@ -581,6 +606,7 @@ export function PriorityField({
 
     return (
         <PillOptionField
+            t={t}
             ariaLabel={t('taskEdit.priorityLabel')}
             label={t('taskEdit.priorityLabel')}
             options={options}
@@ -608,9 +634,10 @@ export function EnergyLevelField({
 
     return (
         <PillOptionField
+            t={t}
             ariaLabel={t('taskEdit.energyLevel')}
             label={t('taskEdit.energyLevel')}
-            labelTitle={quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.energyLevel)}
+            labelToken={QUICK_ADD_FIELD_TOKENS.energyLevel}
             options={options}
             value={value}
             onChange={onChange}
@@ -633,10 +660,11 @@ export function AssignedToField({
 }) {
     return (
         <AutocompleteTextField
+            t={t}
             ariaLabel={t('taskEdit.assignedTo')}
             createLabel={tFallback(t, 'people.new', 'New Person')}
             label={t('taskEdit.assignedTo')}
-            labelTitle={quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.assignedTo)}
+            labelToken={QUICK_ADD_FIELD_TOKENS.assignedTo}
             onCreate={onCreatePerson}
             options={options}
             placeholder={t('taskEdit.assignedToPlaceholder')}
@@ -760,9 +788,10 @@ export function ContextsField({
 }) {
     return (
         <ToggleTokenField
+            t={t}
             ariaLabel={t('task.aria.contexts')}
             label={t('taskEdit.contextsLabel')}
-            labelTitle={quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.contexts)}
+            labelToken={QUICK_ADD_FIELD_TOKENS.contexts}
             options={options}
             suggestions={suggestions}
             placeholder={t('taskEdit.contextsPlaceholder')}
@@ -787,9 +816,10 @@ export function TagsField({
 }) {
     return (
         <ToggleTokenField
+            t={t}
             ariaLabel={t('task.aria.tags')}
             label={t('taskEdit.tagsLabel')}
-            labelTitle={quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.tags)}
+            labelToken={QUICK_ADD_FIELD_TOKENS.tags}
             options={options}
             suggestions={suggestions}
             placeholder={t('taskEdit.tagsPlaceholder')}

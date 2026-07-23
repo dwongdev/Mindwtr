@@ -6,7 +6,6 @@ export const taskEditorLabelClassName = 'text-xs text-muted-foreground font-semi
 // (packages/core/src/quick-add.ts). Fields whose token the parser does not
 // accept get no hint. Tokens are language-neutral and never translated.
 export const QUICK_ADD_FIELD_TOKENS = {
-    status: '/inbox /next /waiting /someday /done',
     energyLevel: '/energy:',
     assignedTo: '%Name',
     contexts: '@context',
@@ -20,10 +19,36 @@ export const QUICK_ADD_FIELD_TOKENS = {
     project: '+Project',
 } as const;
 
-// Localized "Quick add: <token>" hint for a field label's `title` tooltip (#918).
+export const QUICK_ADD_STATUS_TOKENS = {
+    inbox: '/inbox',
+    next: '/next',
+    waiting: '/waiting',
+    someday: '/someday',
+    done: '/done',
+    archived: '/archived',
+} as const;
+
+// Localized "Quick add: <token>" hint for a token badge's `title` tooltip (#918).
 export function quickAddTokenHint(t: (key: string) => string, token: string): string {
     return formatI18nTemplate(
         tFallback(t, 'taskEdit.quickAddTokenHint', 'Quick add: {{token}}'),
         { token },
+    );
+}
+
+export function QuickAddTokenBadge({
+    t,
+    token,
+}: {
+    t: (key: string) => string;
+    token: string;
+}) {
+    return (
+        <code
+            title={quickAddTokenHint(t, token)}
+            className="inline-flex rounded border border-current/30 bg-background/20 px-1 py-0.5 font-mono text-[10px] font-normal leading-none text-current opacity-80"
+        >
+            {token}
+        </code>
     );
 }

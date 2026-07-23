@@ -1380,32 +1380,41 @@ describe('TaskItemFieldRenderer quick-add token hints (#918)', () => {
     afterEach(cleanup);
 
     it.each([
-        ['status' as const, 'Status', 'Quick add: /inbox /next /waiting /someday /done'],
-        ['startTime' as const, 'Start Date', 'Quick add: /start:'],
-        ['dueDate' as const, 'Due Date', 'Quick add: /due:'],
-        ['reviewAt' as const, 'Review Date', 'Quick add: /review:'],
-        ['energyLevel' as const, 'Energy Level', 'Quick add: /energy:'],
-        ['assignedTo' as const, 'Assigned to', 'Quick add: %Name'],
-        ['contexts' as const, 'Contexts', 'Quick add: @context'],
-        ['tags' as const, 'Tags', 'Quick add: #tag'],
-        ['description' as const, 'Description', 'Quick add: /note:'],
-        ['attachments' as const, 'Attachments', 'Quick add: /link:'],
-    ])('names the %s field quick-add token in the label tooltip', (fieldId, label, title) => {
-        const { getByText } = render(
+        ['startTime' as const, '/start:'],
+        ['dueDate' as const, '/due:'],
+        ['reviewAt' as const, '/review:'],
+        ['energyLevel' as const, '/energy:'],
+        ['assignedTo' as const, '%Name'],
+        ['contexts' as const, '@context'],
+        ['tags' as const, '#tag'],
+        ['description' as const, '/note:'],
+        ['attachments' as const, '/link:'],
+    ])('shows the %s field quick-add token as a quiet badge', (fieldId, token) => {
+        const { getByTitle } = render(
             <TaskItemFieldRenderer fieldId={fieldId} {...createProps()} />
         );
 
-        expect(getByText(label)).toHaveAttribute('title', title);
+        expect(getByTitle(`Quick add: ${token}`)).toHaveTextContent(token);
     });
 
-    it.each([
-        ['priority' as const, 'Priority'],
-        ['location' as const, 'Location'],
-    ])('leaves the %s field label without a token tooltip', (fieldId, label) => {
-        const { getByText } = render(
-            <TaskItemFieldRenderer fieldId={fieldId} {...createProps()} />
+    it('shows each supported status token on its status choice', () => {
+        const { getByTitle } = render(
+            <TaskItemFieldRenderer fieldId="status" {...createProps()} />
         );
 
-        expect(getByText(label)).not.toHaveAttribute('title');
+        ['/inbox', '/next', '/waiting', '/someday', '/done', '/archived'].forEach((token) => {
+            expect(getByTitle(`Quick add: ${token}`)).toHaveTextContent(token);
+        });
     });
+
+    it.each(['priority' as const, 'location' as const])(
+        'leaves the %s field without a token badge',
+        (fieldId) => {
+            const { queryByTitle } = render(
+                <TaskItemFieldRenderer fieldId={fieldId} {...createProps()} />
+            );
+
+            expect(queryByTitle(/^Quick add:/)).not.toBeInTheDocument();
+        },
+    );
 });

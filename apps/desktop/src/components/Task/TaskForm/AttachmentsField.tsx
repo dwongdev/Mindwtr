@@ -4,7 +4,7 @@ import { useBareFileReferenceCheck } from '../../../lib/attachment-reference';
 import { getAttachmentDisplayTitle } from '../../../lib/attachment-utils';
 import { isImageAttachment } from '../task-item-attachment-utils';
 import { AttachmentImage } from '../AttachmentImage';
-import { QUICK_ADD_FIELD_TOKENS, quickAddTokenHint, taskEditorLabelClassName } from '../task-editor-label';
+import { QUICK_ADD_FIELD_TOKENS, QuickAddTokenBadge, taskEditorLabelClassName } from '../task-editor-label';
 
 type AttachmentsFieldProps = {
     t: (key: string) => string;
@@ -47,7 +47,10 @@ export function AttachmentsField({
     return (
         <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-                <label className={taskEditorLabelClassName} title={quickAddTokenHint(t, QUICK_ADD_FIELD_TOKENS.link)}>{t('attachments.title')}</label>
+                <label className={`${taskEditorLabelClassName} inline-flex items-center gap-1.5`}>
+                    {t('attachments.title')}
+                    <QuickAddTokenBadge t={t} token={QUICK_ADD_FIELD_TOKENS.link} />
+                </label>
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
