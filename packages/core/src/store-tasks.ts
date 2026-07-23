@@ -22,7 +22,8 @@ import {
     toVisibleTask,
     updateVisibleTasks,
 } from './store-helpers';
-import { logWarn } from './logger';
+import { logInfo, logWarn } from './logger';
+import { beginNotifyProfile, endNotifyProfile, type NotifyProfile } from './store-notify-profiler';
 import { generateUUID as uuidv4 } from './uuid';
 import { normalizeRecurrenceForLoad } from './recurrence';
 import { normalizeRepeatReminderMinutes } from './schedule-utils';
@@ -38,6 +39,8 @@ import {
 import { resolveDefaultNewTaskAreaId } from './area-utils';
 import { findSelectableProjectByTitleAndArea } from './project-utils';
 import { buildNewProject } from './store-projects/project-actions';
+
+const SLOW_TASK_UPDATE_LOG_THRESHOLD_MS = 500;
 
 const stripAttachmentRemoteMetadata = (attachments: Task['attachments']): Task['attachments'] =>
     attachments?.map((attachment) => (
@@ -533,6 +536,7 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
      * @param updates Properties to update
      */
     updateTask: async (id: string, updates: Partial<Task>) => {
+        const updateStartedAt = Date.now();
         const changeAt = Date.now();
         const now = new Date().toISOString();
         const currentState = get();
@@ -568,58 +572,72 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
                 return actionFail(message);
             }
         }
+        const prepareMs = Date.now() - updateStartedAt;
         let snapshot: AppData | null = null;
         const incrementalPersistence: { task?: Task; hasRecurringFollowUp: boolean } = {
             hasRecurringFollowUp: false,
         };
-        set((state) => {
-            const oldTask = state._tasksById.get(id);
-            if (!oldTask) {
-                return state;
-            }
-            const deviceState = ensureDeviceId(state.settings);
-            const revisionPatch = {
-                rev: nextRevision(oldTask.rev),
-                revBy: deviceState.deviceId,
-            };
+        let setProducerMs = 0;
+        let notifyProfile: NotifyProfile | null = null;
+        const notifyProfilingEnabled = currentState.settings.diagnostics?.loggingEnabled === true;
+        const setStateStartedAt = Date.now();
+        if (notifyProfilingEnabled) beginNotifyProfile();
+        try {
+            set((state) => {
+                const producerStartedAt = Date.now();
+                const oldTask = state._tasksById.get(id);
+                if (!oldTask) {
+                    setProducerMs = Date.now() - producerStartedAt;
+                    return state;
+                }
+                const deviceState = ensureDeviceId(state.settings);
+                const revisionPatch = {
+                    rev: nextRevision(oldTask.rev),
+                    revBy: deviceState.deviceId,
+                };
 
-            const { updatedTask, nextRecurringTask } = applyTaskUpdates(
-                oldTask,
-                { ...preparedUpdates.updates, ...revisionPatch },
-                now
-            );
-            const stampedNextRecurringTask = stampNewRecurringFollowUp(nextRecurringTask, deviceState.deviceId);
-            const recurringFollowUpTask = findExistingRecurringFollowUp(state._allTasks, stampedNextRecurringTask)
-                ? null
-                : stampedNextRecurringTask;
-            incrementalPersistence.task = updatedTask;
-            incrementalPersistence.hasRecurringFollowUp = recurringFollowUpTask !== null;
+                const { updatedTask, nextRecurringTask } = applyTaskUpdates(
+                    oldTask,
+                    { ...preparedUpdates.updates, ...revisionPatch },
+                    now
+                );
+                const stampedNextRecurringTask = stampNewRecurringFollowUp(nextRecurringTask, deviceState.deviceId);
+                const recurringFollowUpTask = findExistingRecurringFollowUp(state._allTasks, stampedNextRecurringTask)
+                    ? null
+                    : stampedNextRecurringTask;
+                incrementalPersistence.task = updatedTask;
+                incrementalPersistence.hasRecurringFollowUp = recurringFollowUpTask !== null;
 
-            const updatedAllTasksBase = replaceEntityInArray(state._allTasks, id, updatedTask);
-            const updatedAllTasks = recurringFollowUpTask
-                ? [...updatedAllTasksBase, recurringFollowUpTask]
-                : updatedAllTasksBase;
-            const updatedTasksById = replaceEntityInMap(state._tasksById, updatedTask);
+                const updatedAllTasksBase = replaceEntityInArray(state._allTasks, id, updatedTask);
+                const updatedAllTasks = recurringFollowUpTask
+                    ? [...updatedAllTasksBase, recurringFollowUpTask]
+                    : updatedAllTasksBase;
+                const updatedTasksById = replaceEntityInMap(state._tasksById, updatedTask);
 
-            let updatedVisibleTasks = updateVisibleTasks(state.tasks, oldTask, updatedTask);
-            if (recurringFollowUpTask) {
-                updatedVisibleTasks = updateVisibleTasks(updatedVisibleTasks, null, recurringFollowUpTask);
-            }
-            snapshot = buildSaveSnapshot(state, {
-                tasks: updatedAllTasks,
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+                let updatedVisibleTasks = updateVisibleTasks(state.tasks, oldTask, updatedTask);
+                if (recurringFollowUpTask) {
+                    updatedVisibleTasks = updateVisibleTasks(updatedVisibleTasks, null, recurringFollowUpTask);
+                }
+                snapshot = buildSaveSnapshot(state, {
+                    tasks: updatedAllTasks,
+                    ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+                });
+                setProducerMs = Date.now() - producerStartedAt;
+                return {
+                    tasks: updatedVisibleTasks,
+                    _allTasks: updatedAllTasks,
+                    _tasksById: recurringFollowUpTask
+                        ? replaceEntityInMap(updatedTasksById, recurringFollowUpTask)
+                        : updatedTasksById,
+                    lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
+                    ...(deviceState.updated ? { settings: deviceState.settings } : {}),
+                };
             });
-            return {
-                tasks: updatedVisibleTasks,
-                _allTasks: updatedAllTasks,
-                _tasksById: recurringFollowUpTask
-                    ? replaceEntityInMap(updatedTasksById, recurringFollowUpTask)
-                    : updatedTasksById,
-                lastDataChangeAt: getNextDataChangeAt(state.lastDataChangeAt, changeAt),
-                ...(deviceState.updated ? { settings: deviceState.settings } : {}),
-            };
-        });
-
+        } finally {
+            if (notifyProfilingEnabled) notifyProfile = endNotifyProfile();
+        }
+        const setStateMs = Date.now() - setStateStartedAt;
+        const persistenceStartedAt = Date.now();
         const storage = getStorage();
         if (incrementalPersistence.task && !incrementalPersistence.hasRecurringFollowUp && storage.saveTask) {
             const taskToPersist = incrementalPersistence.task;
@@ -635,6 +653,32 @@ export const createTaskActions = ({ set, get, getStorage, debouncedSave, trackIm
             });
         } else if (snapshot) {
             debouncedSave(snapshot, (msg) => set({ error: msg }));
+        }
+        const persistenceDispatchMs = Date.now() - persistenceStartedAt;
+        const totalMs = Date.now() - updateStartedAt;
+        if (totalMs >= SLOW_TASK_UPDATE_LOG_THRESHOLD_MS) {
+            logInfo('Slow task update pipeline', {
+                scope: 'store',
+                category: 'storage',
+                context: {
+                    totalMs,
+                    prepareMs,
+                    setStateMs,
+                    setProducerMs,
+                    setNotifyMs: Math.max(0, setStateMs - setProducerMs),
+                    persistenceDispatchMs,
+                    taskCount: currentState._allTasks.length,
+                    updateFieldCount: Object.keys(preparedUpdates.updates).length,
+                    recurringFollowUp: incrementalPersistence.hasRecurringFollowUp,
+                    ...(notifyProfile ? {
+                        notifyListenerCount: String(notifyProfile.listenerCount),
+                        notifyTimedCalls: String(notifyProfile.timedCalls),
+                        notifyTimedMs: String(Math.round(notifyProfile.timedTotalMs)),
+                        notifyMaxMs: String(Math.round(notifyProfile.maxMs)),
+                        notifyTop5Ms: notifyProfile.top5Ms.map(Math.round).join(','),
+                    } : {}),
+                },
+            });
         }
         return actionOk();
     },

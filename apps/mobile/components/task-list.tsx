@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { View, FlatList, Text, TextInput, RefreshControl, Modal, Pressable, TouchableOpacity, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical } from 'lucide-react-native';
@@ -60,6 +60,7 @@ import { logError } from '../lib/app-log';
 import {
   beginMobilePerformanceDiagnostic,
   finishMobilePerformanceDiagnostic,
+  logMobilePerformanceDiagnostic,
   resolveMobilePerformanceRoute,
 } from '../lib/performance-diagnostics';
 import {
@@ -119,6 +120,8 @@ const PROJECT_REORDER_ANIMATION_CONFIG = {
 const STATIC_LIST_VIRTUALIZATION_THRESHOLD = 80;
 const STATIC_LIST_ROW_ESTIMATE = 88;
 const STATIC_LIST_OVERSCAN = 8;
+const SLOW_TASK_LIST_DERIVE_MS = 250;
+const SLOW_TASK_LIST_COMMIT_MS = 500;
 const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 const ENERGY_LEVEL_OPTIONS: TaskEnergyLevel[] = ['low', 'medium', 'high'];
 
@@ -232,6 +235,7 @@ function TaskListComponent({
   listRef,
   onListScroll,
 }: TaskListProps) {
+  const taskListRenderStartedAt = Date.now();
   const { isDark } = useTheme();
   const { t, language } = useLanguage();
   const { showToast } = useToast();
@@ -252,10 +256,10 @@ function TaskListComponent({
     reorderProjectTasks,
     reorderSections,
     settings,
+    focusedCount,
     updateSettings,
     highlightTaskId,
     setHighlightTask,
-    getDerivedState,
   } = useTaskStore((state) => ({
     tasks: taskSource ?? (includeArchived ? state._allTasks : state.tasks),
     projects: state.projects,
@@ -272,10 +276,15 @@ function TaskListComponent({
     reorderProjectTasks: state.reorderProjectTasks,
     reorderSections: state.reorderSections,
     settings: state.settings,
+    focusedCount: state.tasks.reduce(
+      (count, task) => count + (
+        task.isFocusedToday && task.status !== 'done' && task.status !== 'reference' ? 1 : 0
+      ),
+      0,
+    ),
     updateSettings: state.updateSettings,
     highlightTaskId: state.highlightTaskId,
     setHighlightTask: state.setHighlightTask,
-    getDerivedState: state.getDerivedState,
   }), shallow);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [quickAddFocus, setQuickAddFocus] = useState(false);
@@ -431,7 +440,6 @@ function TaskListComponent({
   const aiEnabled = settings?.ai?.enabled === true;
   const quickAddCopilotEnabled = quickAddAvailable && enableCopilot && aiEnabled;
   const focusTaskLimit = normalizeFocusTaskLimit(settings?.gtd?.focusTaskLimit);
-  const focusedCount = getDerivedState().focusedCount;
   const canQuickAddFocus = quickAddFocus || canStarNewCapture({ focusedCount, focusTaskLimit });
   const quickAddFocusDisabledReason = formatFocusTaskLimitText(
     tFallback(t, 'agenda.maxFocusItems', 'Max {{count}} focus items.'),
@@ -590,6 +598,7 @@ function TaskListComponent({
     clearTaskFilters();
   }, [clearTaskFilters]);
 
+  const taskListDeriveStartedAt = Date.now();
   const filterableTasks = useMemo(() => {
     return tasks.filter((task) => {
       if (task.deletedAt) return false;
@@ -984,6 +993,36 @@ function TaskListComponent({
     [projectId, statusFilter],
   );
   const listItemCountForDiagnostics = orderedTaskIds.length;
+  const taskListDeriveMs = Date.now() - taskListDeriveStartedAt;
+  useLayoutEffect(() => {
+    if (settings?.diagnostics?.loggingEnabled !== true) return;
+    const taskListCommitMs = Date.now() - taskListRenderStartedAt;
+    if (taskListDeriveMs >= SLOW_TASK_LIST_DERIVE_MS) {
+      void logMobilePerformanceDiagnostic({
+        operation: 'task_list_derive',
+        route: performanceRoute,
+        elapsedMs: taskListDeriveMs,
+        listItemCount: listItemCountForDiagnostics,
+        filterCount: totalFilterActiveCount,
+      });
+    }
+    if (taskListCommitMs >= SLOW_TASK_LIST_COMMIT_MS) {
+      void logMobilePerformanceDiagnostic({
+        operation: 'task_list_commit',
+        route: performanceRoute,
+        elapsedMs: taskListCommitMs,
+        listItemCount: listItemCountForDiagnostics,
+        filterCount: totalFilterActiveCount,
+      });
+    }
+  }, [
+    listItemCountForDiagnostics,
+    performanceRoute,
+    settings?.diagnostics?.loggingEnabled,
+    taskListDeriveMs,
+    taskListRenderStartedAt,
+    totalFilterActiveCount,
+  ]);
   const getListItemKey = useCallback((item: ListItem) => (
     item.type === 'section' ? `section-${item.id}` : (item.groupId ? `${item.groupId}:${item.task.id}` : item.task.id)
   ), []);

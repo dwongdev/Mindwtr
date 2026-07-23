@@ -146,12 +146,12 @@ describe('buildProjectListRows', () => {
   });
 
   it('summarizes open project tasks in one pass for project rows', () => {
-    const firstNext = buildTask('next-1', 'project-1', 'next');
-    const laterNext = buildTask('next-2', 'project-1', 'next');
+    const laterNext = { ...buildTask('next-2', 'project-1', 'next'), order: 2 };
+    const firstNext = { ...buildTask('next-1', 'project-1', 'next'), order: 1 };
     const summaries = buildProjectTaskSummaryById([
       buildTask('inbox-1', 'project-1', 'inbox'),
-      firstNext,
       laterNext,
+      firstNext,
       buildTask('done-1', 'project-1', 'done'),
       buildTask('reference-1', 'project-1', 'reference'),
       buildTask('archived-1', 'project-1', 'archived'),

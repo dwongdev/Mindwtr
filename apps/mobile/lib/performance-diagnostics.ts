@@ -3,6 +3,7 @@ import {
   PERFORMANCE_LOG_MESSAGE,
   PERFORMANCE_LOG_SCOPE,
   beginPerformanceLogMeasurement,
+  buildPerformanceLogContext,
   useTaskStore,
   type PerformanceLogMeasurementFinishInput,
   type PerformanceLogMeasurementInput,
@@ -75,6 +76,25 @@ export function beginMobilePerformanceDiagnostic(input: MobilePerformanceInput):
   return beginPerformanceLogMeasurement(measurementInput, {
     diagnosticsEnabled: diagnosticsLoggingEnabled(),
   });
+}
+
+export async function logMobilePerformanceDiagnostic(
+  input: MobilePerformanceInput & { elapsedMs: number },
+): Promise<string | null> {
+  if (!diagnosticsLoggingEnabled()) return null;
+  const context = buildPerformanceLogContext({
+    ...input,
+    ...getStoreCounts(),
+    platform: mobilePlatform(),
+  });
+  try {
+    return await logInfo(PERFORMANCE_LOG_MESSAGE, {
+      scope: PERFORMANCE_LOG_SCOPE,
+      extra: context,
+    });
+  } catch {
+    return null;
+  }
 }
 
 export async function finishMobilePerformanceDiagnostic(

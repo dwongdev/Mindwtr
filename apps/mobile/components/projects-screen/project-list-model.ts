@@ -1,4 +1,4 @@
-import type { Area, Project, Task } from '@mindwtr/core';
+import { compareTasksByProjectOrder, type Area, type Project, type Task } from '@mindwtr/core';
 
 import type { ProjectSection } from '@/hooks/use-project-filtering';
 
@@ -37,7 +37,10 @@ export function buildProjectTaskSummaryById(tasks: readonly Task[]): Map<string,
     const existing = summaries.get(task.projectId);
     if (existing) {
       existing.activeTaskCount += 1;
-      if (!existing.nextAction && task.status === 'next') {
+      if (
+        task.status === 'next'
+        && (!existing.nextAction || compareTasksByProjectOrder(task, existing.nextAction) < 0)
+      ) {
         existing.nextAction = task;
       }
       return;

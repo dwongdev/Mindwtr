@@ -30,6 +30,7 @@ import { ProjectImagePreviewModal, ProjectLinkModal, ProjectTagPickerModal } fro
 import { ProjectRow } from '@/components/projects-screen/ProjectRow';
 import {
   buildProjectListRows,
+  buildProjectTaskSummaryById,
   type ProjectListRow,
 } from '@/components/projects-screen/project-list-model';
 import { useProjectAttachments } from '@/components/projects-screen/use-project-attachments';
@@ -77,8 +78,6 @@ export default function ProjectsScreen() {
     reorderAreas,
     updateTask,
     setHighlightTask,
-    settings,
-    getDerivedState,
   } = useTaskStore((state) => ({
     projects: state.projects,
     tasks: state.tasks,
@@ -99,19 +98,23 @@ export default function ProjectsScreen() {
     reorderAreas: state.reorderAreas,
     updateTask: state.updateTask,
     setHighlightTask: state.setHighlightTask,
-    settings: state.settings,
-    getDerivedState: state.getDerivedState,
   }), shallow);
   const { t, language } = useLanguage();
   const { showToast } = useToast();
   const { openQuickCapture } = useQuickCapture();
   const tc = useThemeColors();
   const filledButton = useFilledButtonColors();
-  const {
-    focusedProjectCount,
-    projectTaskSummaryById,
-    tasksByProjectId,
-  } = getDerivedState();
+  const focusedProjectCount = useMemo(
+    () => projects.reduce(
+      (count, project) => count + (!project.deletedAt && project.isFocused ? 1 : 0),
+      0,
+    ),
+    [projects],
+  );
+  const projectTaskSummaryById = useMemo(
+    () => buildProjectTaskSummaryById(tasks),
+    [tasks],
+  );
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const statusPalette: Record<Project['status'], { text: string; bg: string; border: string }> = {
@@ -343,8 +346,12 @@ export default function ProjectsScreen() {
   // Memos key off the id so a project object refresh with the same id reuses results.
   const selectedProjectIdForLists = selectedProject?.id ?? null;
   const selectedProjectTasks = useMemo(
-    () => (selectedProjectIdForLists ? tasksByProjectId.get(selectedProjectIdForLists) ?? EMPTY_PROJECT_TASKS : EMPTY_PROJECT_TASKS),
-    [tasksByProjectId, selectedProjectIdForLists]
+    () => (
+      selectedProjectIdForLists
+        ? tasks.filter((task) => task.projectId === selectedProjectIdForLists && !task.deletedAt)
+        : EMPTY_PROJECT_TASKS
+    ),
+    [selectedProjectIdForLists, tasks]
   );
   const selectedProjectSections = useMemo<Section[]>(() => {
     if (!selectedProjectIdForLists) return [];

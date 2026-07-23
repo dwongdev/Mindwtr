@@ -3,6 +3,7 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import { createStore } from 'zustand/vanilla';
 import { consoleLogger, setLogger, type LogPayload } from './logger';
 import { resetForTests, useTaskStore } from './store';
+import type { Task } from './types';
 import {
     beginNotifyProfile,
     endNotifyProfile,
@@ -179,5 +180,55 @@ describe('fetchData notify profiling log fields', () => {
         expect(context).not.toHaveProperty('notifyTimedMs');
         expect(context).not.toHaveProperty('notifyMaxMs');
         expect(context).not.toHaveProperty('notifyTop5Ms');
+    });
+
+    it('attributes a slow task update to producer and subscriber time', async () => {
+        const task: Task = {
+            id: 'task-1',
+            title: 'Private task title',
+            status: 'next',
+            tags: [],
+            contexts: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        useTaskStore.setState({
+            tasks: [task],
+            _allTasks: [task],
+            _tasksById: new Map([[task.id, task]]),
+            settings: {
+                deviceId: 'device-a',
+                diagnostics: { loggingEnabled: true },
+            },
+        });
+        const unsubscribe = useTaskStore.subscribe(() =>
+            vi.advanceTimersByTime(1_001),
+        );
+        try {
+            await useTaskStore.getState().updateTask(task.id, { status: 'done' });
+        } finally {
+            unsubscribe();
+        }
+
+        const context = logs.find((entry) => entry.message === 'Slow task update pipeline')
+            ?.context;
+        expect(context).toMatchObject({
+            totalMs: expect.any(Number),
+            prepareMs: expect.any(Number),
+            setStateMs: expect.any(Number),
+            setProducerMs: expect.any(Number),
+            setNotifyMs: expect.any(Number),
+            persistenceDispatchMs: expect.any(Number),
+            taskCount: 1,
+            updateFieldCount: expect.any(Number),
+            recurringFollowUp: false,
+            notifyListenerCount: '1',
+            notifyTimedCalls: '1',
+            notifyTimedMs: expect.any(String),
+            notifyMaxMs: expect.any(String),
+            notifyTop5Ms: expect.any(String),
+        });
+        expect(context).not.toHaveProperty('taskId');
+        expect(context).not.toHaveProperty('title');
     });
 });
