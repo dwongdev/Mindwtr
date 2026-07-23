@@ -21,6 +21,7 @@ type UseTaskItemSubmitParams = {
 
 type TaskItemSubmitOptions = {
     statusOverride?: TaskStatus;
+    completedAtOverride?: string;
 };
 
 export function useTaskItemSubmit({
@@ -40,6 +41,9 @@ export function useTaskItemSubmit({
             attachments: editAttachments,
         });
         if (!patch) return;
+        if (options?.completedAtOverride !== undefined) {
+            patch.completedAt = options.completedAtOverride;
+        }
 
         const result = await updateTask(task.id, patch);
         if (!result.success) {

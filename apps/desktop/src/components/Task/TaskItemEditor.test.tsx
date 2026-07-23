@@ -182,6 +182,23 @@ describe('TaskItemEditor', () => {
         expect(onMarkDone).toHaveBeenCalledTimes(1);
     });
 
+    it('requests a completion time when the title-row done action is right-clicked', () => {
+        const onMarkDone = vi.fn();
+        const onRequestBackdatedComplete = vi.fn();
+        const { getByRole } = render(
+            <TaskItemEditor
+                {...baseProps}
+                onMarkDone={onMarkDone}
+                onRequestBackdatedComplete={onRequestBackdatedComplete}
+            />
+        );
+
+        fireEvent.contextMenu(getByRole('button', { name: 'Done' }));
+
+        expect(onRequestBackdatedComplete).toHaveBeenCalledTimes(1);
+        expect(onMarkDone).not.toHaveBeenCalled();
+    });
+
     it('emphasizes the task title field in the editor header', () => {
         const { getByRole } = render(<TaskItemEditor {...baseProps} />);
 

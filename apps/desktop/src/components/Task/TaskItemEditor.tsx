@@ -71,6 +71,7 @@ interface TaskItemEditorProps {
     onAcceptTitleSuggestion?: (suggestion: TaskInputAcceptedSuggestion) => boolean | Promise<boolean>;
     isDoneActionActive?: boolean;
     onMarkDone?: () => void;
+    onRequestBackdatedComplete?: () => void;
     focusStar?: {
         isFocused: boolean;
         title: string;
@@ -146,6 +147,7 @@ export function TaskItemEditor({
     onAcceptTitleSuggestion,
     isDoneActionActive = false,
     onMarkDone,
+    onRequestBackdatedComplete,
     focusStar,
     onDuplicateTask,
     onDeleteTask,
@@ -277,9 +279,16 @@ export function TaskItemEditor({
                         <button
                             type="button"
                             onClick={onMarkDone}
+                            onContextMenu={onRequestBackdatedComplete ? (event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                onRequestBackdatedComplete();
+                            } : undefined}
                             aria-label={t('status.done')}
                             aria-pressed={isDoneActionActive}
-                            title={t('status.done')}
+                            title={onRequestBackdatedComplete
+                                ? tFallback(t, 'task.completeBackdateHint', 'Right-click to complete with a different time')
+                                : t('status.done')}
                             className={cn(
                                 'mt-0.5 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-card motion-reduce:transition-none',
                                 isDoneActionActive

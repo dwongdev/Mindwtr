@@ -256,7 +256,7 @@ export const TaskItem = memo(function TaskItem({
         const storeState = useTaskStore.getState();
         return getPersonOptionNames(storeState.people, storeState.tasks);
     }, [showWaitingAssignmentPrompt]);
-    const [completedAtPrompt, setCompletedAtPrompt] = useState<null | 'complete' | 'edit'>(null);
+    const [completedAtPrompt, setCompletedAtPrompt] = useState<null | 'complete' | 'editor-complete' | 'edit'>(null);
     const [projectNextActionPrompt, setProjectNextActionPrompt] = useState<ProjectNextActionPromptState | null>(null);
     const [projectNextActionTitle, setProjectNextActionTitle] = useState('');
     const prioritiesEnabled = settings?.features?.priorities !== false;
@@ -951,6 +951,7 @@ export const TaskItem = memo(function TaskItem({
         undoNotificationsEnabled,
     ]);
     const requestBackdatedComplete = useCallback(() => setCompletedAtPrompt('complete'), []);
+    const requestEditorBackdatedComplete = useCallback(() => setCompletedAtPrompt('editor-complete'), []);
     const requestEditCompletedAt = useCallback(() => setCompletedAtPrompt('edit'), []);
     const closeCompletedAtPrompt = useCallback(() => setCompletedAtPrompt(null), []);
     const applyCompletedAtPrompt = useCallback((value: string) => {
@@ -959,6 +960,17 @@ export const TaskItem = memo(function TaskItem({
         const parsed = new Date(value);
         if (!mode || Number.isNaN(parsed.getTime())) return;
         const completedAt = parsed.toISOString();
+        if (mode === 'editor-complete') {
+            const previousStatus = task.status;
+            const wasFocusedToday = task.isFocusedToday === true;
+            void handleSubmit(undefined, { statusOverride: 'done', completedAtOverride: completedAt })
+                .then((result) => {
+                    if (!result?.success) return;
+                    handleTaskCompleted(previousStatus, wasFocusedToday);
+                })
+                .catch((error) => reportError('Failed to mark task done from editor', error));
+            return;
+        }
         if (mode === 'complete') {
             const previousStatus = task.status;
             const wasFocusedToday = task.isFocusedToday === true;
@@ -981,7 +993,7 @@ export const TaskItem = memo(function TaskItem({
                 }
             })
             .catch((error) => reportError('Failed to update completion time', error));
-    }, [completedAtPrompt, handleTaskCompleted, task.id, task.isFocusedToday, task.status, updateTask]);
+    }, [completedAtPrompt, handleSubmit, handleTaskCompleted, task.id, task.isFocusedToday, task.status, updateTask]);
     const handleStatusChange = useCallback((nextStatus: TaskStatus) => {
         if (nextStatus === 'waiting' && task.status !== 'waiting') {
             setShowWaitingAssignmentPrompt(true);
@@ -1269,6 +1281,9 @@ export const TaskItem = memo(function TaskItem({
             onAcceptTitleSuggestion={handleTitleSuggestionAccept}
             isDoneActionActive={draft.status === 'done'}
             onMarkDone={task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference' ? handleEditorMarkDone : undefined}
+            onRequestBackdatedComplete={task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference'
+                ? requestEditorBackdatedComplete
+                : undefined}
             focusStar={quickActionFocus && task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference' ? (() => {
                 // Draft toggle, applied on Save like every other editor field —
                 // an immediate write would re-filter the list mid-edit and yank

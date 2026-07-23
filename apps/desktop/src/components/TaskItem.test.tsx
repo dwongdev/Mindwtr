@@ -273,6 +273,58 @@ describe('TaskItem', () => {
         });
     });
 
+    it('marks the task done at a chosen time when the edit title action is right-clicked', async () => {
+        const editableTask: Task = {
+            ...mockTask,
+            id: 'editor-backdated-done-task',
+            status: 'next',
+        };
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                tasks: [editableTask],
+                _allTasks: [editableTask],
+                _tasksById: new Map([[editableTask.id, editableTask]]),
+                projects: [],
+                _allProjects: [],
+                _projectsById: new Map(),
+                sections: [],
+                _allSections: [],
+                _sectionsById: new Map(),
+                areas: [],
+                _allAreas: [],
+                _areasById: new Map(),
+            }));
+        });
+        const { getAllByRole, getByDisplayValue, getByRole } = render(
+            <LanguageProvider>
+                <TaskItem task={editableTask} />
+            </LanguageProvider>
+        );
+
+        await act(async () => {
+            fireEvent.click(getAllByRole('button', { name: /edit/i })[0]);
+        });
+        await waitFor(() => expect(getByDisplayValue('Test Task')).toBeInTheDocument());
+        fireEvent.change(getByDisplayValue('Test Task'), { target: { value: 'Edited before completion' } });
+
+        fireEvent.contextMenu(getAllByRole('button', { name: 'Done' })[0]);
+
+        const dialog = getByRole('dialog', { name: 'Completion time' });
+        const completedAtInput = '2026-07-20T09:30';
+        fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: completedAtInput } });
+        await act(async () => {
+            fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+        });
+
+        await waitFor(() => {
+            const updatedTask = useTaskStore.getState()._tasksById.get('editor-backdated-done-task');
+            expect(updatedTask?.status).toBe('done');
+            expect(updatedTask?.completedAt).toBe(new Date(completedAtInput).toISOString());
+            expect(updatedTask?.title).toBe('Edited before completion');
+        });
+    });
+
     it("stars even an unclarified inbox task for Today's Focus from the editor header", async () => {
         const editableTask: Task = {
             ...mockTask,
