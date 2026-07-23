@@ -558,7 +558,7 @@ export default function TabLayout() {
   const { t } = useLanguage();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { settings } = useTaskStore();
+  const settings = useTaskStore((state) => state.settings);
   const { selectedAreaIdForNewTasks } = useMobileAreaFilter();
   const defaultAreaMode = getDefaultTaskAreaMode(settings);
   const androidNavInset = Platform.OS === 'android' && insets.bottom >= 20

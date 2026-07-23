@@ -29,6 +29,7 @@ const mockThemeTokens = vi.hoisted(() => ({
     shape: { large: number };
   },
 }));
+const mockUseTaskStore = vi.hoisted(() => vi.fn());
 
 vi.mock('expo-router', () => {
   function RedirectMock(props: { href: unknown; withAnchor?: boolean }) {
@@ -108,7 +109,7 @@ vi.mock('@mindwtr/core', () => ({
     const translated = t(key);
     return translated && translated !== key ? translated : fallback;
   },
-  useTaskStore: () => ({ settings: mockTaskSettings }),
+  useTaskStore: mockUseTaskStore,
 }));
 
 vi.mock('@/components/haptic-tab', () => ({
@@ -363,6 +364,10 @@ const getMoreSheetMenu = (tree: ReturnType<typeof create>) => {
 describe('mobile tab quick capture', () => {
   beforeEach(() => {
     mockRouterPush.mockClear();
+    mockUseTaskStore.mockImplementation((selector?: (state: { settings: typeof mockTaskSettings }) => unknown) => {
+      const state = { settings: mockTaskSettings };
+      return selector ? selector(state) : state;
+    });
     mockRestorableRoute.current = null;
     mockTaskSettings.appearance = {};
     mockTaskSettings.gtd.defaultCaptureMethod = 'text';
@@ -371,6 +376,20 @@ describe('mobile tab quick capture', () => {
     mockTaskSettings.savedSearches = [];
     selectedAreaIdForNewTasksMock.current = null;
     mockThemeTokens.value = { isMaterial: false, roles: null, shape: { large: 16 } };
+  });
+
+  it('subscribes the tab navigator only to settings', () => {
+    act(() => {
+      create(<TabLayout />);
+    });
+
+    const selector = mockUseTaskStore.mock.calls[0]?.[0] as
+      | ((state: { settings: typeof mockTaskSettings; tasks: unknown[] }) => unknown)
+      | undefined;
+
+    expect(selector).toBeTypeOf('function');
+    expect(selector?.({ settings: mockTaskSettings, tasks: [{ id: 'unrelated-sync-update' }] }))
+      .toBe(mockTaskSettings);
   });
 
   it('unmounts the quick capture sheet after close so the next plus tap gets a fresh modal', () => {
