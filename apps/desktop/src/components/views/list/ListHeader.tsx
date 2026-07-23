@@ -77,7 +77,7 @@ export function ListHeader({
     return (
         <header className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
             <div className="min-w-0 space-y-1">
-                <h2 className="truncate text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                <h2 className="break-words text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                     {title}
                     {showNextCount && (
                         <span className="ml-2 align-baseline text-base font-medium text-muted-foreground sm:text-lg">

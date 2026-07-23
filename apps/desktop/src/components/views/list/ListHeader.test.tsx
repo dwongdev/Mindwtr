@@ -68,6 +68,33 @@ describe('ListHeader', () => {
         expect(screen.getByRole('combobox', { name: 'Group' })).toBeInTheDocument();
     });
 
+    it('wraps translated titles instead of truncating them', () => {
+        render(
+            <ListHeader
+                title="Algum dia/Talvez"
+                showNextCount={false}
+                nextCount={0}
+                taskCount={12}
+                hasFilters={false}
+                filterSummaryLabel=""
+                filterSummarySuffix=""
+                sortBy="default"
+                onChangeSortBy={vi.fn()}
+                selectionMode={false}
+                onToggleSelection={vi.fn()}
+                showListDetails={false}
+                onToggleDetails={vi.fn()}
+                densityMode="compact"
+                onToggleDensity={vi.fn()}
+                t={t}
+            />
+        );
+
+        const title = screen.getByRole('heading', { level: 2, name: 'Algum dia/Talvez' });
+        expect(title).toHaveClass('break-words');
+        expect(title).not.toHaveClass('truncate');
+    });
+
     it('renders supplied group-by options including tags', () => {
         render(
             <ListHeader
