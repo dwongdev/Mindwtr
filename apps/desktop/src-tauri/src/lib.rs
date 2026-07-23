@@ -192,6 +192,12 @@ const GLOBAL_QUICK_ADD_SHORTCUT_DISABLED: &str = "disabled";
 const WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS_ENV: &str = "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS";
 #[cfg(any(target_os = "windows", test))]
 const WEBVIEW2_DISABLE_GPU_ARG: &str = "--disable-gpu";
+#[cfg(any(target_os = "windows", test))]
+const WEBVIEW2_PHONE_HOME_ARGS: [&str; 3] = [
+    "--disable-component-update",
+    "--disable-domain-reliability",
+    "--no-pings",
+];
 #[cfg(any(target_os = "linux", test))]
 const WEBKIT_DISABLE_DMABUF_RENDERER_ENV: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
 #[cfg(any(target_os = "linux", test))]
@@ -792,18 +798,28 @@ where
 }
 
 #[cfg(any(target_os = "windows", test))]
-fn with_webview2_disable_gpu_argument(existing: Option<&str>) -> String {
+fn with_windows_webview2_arguments(
+    existing: Option<&str>,
+    disable_hardware_acceleration: bool,
+) -> String {
     let existing = existing.unwrap_or_default().trim();
-    if existing
-        .split_whitespace()
-        .any(|argument| argument == WEBVIEW2_DISABLE_GPU_ARG)
-    {
-        return existing.to_string();
+    let existing_arguments = existing.split_whitespace().collect::<Vec<_>>();
+    let mut appended = WEBVIEW2_PHONE_HOME_ARGS
+        .iter()
+        .copied()
+        .filter(|argument| !existing_arguments.contains(argument))
+        .collect::<Vec<_>>();
+    if disable_hardware_acceleration && !existing_arguments.contains(&WEBVIEW2_DISABLE_GPU_ARG) {
+        appended.push(WEBVIEW2_DISABLE_GPU_ARG);
     }
+
+    let appended = appended.join(" ");
     if existing.is_empty() {
-        WEBVIEW2_DISABLE_GPU_ARG.to_string()
+        appended
+    } else if appended.is_empty() {
+        existing.to_string()
     } else {
-        format!("{existing} {WEBVIEW2_DISABLE_GPU_ARG}")
+        format!("{existing} {appended}")
     }
 }
 
@@ -828,18 +844,15 @@ fn read_startup_disable_hardware_acceleration() -> bool {
     hardware_acceleration_disabled(&config)
 }
 
-#[cfg(any(target_os = "windows", test))]
-fn should_configure_windows_webview2_disable_gpu(disable_hardware_acceleration: bool) -> bool {
-    disable_hardware_acceleration
-}
-
 #[cfg(target_os = "windows")]
 fn configure_windows_webview2_browser_arguments(disable_hardware_acceleration: bool) {
-    if !should_configure_windows_webview2_disable_gpu(disable_hardware_acceleration) {
-        return;
-    }
+    // Keep these out of tauri.conf's `additionalBrowserArgs`: that config path
+    // was the only Windows runtime change shared by rc.3/rc.4 in #913. WebView2
+    // appends this environment value to Tauri's defaults, and the reporter
+    // verified this path with the same switches without the IPC/close hang.
     let existing = env::var(WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS_ENV).ok();
-    let arguments = with_webview2_disable_gpu_argument(existing.as_deref());
+    let arguments =
+        with_windows_webview2_arguments(existing.as_deref(), disable_hardware_acceleration);
     env::set_var(WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS_ENV, arguments);
 }
 
@@ -1765,22 +1778,31 @@ arch=x86_64
     }
 
     #[test]
-    fn webview2_browser_arguments_add_disable_gpu_once() {
-        assert_eq!(with_webview2_disable_gpu_argument(None), "--disable-gpu");
+    fn webview2_browser_arguments_use_append_path_and_preserve_existing_values() {
         assert_eq!(
-            with_webview2_disable_gpu_argument(Some("--foo=bar")),
-            "--foo=bar --disable-gpu",
+            with_windows_webview2_arguments(None, false),
+            "--disable-component-update --disable-domain-reliability --no-pings",
         );
         assert_eq!(
-            with_webview2_disable_gpu_argument(Some("--foo=bar --disable-gpu")),
-            "--foo=bar --disable-gpu",
+            with_windows_webview2_arguments(Some("--foo=bar"), false),
+            "--foo=bar --disable-component-update --disable-domain-reliability --no-pings",
         );
-    }
-
-    #[test]
-    fn webview2_disable_gpu_requires_local_setting() {
-        assert!(!should_configure_windows_webview2_disable_gpu(false));
-        assert!(should_configure_windows_webview2_disable_gpu(true));
+        assert_eq!(
+            with_windows_webview2_arguments(
+                Some("--foo=bar --disable-component-update"),
+                true,
+            ),
+            "--foo=bar --disable-component-update --disable-domain-reliability --no-pings --disable-gpu",
+        );
+        assert_eq!(
+            with_windows_webview2_arguments(
+                Some(
+                    "--disable-component-update --disable-domain-reliability --no-pings --disable-gpu",
+                ),
+                true,
+            ),
+            "--disable-component-update --disable-domain-reliability --no-pings --disable-gpu",
+        );
     }
 
     #[test]
