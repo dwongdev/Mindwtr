@@ -37,6 +37,7 @@ type CoreActionResult = {
 type CoreModule = {
   setStorageAdapter: (adapter: unknown) => void;
   flushPendingSave: () => Promise<void>;
+  runWithImmediateSaveTracking: <T>(operation: () => Promise<T>) => Promise<{ result: T; saveCount: number }>;
   createSerializedAsyncQueue: () => SerializedAsyncQueue;
   useTaskStore: CoreStore;
   SqliteAdapter: new (client: unknown) => { ensureSchema: () => Promise<void> };
@@ -46,12 +47,14 @@ type SerializedAsyncQueue = {
   run: <T>(fn: () => Promise<T> | T) => Promise<T>;
 };
 
+type TaskWriteResult = Task & { storageWarning?: string };
+
 type CoreService = {
-  addTask: (input: { title: string; props?: Partial<Task> }) => Promise<Task>;
-  updateTask: (input: { id: string; updates: Partial<Task> }) => Promise<Task>;
-  completeTask: (id: string) => Promise<Task>;
-  deleteTask: (id: string) => Promise<Task>;
-  restoreTask: (id: string) => Promise<Task>;
+  addTask: (input: { title: string; props?: Partial<Task> }) => Promise<TaskWriteResult>;
+  updateTask: (input: { id: string; updates: Partial<Task> }) => Promise<TaskWriteResult>;
+  completeTask: (id: string) => Promise<TaskWriteResult>;
+  deleteTask: (id: string) => Promise<TaskWriteResult>;
+  restoreTask: (id: string) => Promise<TaskWriteResult>;
   addProject: (input: { title: string; color: string; props?: Partial<Project> }) => Promise<Project>;
   updateProject: (input: { id: string; updates: Partial<Project> }) => Promise<Project>;
   deleteProject: (id: string) => Promise<Project>;
@@ -73,7 +76,7 @@ let coreReadonly = false;
 let coreReady: Promise<void> | null = null;
 let coreQueue: SerializedAsyncQueue | null = null;
 
-const CORE_SQLITE_BUSY_TIMEOUT_MS = 0;
+const CORE_SQLITE_BUSY_TIMEOUT_MS = 5000;
 
 const isBun = () => typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined';
 
@@ -131,6 +134,129 @@ const ensureActionSucceeded = (action: string, result: CoreActionResult) => {
   }
 };
 
+const isSqliteCorruptError = (error: unknown): boolean => {
+  const code = typeof error === 'object' && error !== null && 'code' in error
+    ? String((error as { code?: unknown }).code).toUpperCase()
+    : '';
+  const message = getErrorMessage(error).toLowerCase();
+  return code === 'SQLITE_CORRUPT' || message.includes('database disk image is malformed');
+};
+
+const toStorageError = (error: unknown): Error => {
+  if (isSqliteCorruptError(error)) {
+    return new Error(
+      `The database file appears damaged (${getErrorMessage(error)}). Run PRAGMA integrity_check to assess it.`,
+      { cause: error },
+    );
+  }
+  return error instanceof Error ? error : new Error(getErrorMessage(error));
+};
+
+const getTaskStorageWarning = (error: unknown): string => {
+  const failure = isSqliteCorruptError(error)
+    ? `the database file appears damaged (${getErrorMessage(error)})`
+    : getErrorMessage(error);
+  const guidance = isSqliteCorruptError(error) ? ' Run PRAGMA integrity_check to assess it.' : '';
+  return `The task change was saved, but a full-database save failed: ${failure}. `
+    + `Other pending changes, such as settings, may not have persisted.${guidance}`;
+};
+
+const flushCoreSave = async (core: Pick<CoreModule, 'flushPendingSave'>): Promise<void> => {
+  try {
+    await core.flushPendingSave();
+  } catch (error) {
+    throw toStorageError(error);
+  }
+};
+
+type PersistenceContractService = Pick<
+  CoreService,
+  'addTask' | 'updateTask' | 'completeTask' | 'deleteTask' | 'restoreTask' | 'updateProject'
+>;
+
+export const createCorePersistenceService = (core: CoreModule): PersistenceContractService => {
+  const writeTask = async (
+    action: string,
+    mutate: (state: ReturnType<CoreStore['getState']>) => Promise<CoreActionResult>,
+    findTask: () => Task | undefined,
+    notFoundMessage: string,
+  ): Promise<TaskWriteResult> => {
+    const initialState = core.useTaskStore.getState();
+    try {
+      await initialState.fetchData();
+    } catch (error) {
+      throw toStorageError(error);
+    }
+
+    let tracked: { result: CoreActionResult; saveCount: number };
+    try {
+      const state = core.useTaskStore.getState();
+      tracked = await core.runWithImmediateSaveTracking(() => mutate(state));
+    } catch (error) {
+      throw toStorageError(error);
+    }
+    ensureActionSucceeded(action, tracked.result);
+
+    const task = findTask();
+    if (!task) throw new Error(notFoundMessage);
+    try {
+      await core.flushPendingSave();
+      return task;
+    } catch (error) {
+      if (tracked.saveCount === 0) throw toStorageError(error);
+      return { ...task, storageWarning: getTaskStorageWarning(error) };
+    }
+  };
+
+  return {
+    addTask: async ({ title, props }) => {
+      let before = new Set<string>();
+      return writeTask(
+        'create task',
+        async (state) => {
+          before = new Set(state._allTasks.map((task) => task.id));
+          return state.addTask(title, props);
+        },
+        () => core.useTaskStore.getState()._allTasks.find((task) => !before.has(task.id)),
+        'Failed to locate newly created task.',
+      );
+    },
+    updateTask: async ({ id, updates }) => writeTask(
+      'update task',
+      (state) => state.updateTask(id, updates),
+      () => core.useTaskStore.getState()._allTasks.find((task) => task.id === id),
+      `Task not found after update: ${id}`,
+    ),
+    completeTask: async (id) => writeTask(
+      'complete task',
+      (state) => state.updateTask(id, { status: 'done' } as Partial<Task>),
+      () => core.useTaskStore.getState()._allTasks.find((task) => task.id === id),
+      `Task not found after complete: ${id}`,
+    ),
+    deleteTask: async (id) => writeTask(
+      'delete task',
+      (state) => state.deleteTask(id),
+      () => core.useTaskStore.getState()._allTasks.find((task) => task.id === id),
+      `Task not found after delete: ${id}`,
+    ),
+    restoreTask: async (id) => writeTask(
+      'restore task',
+      (state) => state.restoreTask(id),
+      () => core.useTaskStore.getState()._allTasks.find((task) => task.id === id),
+      `Task not found after restore: ${id}`,
+    ),
+    updateProject: async ({ id, updates }) => {
+      const state = core.useTaskStore.getState();
+      await state.fetchData();
+      ensureActionSucceeded('update project', await state.updateProject(id, updates));
+      await flushCoreSave(core);
+      const updated = core.useTaskStore.getState()._allProjects.find((project) => project.id === id);
+      if (!updated) throw new Error(`Project not found after update: ${id}`);
+      return updated as Project;
+    },
+  };
+};
+
 const isDuplicateColumnError = (error: unknown): boolean => {
   const message = getErrorMessage(error).toLowerCase();
   return message.includes('duplicate column name');
@@ -176,78 +302,22 @@ const ensureCoreReady = async (options: DbOptions) => {
       await core.useTaskStore.getState().fetchData();
 
       coreService = {
-      addTask: async ({ title, props }) => {
-        const state = core.useTaskStore.getState();
-        await state.fetchData();
-        const refreshedState = core.useTaskStore.getState();
-        const before = new Set(refreshedState._allTasks.map((t) => t.id));
-        ensureActionSucceeded('create task', await refreshedState.addTask(title, props));
-        await core.flushPendingSave();
-        const after = core.useTaskStore.getState()._allTasks;
-        const created = after.find((t) => !before.has(t.id));
-        if (!created) throw new Error('Failed to locate newly created task.');
-        return created as Task;
-      },
-      updateTask: async ({ id, updates }) => {
-        const state = core.useTaskStore.getState();
-        await state.fetchData();
-        ensureActionSucceeded('update task', await state.updateTask(id, updates));
-        await core.flushPendingSave();
-        const updated = core.useTaskStore.getState()._allTasks.find((t) => t.id === id);
-        if (!updated) throw new Error(`Task not found after update: ${id}`);
-        return updated as Task;
-      },
-      completeTask: async (id) => {
-        const state = core.useTaskStore.getState();
-        await state.fetchData();
-        ensureActionSucceeded('complete task', await state.updateTask(id, { status: 'done' } as Partial<Task>));
-        await core.flushPendingSave();
-        const updated = core.useTaskStore.getState()._allTasks.find((t) => t.id === id);
-        if (!updated) throw new Error(`Task not found after complete: ${id}`);
-        return updated as Task;
-      },
-      deleteTask: async (id) => {
-        const state = core.useTaskStore.getState();
-        await state.fetchData();
-        ensureActionSucceeded('delete task', await state.deleteTask(id));
-        await core.flushPendingSave();
-        const updated = core.useTaskStore.getState()._allTasks.find((t) => t.id === id);
-        if (!updated) throw new Error(`Task not found after delete: ${id}`);
-        return updated as Task;
-      },
-      restoreTask: async (id) => {
-        const state = core.useTaskStore.getState();
-        await state.fetchData();
-        ensureActionSucceeded('restore task', await state.restoreTask(id));
-        await core.flushPendingSave();
-        const updated = core.useTaskStore.getState()._allTasks.find((t) => t.id === id);
-        if (!updated) throw new Error(`Task not found after restore: ${id}`);
-        return updated as Task;
-      },
+      ...createCorePersistenceService(core),
       addProject: async ({ title, color, props }) => {
         const state = core.useTaskStore.getState();
         await state.fetchData();
         const created = await state.addProject(title, color, props);
         if (!created) throw new Error('Failed to create project.');
-        await core.flushPendingSave();
+        await flushCoreSave(core);
         const saved = core.useTaskStore.getState()._allProjects.find((project) => project.id === created.id);
         if (!saved) throw new Error(`Project not found after create: ${created.id}`);
         return saved as Project;
-      },
-      updateProject: async ({ id, updates }) => {
-        const state = core.useTaskStore.getState();
-        await state.fetchData();
-        ensureActionSucceeded('update project', await state.updateProject(id, updates));
-        await core.flushPendingSave();
-        const updated = core.useTaskStore.getState()._allProjects.find((project) => project.id === id);
-        if (!updated) throw new Error(`Project not found after update: ${id}`);
-        return updated as Project;
       },
     deleteProject: async (id) => {
       const state = core.useTaskStore.getState();
       await state.fetchData();
       ensureActionSucceeded('delete project', await state.deleteProject(id));
-      await core.flushPendingSave();
+      await flushCoreSave(core);
       const updated = core.useTaskStore.getState()._allProjects.find((project) => project.id === id);
       if (!updated) throw new Error(`Project not found after delete: ${id}`);
       return updated as Project;
@@ -257,7 +327,7 @@ const ensureCoreReady = async (options: DbOptions) => {
       await state.fetchData();
       const created = await state.addSection(projectId, title, props);
       if (!created) throw new Error('Failed to create section.');
-      await core.flushPendingSave();
+      await flushCoreSave(core);
       const saved = core.useTaskStore.getState()._allSections.find((section) => section.id === created.id);
       if (!saved) throw new Error(`Section not found after create: ${created.id}`);
       return saved as Section;
@@ -266,7 +336,7 @@ const ensureCoreReady = async (options: DbOptions) => {
       const state = core.useTaskStore.getState();
       await state.fetchData();
       ensureActionSucceeded('update section', await state.updateSection(id, updates));
-      await core.flushPendingSave();
+      await flushCoreSave(core);
       const updated = core.useTaskStore.getState()._allSections.find((section) => section.id === id);
       if (!updated) throw new Error(`Section not found after update: ${id}`);
       return updated as Section;
@@ -275,7 +345,7 @@ const ensureCoreReady = async (options: DbOptions) => {
       const state = core.useTaskStore.getState();
       await state.fetchData();
       ensureActionSucceeded('delete section', await state.deleteSection(id));
-      await core.flushPendingSave();
+      await flushCoreSave(core);
       const updated = core.useTaskStore.getState()._allSections.find((section) => section.id === id);
       if (!updated) throw new Error(`Section not found after delete: ${id}`);
       return updated as Section;
@@ -285,7 +355,7 @@ const ensureCoreReady = async (options: DbOptions) => {
         await state.fetchData();
         const created = await state.addArea(name, props);
         if (!created) throw new Error('Failed to create area.');
-        await core.flushPendingSave();
+        await flushCoreSave(core);
         const saved = core.useTaskStore.getState()._allAreas.find((area) => area.id === created.id);
         if (!saved) throw new Error(`Area not found after create: ${created.id}`);
         return saved as Area;
@@ -294,7 +364,7 @@ const ensureCoreReady = async (options: DbOptions) => {
         const state = core.useTaskStore.getState();
         await state.fetchData();
         ensureActionSucceeded('update area', await state.updateArea(id, updates));
-        await core.flushPendingSave();
+        await flushCoreSave(core);
         const updated = core.useTaskStore.getState()._allAreas.find((area) => area.id === id);
         if (!updated) throw new Error(`Area not found after update: ${id}`);
         return updated as Area;
@@ -303,7 +373,7 @@ const ensureCoreReady = async (options: DbOptions) => {
         const state = core.useTaskStore.getState();
         await state.fetchData();
         ensureActionSucceeded('delete area', await state.deleteArea(id));
-        await core.flushPendingSave();
+        await flushCoreSave(core);
         const updated = core.useTaskStore.getState()._allAreas.find((area) => area.id === id);
         if (!updated) throw new Error(`Area not found after delete: ${id}`);
         return updated as Area;
@@ -313,7 +383,7 @@ const ensureCoreReady = async (options: DbOptions) => {
         await state.fetchData();
         const created = await state.addPerson(name, props);
         if (!created) throw new Error('Failed to create person.');
-        await core.flushPendingSave();
+        await flushCoreSave(core);
         const saved = core.useTaskStore.getState()._allPeople.find((person) => person.id === created.id);
         if (!saved) throw new Error(`Person not found after create: ${created.id}`);
         return saved as Person;
@@ -322,7 +392,7 @@ const ensureCoreReady = async (options: DbOptions) => {
         const state = core.useTaskStore.getState();
         await state.fetchData();
         ensureActionSucceeded('update person', await state.updatePerson(id, updates));
-        await core.flushPendingSave();
+        await flushCoreSave(core);
         const updated = core.useTaskStore.getState()._allPeople.find((person) => person.id === id);
         if (!updated) throw new Error(`Person not found after update: ${id}`);
         return updated as Person;
@@ -331,7 +401,7 @@ const ensureCoreReady = async (options: DbOptions) => {
         const state = core.useTaskStore.getState();
         await state.fetchData();
         ensureActionSucceeded('rename person', await state.renamePerson(id, name, { updateTasks }));
-        await core.flushPendingSave();
+        await flushCoreSave(core);
         const updated = core.useTaskStore.getState()._allPeople.find((person) => person.id === id);
         if (!updated) throw new Error(`Person not found after rename: ${id}`);
         return updated as Person;
@@ -340,7 +410,7 @@ const ensureCoreReady = async (options: DbOptions) => {
         const state = core.useTaskStore.getState();
         await state.fetchData();
         ensureActionSucceeded('delete person', await state.deletePerson(id));
-        await core.flushPendingSave();
+        await flushCoreSave(core);
         const updated = core.useTaskStore.getState()._allPeople.find((person) => person.id === id);
         if (!updated) throw new Error(`Person not found after delete: ${id}`);
         return updated as Person;

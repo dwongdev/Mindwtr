@@ -51,6 +51,9 @@ let pendingVersion = 0;
 let savedVersion = 0;
 let saveInFlight: Promise<void> | null = null;
 const immediateSavesInFlight = new Set<Promise<void>>();
+// Module-global: concurrent runWithImmediateSaveTracking scopes would cross-capture
+// each other's saves. Callers must serialize (the MCP server does via its op queue).
+const immediateSaveTrackers = new Set<Set<Promise<void>>>();
 let scheduledSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let errorAutoClearTimer: ReturnType<typeof setTimeout> | null = null;
 const MAX_PENDING_SAVES = 100;
@@ -339,11 +342,27 @@ const trackImmediateSave = (save: Promise<void>): Promise<void> => {
     trackedSave = save.finally(() => {
         immediateSavesInFlight.delete(trackedSave);
     });
+    immediateSaveTrackers.forEach((tracker) => tracker.add(trackedSave));
     immediateSavesInFlight.add(trackedSave);
     markCoreStartupPhase('core.immediate_save.enqueued', {
         inFlight: immediateSavesInFlight.size,
     });
     return trackedSave;
+};
+
+export const runWithImmediateSaveTracking = async <T>(operation: () => Promise<T>): Promise<{
+    result: T;
+    saveCount: number;
+}> => {
+    const saves = new Set<Promise<void>>();
+    immediateSaveTrackers.add(saves);
+    try {
+        const result = await operation();
+        await Promise.all(saves);
+        return { result, saveCount: saves.size };
+    } finally {
+        immediateSaveTrackers.delete(saves);
+    }
 };
 
 /**

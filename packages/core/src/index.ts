@@ -182,6 +182,7 @@ export {
     flushPendingSave,
     getStorageAdapter,
     resetForTests,
+    runWithImmediateSaveTracking,
     setStorageAdapter,
     shallow,
     useProjectById,

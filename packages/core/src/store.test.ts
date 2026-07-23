@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { addDays } from 'date-fns';
 import { safeParseDate } from './date';
-import { useTaskStore, flushPendingSave, resetForTests, setStorageAdapter } from './store';
+import {
+    useTaskStore,
+    flushPendingSave,
+    resetForTests,
+    runWithImmediateSaveTracking,
+    setStorageAdapter,
+} from './store';
 import { buildEntityMap } from './store-helpers';
 import { shouldShowTaskForStart } from './task-utils';
 import type { StorageAdapter } from './storage';
@@ -243,6 +249,25 @@ describe('TaskStore', () => {
         await flushPromise;
         expect(flushed).toBe(true);
         expect(mockStorage.saveData).not.toHaveBeenCalled();
+    });
+
+    it('confirms incremental task storage for a scoped operation', async () => {
+        const saveTask = vi.fn().mockResolvedValue(undefined);
+        mockStorage.saveTask = saveTask;
+        const task = createStoreTask('task-1', { status: 'next' });
+        useTaskStore.setState({
+            tasks: [task],
+            _allTasks: [task],
+            _tasksById: buildEntityMap([task]),
+        });
+
+        const tracked = await runWithImmediateSaveTracking(() =>
+            useTaskStore.getState().updateTask('task-1', { title: 'Updated Task' })
+        );
+
+        expect(tracked.result).toEqual({ success: true });
+        expect(tracked.saveCount).toBe(1);
+        expect(saveTask).toHaveBeenCalledTimes(1);
     });
 
     it('falls back to full snapshot storage when incremental task storage is unavailable', async () => {
