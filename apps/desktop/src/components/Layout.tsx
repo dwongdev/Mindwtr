@@ -471,7 +471,7 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
                 if (config.url.trim().toLowerCase().startsWith('http://')) {
                     setCleartextSyncWarning(tFallback(t,
                         'settings.cleartextSyncWarningWebdav',
-                        'WebDAV sync is using HTTP. Only local or private-network endpoints are allowed; data is not encrypted.'
+                        'WebDAV sync is using HTTP. Data is unencrypted; use it only on a trusted network.'
                     ));
                     return;
                 }
@@ -480,7 +480,7 @@ export function Layout({ children, currentView, onViewChange, onOpenSyncSettings
                 if (config.url.trim().toLowerCase().startsWith('http://')) {
                     setCleartextSyncWarning(tFallback(t,
                         'settings.cleartextSyncWarningCloud',
-                        'Self-hosted sync is using HTTP. Only local or private-network endpoints are allowed; data is not encrypted.'
+                        'Self-hosted sync is using HTTP. Data is unencrypted; use it only on a trusted network.'
                     ));
                     return;
                 }
