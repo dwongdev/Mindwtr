@@ -646,7 +646,7 @@ describe('QuickAddModal', () => {
                 files: [],
                 items: [],
                 getData: (type: string) => type === 'text/plain'
-                    ? 'Email Bob\n\nCall Alice\nReview notes'
+                    ? 'Email Bob\nCall Alice\nReview notes'
                     : '',
             },
         });
@@ -660,6 +660,51 @@ describe('QuickAddModal', () => {
         expect(addTask).toHaveBeenNthCalledWith(1, 'Email Bob', expect.objectContaining({ status: 'inbox' }));
         expect(addTask).toHaveBeenNthCalledWith(2, 'Call Alice', expect.objectContaining({ status: 'inbox' }));
         expect(addTask).toHaveBeenNthCalledWith(3, 'Review notes', expect.objectContaining({ status: 'inbox' }));
+    });
+
+    it('automatically keeps blank-line-separated project text as one task', async () => {
+        const addTask = vi.fn(async () => ({ success: true, id: 'task-id' }));
+        act(() => {
+            useTaskStore.setState((state) => ({
+                ...state,
+                addTask,
+            }));
+        });
+
+        renderQuickAddModal();
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent('mindwtr:quick-add', {
+                detail: {
+                    initialProps: {
+                        projectId: 'project-id',
+                        status: 'next',
+                    },
+                },
+            }));
+            await Promise.resolve();
+        });
+
+        fireEvent.paste(screen.getByPlaceholderText('Add Task'), {
+            clipboardData: {
+                files: [],
+                items: [],
+                getData: (type: string) => type === 'text/plain'
+                    ? 'WeCom message one\n\nWeCom message two'
+                    : '',
+            },
+        });
+
+        expect(screen.getByPlaceholderText('Add Task')).toHaveValue('WeCom message one WeCom message two');
+        expect(screen.queryByText('Create 2 tasks?')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => expect(addTask).toHaveBeenCalledTimes(1));
+        expect(addTask).toHaveBeenCalledWith(
+            'WeCom message one WeCom message two',
+            expect.objectContaining({ projectId: 'project-id', status: 'next' }),
+        );
     });
 
     it('imports a text file through the same bulk quick-add confirmation', async () => {

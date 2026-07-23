@@ -524,7 +524,16 @@ export function QuickAddModal({ standaloneWindow = false }: QuickAddModalProps) 
 
         const pastedText = event.clipboardData?.getData('text/plain') ?? '';
         const lines = splitQuickAddBulkLines(pastedText);
-        if (lines.length <= 1) return;
+        if (lines.length <= 1) {
+            if (lines.length === 1 && /[\r\n]/.test(pastedText)) {
+                event.preventDefault();
+                const input = event.currentTarget;
+                const start = input.selectionStart ?? input.value.length;
+                const end = input.selectionEnd ?? start;
+                setValue(`${input.value.slice(0, start)}${lines[0]}${input.value.slice(end)}`);
+            }
+            return;
+        }
         event.preventDefault();
         setBulkQuickAddLines(lines);
         setBulkQuickAddError(null);

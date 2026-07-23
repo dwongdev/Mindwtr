@@ -4,10 +4,13 @@ import { getQuickAddProjectInitialProps, parseProjectNextActionInput, parseQuick
 
 describe('quick-add', () => {
     it('splits bulk quick-add text into trimmed nonblank lines', () => {
-        expect(splitQuickAddBulkLines('  Email Bob  \r\n\nCall Alice\n\t\nReview notes +Work  ')).toEqual([
+        expect(splitQuickAddBulkLines('  Email Bob  \r\nCall Alice\nReview notes +Work  ')).toEqual([
             'Email Bob',
             'Call Alice',
             'Review notes +Work',
+        ]);
+        expect(splitQuickAddBulkLines('WeCom message one\r\n  \r\nWeCom message two')).toEqual([
+            'WeCom message one WeCom message two',
         ]);
         expect(splitQuickAddBulkLines('One task only')).toEqual(['One task only']);
         expect(splitQuickAddBulkLines(' \n\t\r\n ')).toEqual([]);

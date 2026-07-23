@@ -106,11 +106,12 @@ export interface QuickAddDateCommandsResult {
 }
 
 export function splitQuickAddBulkLines(input: string): string[] {
-    return String(input || '')
-        .replace(/\r\n?/g, '\n')
+    const normalized = String(input || '').replace(/\r\n?/g, '\n');
+    const lines = normalized
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean);
+    return lines.length > 0 && /\n[ \t]*\n/.test(normalized) ? [lines.join(' ')] : lines;
 }
 
 const STATUS_TOKENS: Record<string, TaskStatus> = {
