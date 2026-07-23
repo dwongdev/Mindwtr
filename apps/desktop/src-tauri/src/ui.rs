@@ -216,7 +216,14 @@ pub(crate) fn consume_quick_add_pending(
 }
 
 #[tauri::command]
-pub(crate) fn acknowledge_close_request(state: tauri::State<'_, CloseRequestHandled>) {
+pub(crate) fn acknowledge_close_request(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, CloseRequestHandled>,
+) {
+    crate::logging::append_native_log_line(
+        &app,
+        "Close trace: acknowledge_close_request command invoked",
+    );
     state.0.store(true, Ordering::SeqCst);
 }
 
@@ -335,9 +342,15 @@ pub(crate) fn set_global_quick_add_shortcut(
 pub(crate) fn quit_app(app: tauri::AppHandle) {
     // Close trace (#913): confirms the quit command reached native code; if
     // the process survives past this line, app.exit itself failed to exit.
-    log::info!("Close trace: quit_app command invoked, calling app.exit(0)");
+    crate::logging::append_native_log_line(
+        &app,
+        "Close trace: quit_app command invoked, calling app.exit(0)",
+    );
     app.exit(0);
-    log::info!("Close trace: app.exit(0) returned without terminating");
+    crate::logging::append_native_log_line(
+        &app,
+        "Close trace: app.exit(0) returned without terminating",
+    );
 }
 
 #[tauri::command]

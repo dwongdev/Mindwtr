@@ -90,7 +90,7 @@ use local_api::{
     get_local_api_server_status, set_local_api_server_config, start_configured_local_api_server,
     LocalApiServerState,
 };
-use logging::{append_log_line, clear_log_file, log_ai_debug};
+use logging::{append_log_line, append_native_log_line, clear_log_file, log_ai_debug};
 use obsidian_paths::default_obsidian_inbox_file;
 use obsidian_watcher::{start_obsidian_watcher, stop_obsidian_watcher, ObsidianWatcherState};
 use obsidian_writer::{
@@ -1281,12 +1281,24 @@ pub fn run() {
                     let _ = hide_quick_add_window_for_app(window.app_handle());
                     return;
                 }
+                append_native_log_line(
+                    window.app_handle(),
+                    "Close trace: native main-window close request received",
+                );
                 window
                     .app_handle()
                     .state::<CloseRequestHandled>()
                     .0
                     .store(false, Ordering::SeqCst);
                 let emit_ok = window.emit("close-requested", ()).is_ok();
+                append_native_log_line(
+                    window.app_handle(),
+                    if emit_ok {
+                        "Close trace: native close-requested event emitted"
+                    } else {
+                        "Close trace: native close-requested event emission failed"
+                    },
+                );
                 if !emit_ok {
                     let _ = window.set_skip_taskbar(true);
                     let _ = window.hide();
@@ -1301,6 +1313,10 @@ pub fn run() {
                         {
                             return;
                         }
+                        append_native_log_line(
+                            &handle,
+                            "Close trace: native close fallback timed out waiting for acknowledgement",
+                        );
                         if let Some(w) = handle.get_webview_window("main") {
                             if w.is_visible().unwrap_or(true) {
                                 let _ = w.set_skip_taskbar(true);

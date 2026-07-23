@@ -1,26 +1,7 @@
 use crate::*;
 
-#[tauri::command]
-pub(crate) fn log_ai_debug(
-    context: String,
-    message: String,
-    provider: Option<String>,
-    model: Option<String>,
-    task_id: Option<String>,
-) {
-    println!(
-        "[ai-debug] context={} provider={} model={} task={} message={}",
-        context,
-        provider.unwrap_or_else(|| "unknown".into()),
-        model.unwrap_or_else(|| "unknown".into()),
-        task_id.unwrap_or_else(|| "-".into()),
-        message
-    );
-}
-
-#[tauri::command]
-pub(crate) fn append_log_line(app: tauri::AppHandle, line: String) -> Result<String, String> {
-    let log_dir = get_data_dir(&app).join("logs");
+fn write_log_line(app: &tauri::AppHandle, line: &str) -> Result<String, String> {
+    let log_dir = get_data_dir(app).join("logs");
     if let Err(err) = std::fs::create_dir_all(&log_dir) {
         return Err(err.to_string());
     }
@@ -50,6 +31,52 @@ pub(crate) fn append_log_line(app: tauri::AppHandle, line: String) -> Result<Str
     Ok(log_path.to_string_lossy().to_string())
 }
 
+fn native_log_line(message: &str) -> String {
+    let timestamp = OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_else(|_| OffsetDateTime::now_utc().unix_timestamp().to_string());
+    format!(
+        "{}\n",
+        serde_json::json!({
+            "ts": timestamp,
+            "level": "info",
+            "scope": "app",
+            "message": message,
+            "context": { "source": "native" },
+        })
+    )
+}
+
+pub(crate) fn append_native_log_line(app: &tauri::AppHandle, message: &str) {
+    let line = native_log_line(message);
+    if let Err(error) = write_log_line(app, &line) {
+        log::warn!("Failed to append native app log: {error}");
+    }
+}
+
+#[tauri::command]
+pub(crate) fn log_ai_debug(
+    context: String,
+    message: String,
+    provider: Option<String>,
+    model: Option<String>,
+    task_id: Option<String>,
+) {
+    println!(
+        "[ai-debug] context={} provider={} model={} task={} message={}",
+        context,
+        provider.unwrap_or_else(|| "unknown".into()),
+        model.unwrap_or_else(|| "unknown".into()),
+        task_id.unwrap_or_else(|| "-".into()),
+        message
+    );
+}
+
+#[tauri::command]
+pub(crate) fn append_log_line(app: tauri::AppHandle, line: String) -> Result<String, String> {
+    write_log_line(&app, &line)
+}
+
 #[tauri::command]
 pub(crate) fn clear_log_file(app: tauri::AppHandle) -> Result<String, String> {
     let log_path = get_data_dir(&app).join("logs").join("mindwtr.log");
@@ -59,4 +86,23 @@ pub(crate) fn clear_log_file(app: tauri::AppHandle) -> Result<String, String> {
         }
     }
     Ok(log_path.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::native_log_line;
+
+    #[test]
+    fn native_log_line_is_valid_jsonl() {
+        let line = native_log_line("Close trace: quoted \"message\"");
+
+        assert!(line.ends_with('\n'));
+        let entry: serde_json::Value =
+            serde_json::from_str(line.trim_end()).expect("native log line should be JSON");
+        assert_eq!(entry["level"], "info");
+        assert_eq!(entry["scope"], "app");
+        assert_eq!(entry["message"], "Close trace: quoted \"message\"");
+        assert_eq!(entry["context"]["source"], "native");
+        assert!(entry["ts"].as_str().is_some_and(|value| !value.is_empty()));
+    }
 }
