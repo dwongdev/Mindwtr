@@ -305,6 +305,8 @@ const getTaskRowEntry = (task: Task): TaskRowEntry => {
 const READ_PAGE_SIZE = 1000;
 const FTS_LOCK_TTL_MS = 5 * 60 * 1000;
 const FTS_LOCK_REFRESH_INTERVAL_MS = Math.max(15_000, Math.floor(FTS_LOCK_TTL_MS / 3));
+// Bump when the indexed projection changes so existing content is rebuilt once.
+const FTS_TRIGGER_MIGRATION_VERSION = 3;
 const SQLITE_ROW_VERSION_INSERT_BATCH_SIZE = 200;
 const SEARCH_TASK_SELECT = [
     't.id AS id',
@@ -622,8 +624,8 @@ export class SqliteAdapter {
         // FTS operations are optional - don't block startup if they fail
         try {
             await this.ensureFtsSchema();
-            await this.ensureFtsTriggers();
-            await this.ensureFtsPopulated();
+            const triggersChanged = await this.ensureFtsTriggers();
+            await this.ensureFtsPopulated(triggersChanged);
         } catch (error) {
             logWarn('FTS setup failed, search may not work', {
                 scope: 'sqlite',
@@ -668,30 +670,46 @@ export class SqliteAdapter {
         `);
     }
 
-    private async ensureFtsTriggers() {
-        // Recreate FTS triggers to use proper contentless FTS5 delete syntax
-        // Old triggers used "DELETE FROM tasks_fts WHERE id = ..." which fails on contentless tables
-        try {
-            // Drop old triggers and recreate with current indexed columns.
-            await this.client.run('DROP TRIGGER IF EXISTS tasks_ai');
-            await this.client.run('DROP TRIGGER IF EXISTS tasks_ad');
-            await this.client.run('DROP TRIGGER IF EXISTS tasks_au');
-            await this.client.run('DROP TRIGGER IF EXISTS projects_ad');
-            await this.client.run('DROP TRIGGER IF EXISTS projects_au');
+    private async ensureFtsTriggers(): Promise<boolean> {
+        const hasCurrentTriggers = await this.client.get<{ applied?: number }>(
+            'SELECT 1 as applied FROM schema_migrations WHERE version = ? LIMIT 1',
+            [FTS_TRIGGER_MIGRATION_VERSION]
+        );
+        if (hasCurrentTriggers?.applied === 1) return false;
 
-            await this.client.run(`
+        try {
+            // DDL is transactional in SQLite. BEGIN IMMEDIATE keeps another app/MCP
+            // writer from changing rows while the maintenance triggers are absent.
+            await this.client.run('BEGIN IMMEDIATE');
+            try {
+                const alreadyMigrated = await this.client.get<{ applied?: number }>(
+                    'SELECT 1 as applied FROM schema_migrations WHERE version = ? LIMIT 1',
+                    [FTS_TRIGGER_MIGRATION_VERSION]
+                );
+                if (alreadyMigrated?.applied === 1) {
+                    await this.client.run('COMMIT');
+                    return false;
+                }
+
+                await this.client.run('DROP TRIGGER IF EXISTS tasks_ai');
+                await this.client.run('DROP TRIGGER IF EXISTS tasks_ad');
+                await this.client.run('DROP TRIGGER IF EXISTS tasks_au');
+                await this.client.run('DROP TRIGGER IF EXISTS projects_ad');
+                await this.client.run('DROP TRIGGER IF EXISTS projects_au');
+
+                await this.client.run(`
                 CREATE TRIGGER IF NOT EXISTS tasks_ai AFTER INSERT ON tasks BEGIN
                   INSERT INTO tasks_fts (rowid, title, description, tags, contexts, checklist, location, assignedTo)
                   VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(new.checklist)), ''), coalesce(new.location, ''), coalesce(new.assignedTo, ''));
                 END
             `);
-            await this.client.run(`
+                await this.client.run(`
                 CREATE TRIGGER IF NOT EXISTS tasks_ad AFTER DELETE ON tasks BEGIN
                   INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, checklist, location, assignedTo)
                   VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(old.checklist)), ''), coalesce(old.location, ''), coalesce(old.assignedTo, ''));
                 END
             `);
-            await this.client.run(`
+                await this.client.run(`
                 CREATE TRIGGER IF NOT EXISTS tasks_au AFTER UPDATE ON tasks BEGIN
                   INSERT INTO tasks_fts (tasks_fts, rowid, title, description, tags, contexts, checklist, location, assignedTo)
                   VALUES ('delete', old.rowid, old.title, coalesce(old.description, ''), coalesce(old.tags, ''), coalesce(old.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(old.checklist)), ''), coalesce(old.location, ''), coalesce(old.assignedTo, ''));
@@ -699,13 +717,13 @@ export class SqliteAdapter {
                   VALUES (new.rowid, new.title, coalesce(new.description, ''), coalesce(new.tags, ''), coalesce(new.contexts, ''), coalesce((SELECT group_concat(json_extract(value, '$.title'), ' ') FROM json_each(new.checklist)), ''), coalesce(new.location, ''), coalesce(new.assignedTo, ''));
                 END
             `);
-            await this.client.run(`
+                await this.client.run(`
                 CREATE TRIGGER IF NOT EXISTS projects_ad AFTER DELETE ON projects BEGIN
                   INSERT INTO projects_fts (projects_fts, rowid, title, supportNotes, tagIds, areaTitle)
                   VALUES ('delete', old.rowid, old.title, coalesce(old.supportNotes, ''), coalesce(old.tagIds, ''), coalesce(old.areaTitle, ''));
                 END
             `);
-            await this.client.run(`
+                await this.client.run(`
                 CREATE TRIGGER IF NOT EXISTS projects_au AFTER UPDATE ON projects BEGIN
                   INSERT INTO projects_fts (projects_fts, rowid, title, supportNotes, tagIds, areaTitle)
                   VALUES ('delete', old.rowid, old.title, coalesce(old.supportNotes, ''), coalesce(old.tagIds, ''), coalesce(old.areaTitle, ''));
@@ -714,7 +732,16 @@ export class SqliteAdapter {
                 END
             `);
 
-            await this.client.run('INSERT OR IGNORE INTO schema_migrations (version) VALUES (2)');
+                await this.client.run(
+                    'INSERT OR IGNORE INTO schema_migrations (version) VALUES (?)',
+                    [FTS_TRIGGER_MIGRATION_VERSION]
+                );
+                await this.client.run('COMMIT');
+                return true;
+            } catch (error) {
+                await this.client.run('ROLLBACK');
+                throw error;
+            }
         } catch (error) {
             logWarn('Failed to migrate FTS triggers', {
                 scope: 'sqlite',
@@ -722,6 +749,7 @@ export class SqliteAdapter {
                 error,
             });
             // Continue without migrating - triggers may still work or will fail gracefully
+            return false;
         }
     }
 

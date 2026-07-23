@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 
 import { SqliteAdapter, type SqliteClient } from './sqlite-adapter';
 import { consoleLogger, setLogger, type LogPayload } from './logger';
-import { SQLITE_BASE_SCHEMA } from './sqlite-schema';
+import { SQLITE_BASE_SCHEMA, SQLITE_FTS_SCHEMA } from './sqlite-schema';
 import type { AppData } from './types';
 
 const require = createRequire(import.meta.url);
@@ -1279,6 +1279,53 @@ describeSqlite('SqliteAdapter', () => {
         ]);
         const savedFilterIndexes = allSql<{ name: string }>(db, 'PRAGMA index_list(saved_filters)');
         expect(savedFilterIndexes.map((row) => row.name)).toContain('idx_saved_filters_view');
+    });
+
+    it('migrates FTS triggers atomically once and rebuilds aligned indexes', async () => {
+        db.exec(SQLITE_BASE_SCHEMA);
+        db.exec(SQLITE_FTS_SCHEMA);
+        db.exec(`
+            INSERT INTO tasks (id, title, status, tags, contexts, createdAt, updatedAt)
+            VALUES ('task-fts-migration', 'Before migration', 'next', '[]', '[]', '2026-07-23', '2026-07-23')
+        `);
+        db.exec('DROP TRIGGER tasks_au');
+        db.exec(`UPDATE tasks SET title = 'After trigger gap' WHERE id = 'task-fts-migration'`);
+        db.exec('INSERT OR IGNORE INTO schema_migrations (version) VALUES (2)');
+        expect(allSql(db, `SELECT rowid FROM tasks_fts WHERE tasks_fts MATCH 'Before'`)).toHaveLength(1);
+        expect(allSql(db, `SELECT rowid FROM tasks_fts WHERE tasks_fts MATCH 'After'`)).toHaveLength(0);
+
+        const statements: string[] = [];
+        const baseClient = createClient(db);
+        const trackingClient: SqliteClient = {
+            ...baseClient,
+            run: async (sql, params = []) => {
+                statements.push(sql.trim());
+                await baseClient.run(sql, params);
+            },
+        };
+
+        await new SqliteAdapter(trackingClient).ensureSchema();
+
+        const beginIndex = statements.indexOf('BEGIN IMMEDIATE');
+        const dropIndex = statements.indexOf('DROP TRIGGER IF EXISTS tasks_ai');
+        const commitIndex = statements.indexOf('COMMIT');
+        expect(beginIndex).toBeGreaterThanOrEqual(0);
+        expect(dropIndex).toBeGreaterThan(beginIndex);
+        expect(commitIndex).toBeGreaterThan(dropIndex);
+        expect(getSql<{ version: number }>(db, 'SELECT version FROM schema_migrations WHERE version = 3'))
+            .toEqual({ version: 3 });
+        expect(statements.some((sql) => sql.includes("INSERT INTO tasks_fts(tasks_fts) VALUES('delete-all')")))
+            .toBe(true);
+        expect(allSql(db, `SELECT rowid FROM tasks_fts WHERE tasks_fts MATCH 'Before'`)).toHaveLength(0);
+        expect(allSql(db, `SELECT rowid FROM tasks_fts WHERE tasks_fts MATCH 'After'`)).toHaveLength(1);
+
+        statements.length = 0;
+        await new SqliteAdapter(trackingClient).ensureSchema();
+
+        expect(statements).not.toContain('BEGIN IMMEDIATE');
+        expect(statements).not.toContain('DROP TRIGGER IF EXISTS tasks_ai');
+        expect(statements.some((sql) => sql.includes("INSERT INTO tasks_fts(tasks_fts) VALUES('delete-all')")))
+            .toBe(false);
     });
 
     it('rejects invalid task status values at the database layer', async () => {
