@@ -252,6 +252,7 @@
   },
   "patchedDependencies": {
     "expo-calendar@15.0.8": "patches/expo-calendar@15.0.8.patch",
+    "react-native-draggable-flatlist@4.0.3": "patches/react-native-draggable-flatlist@4.0.3.patch",
     "mdast-util-gfm-autolink-literal@2.0.1": "patches/mdast-util-gfm-autolink-literal@2.0.1.patch",
   },
   "overrides": {

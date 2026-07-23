@@ -1,0 +1,21 @@
+diff --git a/src/components/CellRendererComponent.tsx b/src/components/CellRendererComponent.tsx
+index e4e861a6663ae59838af08c965ab6782fc41f8b0..4bd0d3e2ab9de90b4534701ddacc22829f7ea25b 100644
+--- a/src/components/CellRendererComponent.tsx
++++ b/src/components/CellRendererComponent.tsx
+@@ -3,6 +3,7 @@ import {
+   findNodeHandle,
+   LayoutChangeEvent,
+   MeasureLayoutOnSuccessCallback,
++  Platform,
+   StyleProp,
+   ViewStyle,
+ } from "react-native";
+@@ -107,6 +108,6 @@ function CellRendererComponent<T>(props: Props<T>) {
+   useEffect(() => {
+-    if (isWeb) {
+-      // onLayout isn't called on web when the cell index changes, so we manually re-measure
++    if (isWeb || Platform.OS === "android") {
++      // onLayout can be skipped when a cell's index changes, so manually re-measure.
+       requestAnimationFrame(() => {
+         onCellLayout();
+       });
