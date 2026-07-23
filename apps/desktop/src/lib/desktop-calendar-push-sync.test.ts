@@ -3,6 +3,7 @@ import { useTaskStore, type CalendarSyncEntry, type Project, type Section, type 
 
 import {
     __desktopCalendarPushSyncTestUtils,
+    enableDesktopCalendarPush,
     runFullDesktopCalendarPushSync,
 } from './desktop-calendar-push-sync';
 import type { SystemCalendarEventDetails, SystemCalendarEventWriteResult, SystemCalendarPushTarget } from './system-calendar';
@@ -92,6 +93,7 @@ describe('desktop calendar push sync', () => {
             ensureMindwtrCalendar,
             getManagedCalendarId: async () => null,
             getPermissionStatus: async () => 'granted',
+            getPlatform: () => 'macos',
             getPushEnabled: async () => true,
             setManagedCalendarId: async () => undefined,
             removeManagedCalendarId: async () => undefined,
@@ -118,6 +120,20 @@ describe('desktop calendar push sync', () => {
             calendarEventId: 'event-new',
             calendarId: 'cal-mindwtr',
             platform: 'macos',
+        }));
+    });
+
+    it('stores calendar mappings under the active desktop platform', async () => {
+        __desktopCalendarPushSyncTestUtils.setDependenciesForTests({
+            getPlatform: () => 'linux',
+        });
+        setStoreTasks([makeTask({ dueDate: '2026-01-10' })]);
+
+        await runFullDesktopCalendarPushSync();
+
+        expect(upsertSyncEntry).toHaveBeenCalledWith(expect.objectContaining({
+            taskId: 'task-1',
+            platform: 'linux',
         }));
     });
 
@@ -284,5 +300,20 @@ describe('desktop calendar push sync', () => {
 
         expect(deleteEvent).toHaveBeenCalledWith('event-ghost');
         expect(deleteSyncEntry).toHaveBeenCalledWith('ghost-task', 'macos');
+    });
+
+    it('rolls back the enabled setting and subscription when initial sync fails', async () => {
+        const setPushEnabled = vi.fn(async () => undefined);
+        const unsubscribe = vi.fn();
+        getAllSyncEntries.mockRejectedValue(new Error('calendar database unavailable'));
+        __desktopCalendarPushSyncTestUtils.setDependenciesForTests({
+            setPushEnabled,
+            subscribe: vi.fn(() => unsubscribe) as unknown as typeof useTaskStore.subscribe,
+        });
+
+        await expect(enableDesktopCalendarPush()).rejects.toThrow('calendar database unavailable');
+
+        expect(setPushEnabled.mock.calls).toEqual([[true], [false]]);
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
 });

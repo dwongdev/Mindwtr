@@ -28,9 +28,11 @@ import {
     createSystemCalendarEventResult,
     deleteSystemCalendarEventResult,
     ensureSystemMindwtrCalendar,
+    getSystemCalendarPlatform,
     getSystemCalendarPermissionStatus,
     getSystemCalendarPushTargets,
     updateSystemCalendarEventResult,
+    type SystemCalendarPlatform,
     type SystemCalendarEventDetails,
     type SystemCalendarEventWriteResult,
     type SystemCalendarPushTarget,
@@ -39,7 +41,6 @@ import {
 const DESKTOP_CALENDAR_PUSH_ENABLED_KEY = 'mindwtr:desktop-calendar-push:enabled';
 const DESKTOP_CALENDAR_PUSH_TARGET_ID_KEY = 'mindwtr:desktop-calendar-push:target-calendar-id';
 const DESKTOP_CALENDAR_PUSH_MANAGED_ID_KEY = 'mindwtr:desktop-calendar-push:managed-calendar-id';
-const PLATFORM = 'macos';
 const SYNC_DEBOUNCE_MS = 2500;
 const CALENDAR_SYNC_CONCURRENCY = 4;
 const ACCOUNT_TARGET_TITLE_PREFIX = 'Mindwtr: ';
@@ -57,6 +58,7 @@ type DesktopCalendarPushDependencies = {
     getAllSyncEntries: (platform: string) => Promise<CalendarSyncEntry[]>;
     getManagedCalendarId: () => Promise<string | null>;
     getPermissionStatus: typeof getSystemCalendarPermissionStatus;
+    getPlatform: typeof getSystemCalendarPlatform;
     getPushEnabled: () => Promise<boolean>;
     getStoreState: typeof useTaskStore.getState;
     getSyncEntry: (taskId: string, platform: string) => Promise<CalendarSyncEntry | null>;
@@ -164,6 +166,7 @@ const defaultDependencies: DesktopCalendarPushDependencies = {
     getAllSyncEntries: getAllCalendarSyncEntries,
     getManagedCalendarId: getDesktopCalendarPushManagedCalendarId,
     getPermissionStatus: getSystemCalendarPermissionStatus,
+    getPlatform: getSystemCalendarPlatform,
     getPushEnabled: getDesktopCalendarPushEnabled,
     getStoreState: useTaskStore.getState,
     getSyncEntry: getCalendarSyncEntry,
@@ -311,8 +314,12 @@ function isMissingCalendarEventResult(result: SystemCalendarEventWriteResult): b
 }
 
 function createCalendarPushRunPorts(target: CalendarPushTarget): CalendarPushRunPorts {
+    const platform: SystemCalendarPlatform | null = dependencies.getPlatform();
+    if (!platform) {
+        throw new Error('system-calendar-unsupported');
+    }
     return {
-        platform: PLATFORM,
+        platform,
         nowIso: dependencies.nowIso,
         createEvent: async (task) => {
             const result = await dependencies.createEvent(buildEventDetails(task, target));
@@ -355,10 +362,10 @@ function createCalendarPushRunPorts(target: CalendarPushTarget): CalendarPushRun
             });
             throw new Error(result.error ?? 'calendar-delete-failed');
         },
-        getSyncEntry: (taskId) => dependencies.getSyncEntry(taskId, PLATFORM),
-        getAllSyncEntries: () => dependencies.getAllSyncEntries(PLATFORM),
+        getSyncEntry: (taskId) => dependencies.getSyncEntry(taskId, platform),
+        getAllSyncEntries: () => dependencies.getAllSyncEntries(platform),
         upsertSyncEntry: dependencies.upsertSyncEntry,
-        deleteSyncEntry: (taskId) => dependencies.deleteSyncEntry(taskId, PLATFORM),
+        deleteSyncEntry: (taskId) => dependencies.deleteSyncEntry(taskId, platform),
     };
 }
 
@@ -517,7 +524,7 @@ export const __desktopCalendarPushSyncTestUtils = {
     },
     setDependenciesForTests(overrides: Partial<DesktopCalendarPushDependencies>) {
         dependencies = {
-            ...defaultDependencies,
+            ...dependencies,
             ...overrides,
         };
     },
@@ -534,6 +541,12 @@ export const enableDesktopCalendarPush = async (): Promise<boolean> => {
     }
     await dependencies.setPushEnabled(true);
     startDesktopCalendarPushSync();
-    await runFullDesktopCalendarPushSync();
-    return true;
+    try {
+        await runFullDesktopCalendarPushSync();
+        return true;
+    } catch (error) {
+        stopDesktopCalendarPushSync();
+        await dependencies.setPushEnabled(false);
+        throw error;
+    }
 };
