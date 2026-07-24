@@ -15,7 +15,6 @@ import {
 import { cn } from '../../../lib/utils';
 import {
     QUICK_ADD_FIELD_TOKENS,
-    QUICK_ADD_STATUS_TOKENS,
     QuickAddTokenBadge,
     taskEditorLabelClassName,
 } from '../task-editor-label';
@@ -23,7 +22,6 @@ import {
 type PillOption<TValue extends string> = {
     value: TValue;
     label: string;
-    quickAddToken?: string;
 };
 
 const selectedPillClassName = 'border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90';
@@ -236,9 +234,6 @@ function PillOptionField<TValue extends string>({
                             )}
                         >
                             {option.label}
-                            {option.quickAddToken && (
-                                <QuickAddTokenBadge t={t} token={option.quickAddToken} />
-                            )}
                         </button>
                     );
                 })}
@@ -566,13 +561,13 @@ export function StatusField({
     onChange: (value: TaskStatus) => void;
 }) {
     const options: Array<PillOption<TaskStatus>> = [
-        { value: 'inbox', label: t('status.inbox'), quickAddToken: QUICK_ADD_STATUS_TOKENS.inbox },
-        { value: 'next', label: t('status.next'), quickAddToken: QUICK_ADD_STATUS_TOKENS.next },
-        { value: 'waiting', label: t('status.waiting'), quickAddToken: QUICK_ADD_STATUS_TOKENS.waiting },
-        { value: 'someday', label: t('status.someday'), quickAddToken: QUICK_ADD_STATUS_TOKENS.someday },
+        { value: 'inbox', label: t('status.inbox') },
+        { value: 'next', label: t('status.next') },
+        { value: 'waiting', label: t('status.waiting') },
+        { value: 'someday', label: t('status.someday') },
         ...(value === 'reference' ? [{ value: 'reference' as const, label: t('status.reference') }] : []),
-        { value: 'done', label: t('status.done'), quickAddToken: QUICK_ADD_STATUS_TOKENS.done },
-        { value: 'archived', label: t('status.archived'), quickAddToken: QUICK_ADD_STATUS_TOKENS.archived },
+        { value: 'done', label: t('status.done') },
+        { value: 'archived', label: t('status.archived') },
     ];
 
     return (

@@ -1397,17 +1397,7 @@ describe('TaskItemFieldRenderer quick-add token hints (#918)', () => {
         expect(getByTitle(`Quick add: ${token}`)).toHaveTextContent(token);
     });
 
-    it('shows each supported status token on its status choice', () => {
-        const { getByTitle } = render(
-            <TaskItemFieldRenderer fieldId="status" {...createProps()} />
-        );
-
-        ['/inbox', '/next', '/waiting', '/someday', '/done', '/archived'].forEach((token) => {
-            expect(getByTitle(`Quick add: ${token}`)).toHaveTextContent(token);
-        });
-    });
-
-    it.each(['priority' as const, 'location' as const])(
+    it.each(['status' as const, 'priority' as const, 'location' as const])(
         'leaves the %s field without a token badge',
         (fieldId) => {
             const { queryByTitle } = render(

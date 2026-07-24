@@ -19,15 +19,6 @@ export const QUICK_ADD_FIELD_TOKENS = {
     project: '+Project',
 } as const;
 
-export const QUICK_ADD_STATUS_TOKENS = {
-    inbox: '/inbox',
-    next: '/next',
-    waiting: '/waiting',
-    someday: '/someday',
-    done: '/done',
-    archived: '/archived',
-} as const;
-
 // Localized "Quick add: <token>" hint for a token badge's `title` tooltip (#918).
 export function quickAddTokenHint(t: (key: string) => string, token: string): string {
     return formatI18nTemplate(
