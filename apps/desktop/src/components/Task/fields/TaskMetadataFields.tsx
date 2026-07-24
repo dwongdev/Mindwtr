@@ -22,6 +22,7 @@ import {
 type PillOption<TValue extends string> = {
     value: TValue;
     label: string;
+    onContextMenu?: () => void;
 };
 
 const selectedPillClassName = 'border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90';
@@ -226,6 +227,11 @@ function PillOptionField<TValue extends string>({
                             aria-pressed={isActive}
                             onKeyDown={(event) => handleOptionKeyDown(event, index)}
                             onClick={() => onChange(option.value)}
+                            onContextMenu={option.onContextMenu ? (event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                option.onContextMenu?.();
+                            } : undefined}
                             className={cn(
                                 'inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40',
                                 isActive
@@ -555,10 +561,12 @@ export function StatusField({
     t,
     value,
     onChange,
+    onRequestBackdatedComplete,
 }: {
     t: (key: string) => string;
     value: TaskStatus;
     onChange: (value: TaskStatus) => void;
+    onRequestBackdatedComplete?: () => void;
 }) {
     const options: Array<PillOption<TaskStatus>> = [
         { value: 'inbox', label: t('status.inbox') },
@@ -566,7 +574,7 @@ export function StatusField({
         { value: 'waiting', label: t('status.waiting') },
         { value: 'someday', label: t('status.someday') },
         ...(value === 'reference' ? [{ value: 'reference' as const, label: t('status.reference') }] : []),
-        { value: 'done', label: t('status.done') },
+        { value: 'done', label: t('status.done'), onContextMenu: onRequestBackdatedComplete },
         { value: 'archived', label: t('status.archived') },
     ];
 

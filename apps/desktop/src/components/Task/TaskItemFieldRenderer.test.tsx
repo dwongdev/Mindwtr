@@ -785,6 +785,25 @@ describe('TaskItemFieldRenderer date clear buttons', () => {
         expect(setField).toHaveBeenCalledWith('status', 'next');
     });
 
+    it('requests a completion time when the Done status pill is right-clicked', () => {
+        const setField = vi.fn();
+        const requestBackdatedComplete = vi.fn();
+        const { getByRole } = render(
+            <TaskItemFieldRenderer
+                fieldId="status"
+                {...createProps({
+                    setField,
+                    actions: { requestBackdatedComplete },
+                })}
+            />
+        );
+
+        fireEvent.contextMenu(getByRole('button', { name: 'Done' }));
+
+        expect(requestBackdatedComplete).toHaveBeenCalledTimes(1);
+        expect(setField).not.toHaveBeenCalled();
+    });
+
     it('renders priority choices as pills including None', () => {
         const setField = vi.fn();
 

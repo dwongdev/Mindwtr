@@ -640,6 +640,7 @@ export type TaskEditorDescriptionPreview = {
 export type TaskEditorActions = {
     openCustomRecurrence: () => void;
     createAssignedToPerson: (name: string) => void | Promise<void>;
+    requestBackdatedComplete?: () => void;
     updateTask: (taskId: string, updates: Partial<Task>) => void;
     resetTaskChecklist: (taskId: string) => void;
 };
@@ -695,7 +696,13 @@ export function TaskItemFieldRenderer({
         openAttachment,
         removeAttachment,
     } = attachments;
-    const { openCustomRecurrence, createAssignedToPerson, updateTask, resetTaskChecklist } = actions;
+    const {
+        openCustomRecurrence,
+        createAssignedToPerson,
+        requestBackdatedComplete,
+        updateTask,
+        resetTaskChecklist,
+    } = actions;
     const taskId = task.id;
     const showDescriptionPreview = descriptionPreview.visible;
     const toggleDescriptionPreview = descriptionPreview.toggle;
@@ -1672,7 +1679,14 @@ export function TaskItemFieldRenderer({
                 });
             }
         case 'status':
-            return <StatusField t={t} value={editStatus} onChange={setEditStatus} />;
+            return (
+                <StatusField
+                    t={t}
+                    value={editStatus}
+                    onChange={setEditStatus}
+                    onRequestBackdatedComplete={requestBackdatedComplete}
+                />
+            );
         case 'priority':
             return <PriorityField t={t} value={editPriority} onChange={setEditPriority} />;
         case 'energyLevel':

@@ -624,12 +624,22 @@ export const TaskItem = memo(function TaskItem({
         toggle: toggleDescriptionPreview,
         editSource: editDescriptionFromPreview,
     }), [showDescriptionPreview, toggleDescriptionPreview, editDescriptionFromPreview]);
+    const canCompleteFromEditor = task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference';
+    const requestEditorBackdatedComplete = useCallback(() => setCompletedAtPrompt('editor-complete'), []);
     const editorActions = useMemo(() => ({
         openCustomRecurrence,
         createAssignedToPerson,
+        requestBackdatedComplete: canCompleteFromEditor ? requestEditorBackdatedComplete : undefined,
         updateTask,
         resetTaskChecklist,
-    }), [openCustomRecurrence, createAssignedToPerson, updateTask, resetTaskChecklist]);
+    }), [
+        openCustomRecurrence,
+        createAssignedToPerson,
+        canCompleteFromEditor,
+        requestEditorBackdatedComplete,
+        updateTask,
+        resetTaskChecklist,
+    ]);
 
     const renderField = (fieldId: TaskEditorFieldId) => (
         <TaskItemFieldRenderer
@@ -951,7 +961,6 @@ export const TaskItem = memo(function TaskItem({
         undoNotificationsEnabled,
     ]);
     const requestBackdatedComplete = useCallback(() => setCompletedAtPrompt('complete'), []);
-    const requestEditorBackdatedComplete = useCallback(() => setCompletedAtPrompt('editor-complete'), []);
     const requestEditCompletedAt = useCallback(() => setCompletedAtPrompt('edit'), []);
     const closeCompletedAtPrompt = useCallback(() => setCompletedAtPrompt(null), []);
     const applyCompletedAtPrompt = useCallback((value: string) => {
@@ -1280,11 +1289,9 @@ export const TaskItem = memo(function TaskItem({
             inputContexts={allContexts}
             onAcceptTitleSuggestion={handleTitleSuggestionAccept}
             isDoneActionActive={draft.status === 'done'}
-            onMarkDone={task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference' ? handleEditorMarkDone : undefined}
-            onRequestBackdatedComplete={task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference'
-                ? requestEditorBackdatedComplete
-                : undefined}
-            focusStar={quickActionFocus && task.status !== 'done' && task.status !== 'archived' && task.status !== 'reference' ? (() => {
+            onMarkDone={canCompleteFromEditor ? handleEditorMarkDone : undefined}
+            onRequestBackdatedComplete={canCompleteFromEditor ? requestEditorBackdatedComplete : undefined}
+            focusStar={quickActionFocus && canCompleteFromEditor ? (() => {
                 // Draft toggle, applied on Save like every other editor field —
                 // an immediate write would re-filter the list mid-edit and yank
                 // the row (and its open editor) into another view. The editor is
