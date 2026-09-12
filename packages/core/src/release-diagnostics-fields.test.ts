@@ -13,6 +13,8 @@ import { sanitizeLogContext } from './log-sanitize';
  * Update this list when the ledger's version section changes.
  */
 const RELEASE_CHECK_FIELD_NAMES = [
+    // share-card-export (local PNG export adapters)
+    'cardKind', 'exportMethod', 'failureStage', 'errorType', 'nativeCode',
     // sandbox-workspace (desktop/mobile entry drain and immutable workspace bootstrap)
     'workspace', 'stage',
     // watcher-property-order reuses releaseCheck below.
