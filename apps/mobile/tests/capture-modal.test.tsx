@@ -110,6 +110,7 @@ vi.mock('@/contexts/language-context', () => ({
         'common.notice': 'Notice',
         'quickAdd.saveAndEdit': 'Save & edit',
         'quickAdd.invalidDateCommand': 'Invalid date command',
+        'task.addFailed': 'Failed to add task',
         'copilot.suggested': 'Suggested',
         'copilot.applyHint': 'Tap to apply',
         'copilot.applied': 'Applied',
@@ -181,6 +182,20 @@ const findTouchableByText = (tree: ReturnType<typeof create>, label: string) => 
   return button;
 };
 
+const findCaptureError = (tree: ReturnType<typeof create>) => tree.root.find(
+  (node) => node.type === Text
+    && node.props.accessibilityRole === 'alert'
+    && node.props.children === 'Failed to add task'
+);
+
+const deferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
 describe('CaptureScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -190,6 +205,7 @@ describe('CaptureScreen', () => {
     routeParams.current = { text: encodeURIComponent('Shared text') };
     storeState.addProject.mockResolvedValue(null);
     storeState.addTask.mockResolvedValue({ success: true, id: 'task-created' });
+    storeState.addTasks.mockResolvedValue({ success: true });
     storeState.projects = [];
     storeState.areas = [];
   });
@@ -306,6 +322,132 @@ describe('CaptureScreen', () => {
     });
 
     expect(dismissSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts only one rapid Save submission', async () => {
+    const write = deferred<{ success: true; id: string }>();
+    storeState.addTask.mockReturnValue(write.promise);
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    const saveButton = findTouchableByText(tree, 'Save');
+    await act(async () => {
+      saveButton.props.onPress();
+      saveButton.props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(storeState.addTask).toHaveBeenCalledTimes(1);
+    expect(findTouchableByText(tree, 'Save').props.disabled).toBe(true);
+    expect(findTouchableByText(tree, 'Save & edit').props.disabled).toBe(true);
+    expect(findTouchableByText(tree, 'Cancel').props.disabled).toBe(true);
+
+    await act(async () => {
+      write.resolve({ success: true, id: 'task-created' });
+      await write.promise;
+    });
+
+    expect(routerMocks.replace).toHaveBeenCalledTimes(1);
+    expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
+  });
+
+  it('accepts only the first of rapid Save and Save & edit submissions', async () => {
+    const write = deferred<{ success: true; id: string }>();
+    storeState.addTask.mockReturnValue(write.promise);
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    const saveButton = findTouchableByText(tree, 'Save');
+    const saveAndEditButton = findTouchableByText(tree, 'Save & edit');
+    await act(async () => {
+      saveButton.props.onPress();
+      saveAndEditButton.props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(storeState.addTask).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      write.resolve({ success: true, id: 'task-created' });
+      await write.promise;
+    });
+
+    expect(routerMocks.replace).toHaveBeenCalledTimes(1);
+    expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
+    expect(openTaskScreen).not.toHaveBeenCalled();
+  });
+
+  it('retains a single capture after a rejected result and allows a deliberate retry', async () => {
+    routeParams.current = {
+      initialValue: encodeURIComponent('Call dentist'),
+      initialProps: encodeURIComponent(JSON.stringify({
+        description: 'Tomorrow morning',
+        tags: ['#phone'],
+      })),
+    };
+    storeState.addTask
+      .mockResolvedValueOnce({ success: false, error: 'store unavailable' })
+      .mockResolvedValueOnce({ success: true, id: 'task-created' });
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+
+    expect(findCaptureError(tree).props.accessibilityLiveRegion).toBe('assertive');
+    expect(routerMocks.replace).not.toHaveBeenCalled();
+    const retainedInputs = tree.root.findAllByType(TextInput);
+    expect(retainedInputs[0].props.value).toBe('Call dentist');
+    expect(retainedInputs[1].props.value).toBe('Tomorrow morning');
+    expect(findTouchableByText(tree, 'Save').props.disabled).toBe(false);
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+
+    expect(storeState.addTask).toHaveBeenCalledTimes(2);
+    expect(storeState.addTask).toHaveBeenNthCalledWith(2, 'Call dentist', {
+      status: 'inbox',
+      description: 'Tomorrow morning',
+      tags: ['#phone'],
+    });
+    expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
+  });
+
+  it('retains a single capture after a write rejection and allows a deliberate retry', async () => {
+    storeState.addTask
+      .mockRejectedValueOnce(new Error('store unavailable'))
+      .mockResolvedValueOnce({ success: true, id: 'task-created' });
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+
+    expect(findCaptureError(tree).props.accessibilityLiveRegion).toBe('assertive');
+    expect(routerMocks.replace).not.toHaveBeenCalled();
+    expect(tree.root.findByType(TextInput).props.value).toBe('Shared text');
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+
+    expect(storeState.addTask).toHaveBeenCalledTimes(2);
+    expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
   });
 
   it('saves App Action capture details from initial props after confirmation', async () => {
@@ -467,6 +609,111 @@ describe('CaptureScreen', () => {
       { title: 'Email Bob', initialProps: expect.objectContaining({ status: 'inbox' }) },
       { title: 'Call Alice', initialProps: expect.objectContaining({ status: 'next' }) },
     ]);
+    expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
+  });
+
+  it('accepts only one repeated bulk confirmation', async () => {
+    routeParams.current = {
+      initialValue: encodeURIComponent('Email Bob\nCall Alice'),
+    };
+    const write = deferred<{ success: true }>();
+    storeState.addTasks.mockReturnValue(write.promise);
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+    const confirmButton = findTouchableByText(tree, 'Create tasks');
+
+    await act(async () => {
+      confirmButton.props.onPress();
+      confirmButton.props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(storeState.addTasks).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      write.resolve({ success: true });
+      await write.promise;
+    });
+
+    expect(routerMocks.replace).toHaveBeenCalledTimes(1);
+    expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
+  });
+
+  it('retains a bulk capture after a rejected result and allows a deliberate retry', async () => {
+    routeParams.current = {
+      initialValue: encodeURIComponent('Email Bob\nCall Alice'),
+    };
+    storeState.addTasks
+      .mockResolvedValueOnce({ success: false, error: 'store unavailable' })
+      .mockResolvedValueOnce({ success: true });
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+    await act(async () => {
+      findTouchableByText(tree, 'Create tasks').props.onPress();
+    });
+
+    expect(findCaptureError(tree).props.accessibilityLiveRegion).toBe('assertive');
+    expect(routerMocks.replace).not.toHaveBeenCalled();
+    expect(tree.root.findByType(TextInput).props.value).toBe('Email Bob\nCall Alice');
+    expect(findTouchableByText(tree, 'Save').props.disabled).toBe(false);
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+    await act(async () => {
+      findTouchableByText(tree, 'Create tasks').props.onPress();
+    });
+
+    expect(storeState.addTasks).toHaveBeenCalledTimes(2);
+    expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
+  });
+
+  it('retains a bulk capture after a write rejection and allows a deliberate retry', async () => {
+    routeParams.current = {
+      initialValue: encodeURIComponent('Email Bob\nCall Alice'),
+    };
+    storeState.addTasks
+      .mockRejectedValueOnce(new Error('store unavailable'))
+      .mockResolvedValueOnce({ success: true });
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+    await act(async () => {
+      findTouchableByText(tree, 'Create tasks').props.onPress();
+    });
+
+    expect(findCaptureError(tree).props.accessibilityLiveRegion).toBe('assertive');
+    expect(routerMocks.replace).not.toHaveBeenCalled();
+    expect(tree.root.findByType(TextInput).props.value).toBe('Email Bob\nCall Alice');
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+    await act(async () => {
+      findTouchableByText(tree, 'Create tasks').props.onPress();
+    });
+
+    expect(storeState.addTasks).toHaveBeenCalledTimes(2);
     expect(routerMocks.replace).toHaveBeenCalledWith('/inbox');
   });
 

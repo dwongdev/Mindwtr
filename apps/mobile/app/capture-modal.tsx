@@ -246,7 +246,10 @@ export default function CaptureScreen() {
   const [copilotTags, setCopilotTags] = useState<string[]>([]);
   const [showHelp, setShowHelp] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captureError, setCaptureError] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const submissionInFlightRef = useRef(false);
   const copilotMountedRef = useRef(true);
   const copilotAbortRef = useRef<AbortController | null>(null);
 
@@ -446,7 +449,21 @@ export default function CaptureScreen() {
   }, [closeCapture, launchedFromSystem]);
 
   const handleCancel = () => {
+    if (submissionInFlightRef.current) return;
     finishCapture();
+  };
+
+  const beginSubmission = () => {
+    if (submissionInFlightRef.current) return false;
+    submissionInFlightRef.current = true;
+    setIsSubmitting(true);
+    setCaptureError(null);
+    return true;
+  };
+
+  const endSubmission = () => {
+    submissionInFlightRef.current = false;
+    setIsSubmitting(false);
   };
 
   const formatBulkConfirmTitle = (count: number) => (
@@ -461,6 +478,10 @@ export default function CaptureScreen() {
       ? `\n${tFallback(t, 'quickAdd.bulkMoreLines', '+{{count}} more').replace('{{count}}', String(remaining))}`
       : '';
     return `${preview}${suffix}`;
+  };
+
+  const showCaptureFailure = () => {
+    setCaptureError(tFallback(t, 'task.addFailed', 'Failed to add task'));
   };
 
   const buildCaptureRequestFromInput = async (
@@ -537,16 +558,30 @@ export default function CaptureScreen() {
     inputValue: string,
     { openAfterSave = false }: { openAfterSave?: boolean } = {},
   ): Promise<boolean> => {
-    const request = await buildCaptureRequestFromInput(inputValue);
+    let request: Awaited<ReturnType<typeof buildCaptureRequestFromInput>>;
+    try {
+      request = await buildCaptureRequestFromInput(inputValue);
+    } catch {
+      showCaptureFailure();
+      return false;
+    }
     if (!request) return false;
-    const result = await executeCaptureTransaction(
-      request.input,
-      { addProject, addTask },
-      request.options,
-    );
+    let result: Awaited<ReturnType<typeof executeCaptureTransaction>>;
+    try {
+      result = await executeCaptureTransaction(
+        request.input,
+        { addProject, addTask },
+        request.options,
+      );
+    } catch {
+      showCaptureFailure();
+      return false;
+    }
     if (!result.success) {
       if (result.reason === 'invalid-date-command') {
         showInvalidDateCommandToast(showToast, t, result.invalidDateCommands);
+      } else {
+        showCaptureFailure();
       }
       return false;
     }
@@ -573,29 +608,41 @@ export default function CaptureScreen() {
   };
 
   const createBulkTasks = async (lines: string[]) => {
-    const taskInputs: Array<{ title: string; initialProps: Partial<Task> }> = [];
-    let currentProjects = projects;
-    for (const line of lines) {
-      const request = await buildCaptureRequestFromInput(line, currentProjects);
-      if (!request) return;
-      const prepared = await prepareCaptureTask(request.input, { addProject }, request.options);
-      if (!prepared.success) {
-        if (prepared.reason === 'invalid-date-command') {
-          showInvalidDateCommandToast(showToast, t, prepared.invalidDateCommands);
+    try {
+      const taskInputs: Array<{ title: string; initialProps: Partial<Task> }> = [];
+      let currentProjects = projects;
+      for (const line of lines) {
+        const request = await buildCaptureRequestFromInput(line, currentProjects);
+        if (!request) {
+          showCaptureFailure();
+          return;
         }
+        const prepared = await prepareCaptureTask(request.input, { addProject }, request.options);
+        if (!prepared.success) {
+          if (prepared.reason === 'invalid-date-command') {
+            showInvalidDateCommandToast(showToast, t, prepared.invalidDateCommands);
+          } else {
+            showCaptureFailure();
+          }
+          return;
+        }
+        taskInputs.push({ title: prepared.title, initialProps: prepared.props });
+        if (prepared.createdProject) currentProjects = [...currentProjects, prepared.createdProject];
+      }
+      // Shared files belong to one task, not one copy per line: the attachment
+      // records share ids, so duplicating them across tasks would alias files.
+      taskInputs.forEach((taskInput, index) => {
+        if (index > 0) delete taskInput.initialProps.attachments;
+      });
+      const result = await addTasks(taskInputs);
+      if (result && typeof result === 'object' && result.success === false) {
+        showCaptureFailure();
         return;
       }
-      taskInputs.push({ title: prepared.title, initialProps: prepared.props });
-      if (prepared.createdProject) currentProjects = [...currentProjects, prepared.createdProject];
+      finishCapture();
+    } catch {
+      showCaptureFailure();
     }
-    // Shared files belong to one task, not one copy per line: the attachment
-    // records share ids, so duplicating them across tasks would alias files.
-    taskInputs.forEach((taskInput, index) => {
-      if (index > 0) delete taskInput.initialProps.attachments;
-    });
-    const result = await addTasks(taskInputs);
-    if (result && typeof result === 'object' && result.success === false) return;
-    finishCapture();
   };
 
   // Confirm on this screen rather than through Alert. This route is presented
@@ -609,8 +656,13 @@ export default function CaptureScreen() {
       setPendingBulkLines(bulkLines);
       return;
     }
-    const shouldClose = await createTaskFromInput(value, { openAfterSave });
-    if (shouldClose) finishCapture();
+    if (!beginSubmission()) return;
+    try {
+      const shouldClose = await createTaskFromInput(value, { openAfterSave });
+      if (shouldClose) finishCapture();
+    } finally {
+      endSubmission();
+    }
   };
 
   useEffect(() => {
@@ -745,11 +797,25 @@ export default function CaptureScreen() {
           {showHelp && (
             <Text style={[styles.help, { color: tc.secondaryText }]}>{formatQuickAddHelp(t('quickAdd.help'), { priorities: prioritiesEnabled })}</Text>
           )}
+          {captureError ? (
+            <Text
+              accessibilityLiveRegion="assertive"
+              accessibilityRole="alert"
+              style={[styles.captureError, { color: tc.danger }]}
+            >
+              {captureError}
+            </Text>
+          ) : null}
           <View style={styles.actions}>
-            <TouchableOpacity onPress={handleCancel} style={[styles.button, styles.cancel, { backgroundColor: tc.inputBg }]}>
+            <TouchableOpacity
+              disabled={isSubmitting}
+              onPress={handleCancel}
+              style={[styles.button, styles.cancel, { backgroundColor: tc.inputBg }]}
+            >
               <Text style={{ color: tc.text }}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              disabled={isSubmitting}
               onPress={() => {
                 void handleSave({ openAfterSave: true });
               }}
@@ -758,6 +824,7 @@ export default function CaptureScreen() {
                                 <Text style={{ color: tc.text }}>{t('quickAdd.saveAndEdit')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              disabled={isSubmitting}
               onPress={() => {
                 void handleSave();
               }}
@@ -777,6 +844,7 @@ export default function CaptureScreen() {
           <Pressable
             style={styles.bulkConfirmBackdrop}
             onPress={() => setPendingBulkLines(null)}
+            disabled={isSubmitting}
             accessibilityRole="button"
             accessibilityLabel={t('common.cancel')}
           />
@@ -790,6 +858,7 @@ export default function CaptureScreen() {
             <View style={styles.bulkConfirmActions}>
               <TouchableOpacity
                 onPress={() => setPendingBulkLines(null)}
+                disabled={isSubmitting}
                 style={styles.bulkConfirmButton}
                 accessibilityRole="button"
               >
@@ -799,10 +868,12 @@ export default function CaptureScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
+                  if (!beginSubmission()) return;
                   const lines = pendingBulkLines;
                   setPendingBulkLines(null);
-                  void createBulkTasks(lines);
+                  void createBulkTasks(lines).finally(endSubmission);
                 }}
+                disabled={isSubmitting}
                 style={styles.bulkConfirmButton}
                 accessibilityRole="button"
               >
@@ -878,6 +949,10 @@ const styles = StyleSheet.create({
   },
   help: {
     fontSize: 12,
+  },
+  captureError: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   fieldGroup: {
     gap: 6,
