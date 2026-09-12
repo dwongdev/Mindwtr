@@ -1,8 +1,10 @@
 import React from 'react';
 import {
+  AccessibilityInfo,
   Alert,
   Keyboard,
   KeyboardAvoidingView,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -13,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAIProvider } from '@mindwtr/core';
 
 import CaptureScreen, { sanitizeCaptureReturnToParam } from '@/app/capture-modal';
+import { logInfo } from '@/lib/app-log';
 
 const { hardwareBack, navigationGuard, openTaskScreen, parseQuickAdd, returnToPreviousApp, routerMocks, routeParams, stashPendingCaptureTaskOpen, storeState } = vi.hoisted(() => {
   const parseQuickAdd = vi.fn<(value: string) => any>((value: string) => ({ title: value, props: {}, invalidDateCommands: [] }));
@@ -217,9 +220,20 @@ const findTouchableByText = (tree: ReturnType<typeof create>, label: string) => 
 
 const findCaptureError = (tree: ReturnType<typeof create>) => tree.root.find(
   (node) => node.type === Text
-    && node.props.accessibilityRole === 'alert'
     && node.props.children === 'Failed to add task'
 );
+
+const setPlatform = (os: typeof Platform.OS) => {
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: os });
+};
+
+const announceForAccessibilitySpy = vi.spyOn(AccessibilityInfo, 'announceForAccessibility');
+
+const flushAccessibilityAnnouncement = async () => {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+};
 
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -249,6 +263,7 @@ const attemptHardwareBack = () => {
 describe('CaptureScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setPlatform('web');
     hardwareBack.handler = null;
     navigationGuard.callback = null;
     navigationGuard.deferActions = false;
@@ -262,6 +277,241 @@ describe('CaptureScreen', () => {
     storeState.addTasks.mockResolvedValue({ success: true });
     storeState.projects = [];
     storeState.areas = [];
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    setPlatform('web');
+  });
+
+  it('announces a settled single-save failure once on Android without a second live-region speech path', async () => {
+    vi.useFakeTimers();
+    setPlatform('android');
+    storeState.addTask.mockResolvedValueOnce({ success: false, error: 'store unavailable' });
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+
+    expect(announceForAccessibilitySpy).not.toHaveBeenCalled();
+    await flushAccessibilityAnnouncement();
+
+    const error = findCaptureError(tree);
+    expect(error.props.accessibilityLiveRegion).toBeUndefined();
+    expect(error.props.accessibilityRole).toBeUndefined();
+    expect(announceForAccessibilitySpy).toHaveBeenCalledOnce();
+    expect(announceForAccessibilitySpy).toHaveBeenCalledWith('Failed to add task');
+    expect(logInfo).toHaveBeenCalledWith(
+      'Capture failure accessibility announcement requested',
+      {
+        scope: 'capture',
+        extra: { releaseCheck: 'v1.3.0/capture-failure-announcement' },
+      },
+    );
+    vi.useRealTimers();
+  });
+
+  it('announces each deliberate Android retry failure exactly once', async () => {
+    vi.useFakeTimers();
+    setPlatform('android');
+    storeState.addTask.mockResolvedValue({ success: false, error: 'store unavailable' });
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+    await flushAccessibilityAnnouncement();
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+    await flushAccessibilityAnnouncement();
+
+    expect(announceForAccessibilitySpy).toHaveBeenCalledTimes(2);
+    expect(logInfo).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it('announces Android failures from Save & edit and confirmed bulk capture', async () => {
+    vi.useFakeTimers();
+    setPlatform('android');
+    storeState.addTask.mockResolvedValueOnce({ success: false, error: 'store unavailable' });
+
+    let singleTree!: ReturnType<typeof create>;
+    act(() => {
+      singleTree = create(<CaptureScreen />);
+    });
+    await act(async () => {
+      findTouchableByText(singleTree, 'Save & edit').props.onPress();
+    });
+    await flushAccessibilityAnnouncement();
+
+    expect(announceForAccessibilitySpy).toHaveBeenCalledTimes(1);
+    expect(openTaskScreen).not.toHaveBeenCalled();
+
+    act(() => {
+      singleTree.unmount();
+    });
+    routeParams.current = { initialValue: encodeURIComponent('Email Bob\nCall Alice') };
+    storeState.addTasks.mockResolvedValueOnce({ success: false, error: 'store unavailable' });
+
+    let bulkTree!: ReturnType<typeof create>;
+    act(() => {
+      bulkTree = create(<CaptureScreen />);
+    });
+    await act(async () => {
+      findTouchableByText(bulkTree, 'Save').props.onPress();
+    });
+    await act(async () => {
+      findTouchableByText(bulkTree, 'Create tasks').props.onPress();
+    });
+    await flushAccessibilityAnnouncement();
+
+    expect(announceForAccessibilitySpy).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it('cancels a pending Android failure announcement on a new submission and on unmount', async () => {
+    vi.useFakeTimers();
+    setPlatform('android');
+    const retryWrite = deferred<{ success: true; id: string }>();
+    storeState.addTask
+      .mockResolvedValueOnce({ success: false, error: 'store unavailable' })
+      .mockReturnValueOnce(retryWrite.promise);
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+      await Promise.resolve();
+    });
+    await flushAccessibilityAnnouncement();
+
+    expect(announceForAccessibilitySpy).not.toHaveBeenCalled();
+
+    act(() => {
+      tree.unmount();
+    });
+    await act(async () => {
+      retryWrite.resolve({ success: true, id: 'task-created' });
+      await retryWrite.promise;
+    });
+    await flushAccessibilityAnnouncement();
+
+    expect(announceForAccessibilitySpy).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('cancels a scheduled Android failure announcement when the screen unmounts', async () => {
+    vi.useFakeTimers();
+    setPlatform('android');
+    storeState.addTask.mockResolvedValueOnce({ success: false, error: 'store unavailable' });
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+
+    expect(findCaptureError(tree)).toBeTruthy();
+    act(() => {
+      tree.unmount();
+    });
+    await flushAccessibilityAnnouncement();
+
+    expect(announceForAccessibilitySpy).not.toHaveBeenCalled();
+    expect(logInfo).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('keeps the existing alert semantics and skips explicit speech outside Android', async () => {
+    vi.useFakeTimers();
+    setPlatform('ios');
+    storeState.addTask.mockResolvedValueOnce({ success: false, error: 'store unavailable' });
+
+    let tree!: ReturnType<typeof create>;
+    act(() => {
+      tree = create(<CaptureScreen />);
+    });
+    await act(async () => {
+      findTouchableByText(tree, 'Save').props.onPress();
+    });
+    await flushAccessibilityAnnouncement();
+
+    const error = findCaptureError(tree);
+    expect(error.props.accessibilityLiveRegion).toBe('assertive');
+    expect(error.props.accessibilityRole).toBe('alert');
+    expect(announceForAccessibilitySpy).not.toHaveBeenCalled();
+    expect(logInfo).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('does not announce successful, invalid-date, or cancelled bulk submissions on Android', async () => {
+    vi.useFakeTimers();
+    setPlatform('android');
+
+    let successTree!: ReturnType<typeof create>;
+    act(() => {
+      successTree = create(<CaptureScreen />);
+    });
+    await act(async () => {
+      findTouchableByText(successTree, 'Save').props.onPress();
+    });
+    await flushAccessibilityAnnouncement();
+    expect(announceForAccessibilitySpy).not.toHaveBeenCalled();
+    act(() => successTree.unmount());
+
+    vi.clearAllMocks();
+    routeParams.current = { initialValue: encodeURIComponent('Call dentist /due:nope') };
+    parseQuickAdd.mockReturnValue({
+      title: 'Call dentist',
+      props: {},
+      invalidDateCommands: ['/due:nope'],
+    });
+    let invalidTree!: ReturnType<typeof create>;
+    act(() => {
+      invalidTree = create(<CaptureScreen />);
+    });
+    await act(async () => {
+      findTouchableByText(invalidTree, 'Save').props.onPress();
+    });
+    await flushAccessibilityAnnouncement();
+    expect(announceForAccessibilitySpy).not.toHaveBeenCalled();
+    act(() => invalidTree.unmount());
+
+    vi.clearAllMocks();
+    routeParams.current = { initialValue: encodeURIComponent('Email Bob\nCall Alice') };
+    let bulkTree!: ReturnType<typeof create>;
+    act(() => {
+      bulkTree = create(<CaptureScreen />);
+    });
+    await act(async () => {
+      findTouchableByText(bulkTree, 'Save').props.onPress();
+    });
+    act(() => {
+      hardwareBack.handler?.();
+    });
+    await flushAccessibilityAnnouncement();
+
+    expect(announceForAccessibilitySpy).not.toHaveBeenCalled();
+    expect(logInfo).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it('reads the parsed draft back as chips under the input', () => {

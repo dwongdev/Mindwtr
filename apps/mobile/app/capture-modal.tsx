@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -249,7 +250,7 @@ export default function CaptureScreen() {
   const [showHelp, setShowHelp] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [captureError, setCaptureError] = useState<string | null>(null);
+  const [captureError, setCaptureError] = useState<{ message: string } | null>(null);
   const inputRef = useRef<TextInput>(null);
   const submissionInFlightRef = useRef(false);
   const allowCaptureRemovalRef = useRef(false);
@@ -267,6 +268,20 @@ export default function CaptureScreen() {
       screenMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !captureError || isSubmitting) return;
+    const announcement = captureError.message;
+    const handle = setTimeout(() => {
+      if (!screenMountedRef.current || submissionInFlightRef.current) return;
+      AccessibilityInfo.announceForAccessibility(announcement);
+      void logInfo('Capture failure accessibility announcement requested', {
+        scope: 'capture',
+        extra: { releaseCheck: 'v1.3.0/capture-failure-announcement' },
+      });
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [captureError, isSubmitting]);
 
   usePreventRemove(isSubmitting, ({ data }) => {
     if (!allowCaptureRemovalRef.current || !screenMountedRef.current) return;
@@ -504,7 +519,9 @@ export default function CaptureScreen() {
 
   const showCaptureFailure = () => {
     if (!screenMountedRef.current) return;
-    setCaptureError(tFallback(t, 'task.addFailed', 'Failed to add task'));
+    setCaptureError({
+      message: tFallback(t, 'task.addFailed', 'Failed to add task'),
+    });
   };
 
   const buildCaptureRequestFromInput = async (
@@ -830,11 +847,11 @@ export default function CaptureScreen() {
           )}
           {captureError ? (
             <Text
-              accessibilityLiveRegion="assertive"
-              accessibilityRole="alert"
+              accessibilityLiveRegion={Platform.OS === 'android' ? undefined : 'assertive'}
+              accessibilityRole={Platform.OS === 'android' ? undefined : 'alert'}
               style={[styles.captureError, { color: tc.danger }]}
             >
-              {captureError}
+              {captureError.message}
             </Text>
           ) : null}
           <View style={styles.actions}>
