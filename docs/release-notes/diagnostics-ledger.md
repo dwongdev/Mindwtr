@@ -15,6 +15,8 @@ Convention: a release-specific line carries `extra.releaseCheck = "<version>/<sl
 
 ## v1.3.0 (add before tagging, trim in the release after)
 
+- **`v1.3.0/project-lifecycle-sync`** — `packages/core/src/sync-normalization.ts`, when sync canonicalization clears an archived project's Focus flag or repairs cancellation/status coherence using the same rule as load. Message: `Project lifecycle normalized for sync`. Fields: `releaseCheck`, `count` (`1`). A tester syncing a legacy affected project must see this marker, then no repeated project conflict after the canonical document is saved on both sides. The marker proves normalization, not persistence or a successful full sync. No project text, identifiers, or timestamps are logged.
+
 ### Added
 
 - **`v1.3.0/share-card-export`** — desktop and mobile `lib/share-card-export.ts`, after a local PNG is created for sharing, saving, or copying. With Diagnostics enabled, create a card from Weekly Review: the exported log must show the marker at the verified PNG/export stage. Failed mobile exports log `failureStage`, `errorType`, and an optional native `nativeCode` without the platform error message. This proves the local export path ran, not that a recipient received the image or that the QR destination is reachable. No task or project names, identifiers, reflection text, image contents, error messages, or destination file paths are logged.
