@@ -24,6 +24,7 @@ export * from './bulk-organize';
 export * from './bulk-organize-create';
 export * from './announcements';
 export * from './user-prompts';
+export * from './share-card';
 export * from './process-inbox-workflow';
 export * from './process-inbox-session';
 export * from './process-inbox-plan';
