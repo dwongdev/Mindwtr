@@ -1,4 +1,5 @@
 import React from 'react';
+import { ScrollView } from 'react-native';
 import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -315,6 +316,13 @@ describe('DailyReviewScreen', () => {
         await act(async () => {
             nextLabel.parent?.props.onPress();
         });
+        const summary = tree.root.findByProps({ testID: 'daily-review-completed-scroll' });
+        expect(summary.type).toBe(ScrollView);
+        expect(summary.props.contentContainerStyle.flexGrow).toBe(1);
+        expect(summary.props.contentContainerStyle.flex).toBeUndefined();
+        expect(summary.findAllByProps({ accessibilityLabel: 'Finish' })).toHaveLength(0);
+        expect(tree.root.findByProps({ testID: 'daily-review-footer' })
+            .findByProps({ accessibilityLabel: 'Finish' })).toBeDefined();
         const finishLabel = tree.root.find((node) => node.props?.children === 'Finish');
         await act(async () => {
             await finishLabel.parent?.props.onPress();

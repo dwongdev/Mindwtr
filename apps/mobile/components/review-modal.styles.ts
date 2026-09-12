@@ -91,7 +91,8 @@ export const styles = StyleSheet.create({
         padding: 20,
     },
     centerContent: {
-        flex: 1,
+        flexGrow: 1,
+        paddingVertical: 12,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -129,21 +130,6 @@ export const styles = StyleSheet.create({
     hint: {
         fontSize: 14,
         marginBottom: 16,
-    },
-    infoBox: {
-        padding: 16,
-        borderRadius: 12,
-        borderWidth: 1,
-        marginBottom: 16,
-    },
-    infoText: {
-        fontSize: 16,
-        marginBottom: 8,
-    },
-    guideText: {
-        fontSize: 14,
-        lineHeight: 20,
-        marginTop: 4,
     },
     mindSweepNudge: {
         borderWidth: 1,
@@ -297,18 +283,40 @@ export const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '600',
     },
-    processButton: {
-        alignSelf: 'flex-start',
-        borderRadius: 999,
-        paddingHorizontal: 14,
+    inboxHeader: {
+        gap: 12,
+        paddingBottom: 20,
+    },
+    inboxCount: {
+        fontSize: 18,
+        fontWeight: '600',
+    },
+    inboxHint: {
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    inboxProcessButton: {
+        minHeight: 48,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    inboxActionText: {
+        flexShrink: 1,
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    inboxMindSweepButton: {
+        minHeight: 44,
         paddingVertical: 8,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-    },
-    processButtonText: {
-        fontSize: 12,
-        fontWeight: '700',
+        alignSelf: 'flex-start',
+        gap: 8,
     },
     projectItem: {
         padding: 12,
@@ -453,6 +461,11 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         borderTopWidth: 1,
+    },
+    finishButton: {
+        flex: 1,
+        alignItems: 'center',
+        minHeight: 48,
     },
     backButton: {
         padding: 12,

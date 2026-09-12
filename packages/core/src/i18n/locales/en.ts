@@ -904,7 +904,7 @@ export const en: Record<string, string> = {
         'review.complete': 'Review Complete!',
         'review.completeDesc': 'You\'ve clarified your inputs, updated your lists, and you\'re ready to engage with your work.',
         'review.summaryInboxEmpty': 'Inbox is empty',
-        'review.summaryInboxCount': '{{count}} item(s) still in Inbox',
+        'review.summaryInboxCount': '{{count}} remaining in Inbox',
         'review.summaryProjectsOk': 'Every active project has a next action',
         'review.summaryProjectsMissing': '{{count}} project(s) have no next action',
         'review.summaryWaitingStale': '{{count}} waiting item(s) untouched for more than two weeks',

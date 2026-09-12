@@ -3,6 +3,7 @@ import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildReviewSteps, getWeeklyReviewBuckets, type Project, type Task } from '@mindwtr/core';
 
+import { ScrollView } from 'react-native';
 import { CompactText } from './compact-text';
 import { ReviewModal } from './review-modal';
 import { styles } from './review-modal.styles';
@@ -233,6 +234,7 @@ vi.mock('lucide-react-native', () => {
     };
     return {
         Brain: icon('Brain'),
+        ChevronRight: icon('ChevronRight'),
         X: icon('X'),
         History: icon('History'),
         Inbox: icon('Inbox'),
@@ -282,7 +284,7 @@ const flattenText = (value: unknown): string => {
 // say which step is open. Each of these lines is rendered by exactly one step
 // body.
 const STEP_BODY_TEXT: Record<string, string> = {
-    inbox: 'Clear Your Inbox',
+    inbox: 'dailyReview.inboxDesc',
     stale: 'No recent activity.',
     calendar: 'Review your hard landscape first',
     waiting: 'Follow Up on Waiting Items',
@@ -531,6 +533,13 @@ describe('ReviewModal', () => {
         expect(hasText('Inbox')).toBe(true);
         expect(hasText('Calendar')).toBe(true);
         expect(hasText('This week')).toBe(false);
+        const summary = tree.root.findByProps({ testID: 'review-completed-scroll' });
+        expect(summary.type).toBe(ScrollView);
+        expect(summary.props.contentContainerStyle).toEqual(expect.objectContaining({ flexGrow: 1 }));
+        expect(summary.props.contentContainerStyle.flex).toBeUndefined();
+        // Finish stays in the safe-area footer, outside the scrolling summary.
+        expect(summary.findAllByProps({ accessibilityLabel: 'Finish' })).toHaveLength(0);
+        expect(tree.root.findByProps({ accessibilityLabel: 'Finish' })).toBeDefined();
     });
 
     it('shows this week\'s completion, project, estimate, and tracked totals', async () => {

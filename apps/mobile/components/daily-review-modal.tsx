@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, FlatList, Modal, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, FlatList, Modal, TouchableOpacity, StyleSheet, Platform, ScrollView } from 'react-native';
 import { workspaceSessionStorage as AsyncStorage } from '@/lib/workspace-session-storage';
 import { router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -544,13 +544,15 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
                 });
             case 'completed':
                 return (
-                    <View style={styles.centerContent}>
+                    <ScrollView
+                        testID="daily-review-completed-scroll"
+                        style={styles.taskList}
+                        contentContainerStyle={styles.centerContent}
+                        showsVerticalScrollIndicator={false}
+                    >
                         <CheckCircle2 size={56} color={tc.tint} strokeWidth={1.5} style={styles.bigIcon} />
                         <Text style={[styles.description, { color: tc.secondaryText }]}>{t('dailyReview.completeDesc')}</Text>
-                        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: filledButton.backgroundColor }]} onPress={finishReview}>
-                            <Text style={[styles.primaryButtonText, { color: filledButton.textColor ?? tc.onTint }]}>{t('review.finish')}</Text>
-                        </TouchableOpacity>
-                    </View>
+                    </ScrollView>
                 );
             default:
                 return null;
@@ -591,31 +593,44 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
 
                 <ToastViewport inline />
 
-                {displayedStep !== 'completed' && (
-                    <View
-                        testID="daily-review-footer"
-                        style={[
-                            styles.footer,
-                            {
-                                borderTopColor: tc.border,
-                                backgroundColor: tc.cardBg,
-                                paddingBottom: 14 + Math.max(insets.bottom, 8),
-                            },
-                        ]}
-                    >
+                <View
+                    testID="daily-review-footer"
+                    style={[
+                        styles.footer,
+                        {
+                            borderTopColor: tc.border,
+                            backgroundColor: tc.cardBg,
+                            paddingBottom: 14 + Math.max(insets.bottom, 8),
+                        },
+                    ]}
+                >
+                    {displayedStep === 'completed' ? (
                         <TouchableOpacity
-                            onPress={back}
-                            disabled={!previousStepId}
-                            accessibilityState={{ disabled: !previousStepId }}
-                            style={[styles.footerButton, { backgroundColor: tc.filterBg, opacity: previousStepId ? 1 : 0.5 }]}
+                            onPress={finishReview}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('review.finish')}
+                            style={[styles.footerButton, { backgroundColor: filledButton.backgroundColor }]}
                         >
-                            <Text style={[styles.footerButtonText, { color: tc.text }]}>{t('review.back')}</Text>
+                            <Text style={[styles.footerPrimaryText, { color: filledButton.textColor ?? tc.onTint }]}>
+                                {t('review.finish')}
+                            </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={next} style={[styles.footerButton, { backgroundColor: filledButton.backgroundColor }]}>
-                            <Text style={[styles.footerPrimaryText, { color: filledButton.textColor ?? tc.onTint }]}>{t('review.nextStepBtn')}</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
+                    ) : (
+                        <>
+                            <TouchableOpacity
+                                onPress={back}
+                                disabled={!previousStepId}
+                                accessibilityState={{ disabled: !previousStepId }}
+                                style={[styles.footerButton, { backgroundColor: tc.filterBg, opacity: previousStepId ? 1 : 0.5 }]}
+                            >
+                                <Text style={[styles.footerButtonText, { color: tc.text }]}>{t('review.back')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={next} style={[styles.footerButton, { backgroundColor: filledButton.backgroundColor }]}>
+                                <Text style={[styles.footerPrimaryText, { color: filledButton.textColor ?? tc.onTint }]}>{t('review.nextStepBtn')}</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
+                </View>
                 <ErrorBoundary>
                     <InboxProcessingModal
                         visible={showInboxProcessing}
@@ -709,7 +724,7 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     centerContent: {
-        flex: 1,
+        flexGrow: 1,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 24,
@@ -723,16 +738,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 20,
         maxWidth: 320,
-    },
-    primaryButton: {
-        paddingHorizontal: 18,
-        paddingVertical: 12,
-        borderRadius: 12,
-        marginTop: 8,
-    },
-    primaryButtonText: {
-        fontSize: 16,
-        fontWeight: '700',
     },
     stepContent: {
         flex: 1,

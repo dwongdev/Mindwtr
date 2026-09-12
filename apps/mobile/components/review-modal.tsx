@@ -11,7 +11,6 @@ import {
     Clock,
     FolderOpen,
     History,
-    Inbox,
     Lightbulb,
     PartyPopper,
     Play,
@@ -442,37 +441,42 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                 return renderTaskList(
                     inboxTasks,
                     null,
-                    <>
-                        <View style={styles.stepTitleRow}>
-                            <Inbox size={22} color={tc.text} strokeWidth={2} />
-                            <Text style={[styles.stepTitleInline, { color: tc.text }]}>
-                                {labels.inboxDesc}
-                            </Text>
-                        </View>
-                        <View style={[styles.infoBox, { backgroundColor: tc.cardBg, borderColor: tc.border }]}>
-                            <Text style={[styles.infoText, { color: tc.text }]}>
-                                <Text style={{ fontWeight: '700' }}>{inboxTasks.length}</Text> {labels.itemsInInbox}
-                            </Text>
-                            <Text style={[styles.guideText, { color: tc.secondaryText }]}>
-                                {labels.inboxGuide}
-                            </Text>
-                        </View>
-                        {renderMindSweepNudge()}
+                    <View style={styles.inboxHeader}>
                         {inboxTasks.length > 0 && (
-                            <TouchableOpacity
-                                style={[styles.processButton, { backgroundColor: filledButton.backgroundColor }]}
-                                onPress={() => setShowInboxProcessing(true)}
-                                hitSlop={8}
-                                accessibilityRole="button"
-                                accessibilityLabel={t('inbox.processButton')}
-                            >
-                                <Play size={14} color={onFilled} strokeWidth={2.5} fill={onFilled} />
-                                <Text style={[styles.processButtonText, { color: onFilled }]}>
-                                    {t('inbox.processButton')}
+                            <>
+                                <Text style={[styles.inboxCount, { color: tc.text }]}>
+                                    {formatI18nTemplate(labels.summaryInboxCount, { count: inboxTasks.length })}
                                 </Text>
-                            </TouchableOpacity>
+                                <Text style={[styles.inboxHint, { color: tc.secondaryText }]}>
+                                    {t('dailyReview.inboxDesc')}
+                                </Text>
+                                <TouchableOpacity
+                                    style={[styles.inboxProcessButton, { backgroundColor: filledButton.backgroundColor }]}
+                                    onPress={() => setShowInboxProcessing(true)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('inbox.processButton')}
+                                >
+                                    <Play size={18} color={onFilled} strokeWidth={2.5} fill={onFilled} />
+                                    <Text style={[styles.inboxActionText, { color: onFilled }]}>
+                                        {t('inbox.processButton')}
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
                         )}
-                    </>,
+                        <TouchableOpacity
+                            testID="review-mind-sweep-button"
+                            style={styles.inboxMindSweepButton}
+                            onPress={() => setShowMindSweep(true)}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('mindSweep.launchButton')}
+                        >
+                            <Brain size={18} color={tc.tint} strokeWidth={2} />
+                            <Text style={[styles.inboxActionText, { color: tc.tint }]}>
+                                {t('mindSweep.launchButton')}
+                            </Text>
+                            <ChevronRight size={16} color={tc.tint} strokeWidth={2} />
+                        </TouchableOpacity>
+                    </View>,
                     <View style={styles.emptyState}>
                         <CheckCircle2 size={48} color={tc.secondaryText} strokeWidth={1.5} style={styles.emptyIcon} />
                         <Text style={[styles.emptyText, { color: tc.secondaryText }]}>
@@ -814,7 +818,12 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
 
             case 'completed':
                 return (
-                    <View style={styles.centerContent}>
+                    <ScrollView
+                        testID="review-completed-scroll"
+                        style={styles.stepContent}
+                        contentContainerStyle={styles.centerContent}
+                        showsVerticalScrollIndicator={false}
+                    >
                         <PartyPopper size={64} color={tc.tint} strokeWidth={1.5} style={styles.bigIcon} />
                         <Text style={[styles.heading, { color: tc.text }]}>
                             {labels.reviewComplete}
@@ -872,12 +881,7 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                             )}
                         </View>
                         {renderMindSweepNudge()}
-                        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: filledButton.backgroundColor }]} onPress={handleFinish}>
-                            <Text style={[styles.primaryButtonText, { color: onFilled }]}>
-                                {labels.finish}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
+                    </ScrollView>
                 );
         }
     };
@@ -922,7 +926,20 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
 
                     <ToastViewport inline />
 
-                    {currentStep !== 'completed' && (
+                    {currentStep === 'completed' ? (
+                        <View style={[styles.footer, { borderTopColor: tc.border }]}>
+                            <TouchableOpacity
+                                style={[styles.primaryButton, styles.finishButton, { backgroundColor: filledButton.backgroundColor }]}
+                                onPress={handleFinish}
+                                accessibilityRole="button"
+                                accessibilityLabel={labels.finish}
+                            >
+                                <Text style={[styles.primaryButtonText, { color: onFilled }]}>
+                                    {labels.finish}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
                         <View style={[styles.footer, { borderTopColor: tc.border }]}>
                             <TouchableOpacity
                                 style={[styles.backButton, { opacity: canGoBack ? 1 : 0.5 }]}
