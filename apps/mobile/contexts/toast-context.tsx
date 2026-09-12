@@ -119,9 +119,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const dismissToast = useCallback((exitTranslateX = 0) => {
+        if (!activeToastRef.current || isDismissingRef.current) return;
         clearTimer();
         clearQueueAdvanceTimer();
-        if (!activeToastRef.current || isDismissingRef.current) return;
         isDismissingRef.current = true;
         Animated.parallel([
             Animated.timing(opacity, {
@@ -169,13 +169,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }, [translateX]);
 
     const panResponder = useMemo(() => PanResponder.create({
+        // Native Modal claims otherwise-unhandled starts. Own touches on the
+        // toast body immediately so subsequent moves reach this responder.
+        // The nested action Pressable still wins starts on its own button.
+        onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: shouldStartToastSwipe,
         onMoveShouldSetPanResponderCapture: shouldStartToastSwipe,
-        onPanResponderMove: (_event, gestureState) => {
-            translateX.setValue(gestureState.dx);
+        onPanResponderMove: (event, gestureState) => {
+            translateX.setValue(shouldStartToastSwipe(event, gestureState) ? gestureState.dx : 0);
         },
-        onPanResponderRelease: (_event, gestureState) => {
-            const exitTranslateX = getToastSwipeExitTranslateX(gestureState);
+        onPanResponderRelease: (event, gestureState) => {
+            const exitTranslateX = shouldStartToastSwipe(event, gestureState)
+                ? getToastSwipeExitTranslateX(gestureState)
+                : null;
             if (exitTranslateX !== null) {
                 dismissToast(exitTranslateX);
                 return;
@@ -275,7 +281,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     );
 }
 
-function ToastOverlay({ respectBottomOffset = false }: { respectBottomOffset?: boolean }) {
+function ToastOverlay({ respectBottomOffset = false, inline = false }: { respectBottomOffset?: boolean; inline?: boolean }) {
     const renderState = useContext(ToastRenderContext);
     const insets = useSafeAreaInsets();
     const tc = useThemeColors();
@@ -297,11 +303,11 @@ function ToastOverlay({ respectBottomOffset = false }: { respectBottomOffset?: b
                 : tc.tint;
 
     return (
-        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+        <View pointerEvents="box-none" style={inline ? undefined : StyleSheet.absoluteFill}>
             <View
                 pointerEvents="box-none"
                 style={[
-                    styles.viewport,
+                    inline ? styles.inlineViewport : styles.viewport,
                     { paddingBottom },
                 ]}
             >
@@ -364,7 +370,9 @@ function ToastOverlay({ respectBottomOffset = false }: { respectBottomOffset?: b
 // Mount inside a native <Modal>'s content so toasts fired while the modal is
 // open render above it instead of behind the modal window. The most recently
 // opened modal wins; the root overlay takes over when no viewport is mounted.
-export function ToastViewport() {
+// Use inline between scrolling content and a footer to reserve the toast's
+// natural height, including wrapped text, instead of covering either region.
+export function ToastViewport({ inline = false }: { inline?: boolean } = {}) {
     const renderState = useContext(ToastRenderContext);
     const idRef = useRef<number | null>(null);
     if (idRef.current === null) {
@@ -381,7 +389,7 @@ export function ToastViewport() {
     }, [id, registerViewport, unregisterViewport]);
 
     if (!renderState || renderState.topViewportId !== id) return null;
-    return <ToastOverlay />;
+    return <ToastOverlay inline={inline} />;
 }
 
 // Mount where a persistent bottom bar lives (the tabs layout) so root-overlay
@@ -406,6 +414,11 @@ export function useToast(): ToastContextValue {
 }
 
 const styles = StyleSheet.create({
+    inlineViewport: {
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 12,
+    },
     viewport: {
         ...StyleSheet.absoluteFillObject,
         justifyContent: 'flex-end',

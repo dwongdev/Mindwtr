@@ -23,7 +23,7 @@ import {
 } from '@mindwtr/core';
 
 import { styles } from '../inbox-processing-modal.styles';
-import { useToast } from '../../contexts/toast-context';
+import { ToastViewport, useToast } from '../../contexts/toast-context';
 import { useFilledButtonColors } from '@/hooks/use-filled-button-colors';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import type { ThemeColors } from '@/hooks/use-theme-colors';
@@ -819,6 +819,9 @@ export function InboxStepFlow({ controller, mode }: { controller: Controller; mo
           ]}
         />
       </ScrollView>
+
+      {/* Reserve space above the footer; feedback must not cover decisions. */}
+      <ToastViewport inline />
 
       {showFileItButton && (
         <View

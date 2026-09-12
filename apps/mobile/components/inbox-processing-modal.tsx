@@ -4,7 +4,6 @@ import { LayoutList, Layers, X } from 'lucide-react-native';
 import { tFallback } from '@mindwtr/core';
 
 import { AIResponseModal } from './ai-response-modal';
-import { ToastViewport } from '@/contexts/toast-context';
 import { ThemedAlertHost } from '@/components/themed-alert';
 import { styles } from './inbox-processing-modal.styles';
 import { InboxStepFlow } from './inbox-processing/InboxStepFlow';
@@ -177,7 +176,6 @@ export function InboxProcessingModal({ visible, onClose }: InboxProcessingModalP
             <InboxStepFlow controller={controller} mode={processingMode} />
           </KeyboardAvoidingView>
         </View>
-        <ToastViewport />
         {/* The AI failure alert fires while this modal is up (#940). */}
         <ThemedAlertHost />
       </Modal>

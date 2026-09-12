@@ -589,6 +589,8 @@ function DailyReviewFlow({ onClose }: { onClose: () => void }) {
 
                 <View style={styles.content}>{renderStep()}</View>
 
+                <ToastViewport inline />
+
                 {displayedStep !== 'completed' && (
                     <View
                         testID="daily-review-footer"
@@ -656,7 +658,6 @@ export function DailyReviewModal({ visible, onClose }: DailyReviewModalProps) {
             onRequestClose={onClose}
         >
             {visible ? <DailyReviewFlow onClose={onClose} /> : null}
-            <ToastViewport />
         </Modal>
     );
 }

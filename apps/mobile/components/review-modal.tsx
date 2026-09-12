@@ -920,6 +920,8 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                         {renderStepContent()}
                     </View>
 
+                    <ToastViewport inline />
+
                     {currentStep !== 'completed' && (
                         <View style={[styles.footer, { borderTopColor: tc.border }]}>
                             <TouchableOpacity
@@ -1029,7 +1031,6 @@ export function ReviewModal({ visible, onClose }: ReviewModalProps) {
                         </View>
                     </View>
                 </Modal>
-                <ToastViewport />
             </GestureHandlerRootView>
         </Modal>
     );

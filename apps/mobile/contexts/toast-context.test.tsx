@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, test, vi } from 'vitest';
+import { ToastProvider, ToastViewport, useToast, useToastBottomOffset, type ToastOptions } from './toast-context';
 
 vi.mock('react-native-safe-area-context', () => ({
     useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -61,12 +62,12 @@ vi.mock('react-native', async () => {
     };
 });
 
-import { ToastProvider, ToastViewport, useToast, useToastBottomOffset } from './toast-context';
 
 const QUEUE_GAP_MS = 120;
 const TOAST_SWIPE_TARGET_TEST_ID = 'toast-swipe-dismiss-target';
 type ToastControls = {
-    showToast: (options: { message: string; durationMs?: number }) => void;
+    showToast: (options: ToastOptions) => void;
+    dismissToast: () => void;
 };
 
 const getRenderedText = (tree: ReactTestRenderer): string => JSON.stringify(tree.toJSON());
@@ -130,9 +131,11 @@ describe('ToastProvider', () => {
     });
 
     test.each([
-        ['right', 96],
-        ['left', -96],
-    ])('dismisses the visible toast after a horizontal swipe %s', (_direction, dx) => {
+        ['right', 96, false],
+        ['left', -96, false],
+        ['right in a modal', 96, true],
+        ['left in a modal', -96, true],
+    ])('dismisses the visible toast after a horizontal swipe %s', (_direction, dx, withViewport) => {
         let controls: ToastControls | null = null;
         let tree: ReactTestRenderer | null = null;
 
@@ -152,6 +155,16 @@ describe('ToastProvider', () => {
         if (!controls || !tree) return;
         const toastControls = controls as ToastControls;
         const renderedTree = tree as ReactTestRenderer;
+        if (withViewport) {
+            act(() => {
+                renderedTree.update(
+                    <ToastProvider>
+                        <ToastHarness onReady={() => undefined} />
+                        <ToastViewport />
+                    </ToastProvider>
+                );
+            });
+        }
 
         act(() => {
             toastControls.showToast({ message: `Swipe ${_direction}`, durationMs: 10_000 });
@@ -160,12 +173,77 @@ describe('ToastProvider', () => {
         const swipeTarget = renderedTree.root.findByProps({ testID: TOAST_SWIPE_TARGET_TEST_ID });
 
         expect(getRenderedText(renderedTree)).toContain(`Swipe ${_direction}`);
+        // A native Modal claims unhandled starts; waiting for a move loses the
+        // gesture before this toast can ever become the responder.
+        expect(swipeTarget.props.onStartShouldSetResponder({}, {})).toBe(true);
 
         act(() => {
             swipeTarget.props.onResponderRelease?.({}, { dx, dy: 4, vx: 0.2 });
         });
 
         expect(getRenderedText(renderedTree)).not.toContain(`Swipe ${_direction}`);
+    });
+
+    test.each([
+        ['tap', { dx: 0, dy: 0, vx: 0 }],
+        ['short drag', { dx: 30, dy: 2, vx: 0.1 }],
+        ['vertical swipe', { dx: 80, dy: 180, vx: 0.7 }],
+    ])('keeps the toast visible after a %s', (_kind, gesture) => {
+        let controls!: ToastControls;
+        let tree!: ReactTestRenderer;
+        act(() => {
+            tree = create(<ToastProvider><ToastHarness onReady={(value) => { controls = value; }} /><ToastViewport /></ToastProvider>);
+        });
+        act(() => { controls.showToast({ message: 'Still visible', durationMs: 10_000 }); });
+        const target = tree.root.findByProps({ testID: TOAST_SWIPE_TARGET_TEST_ID });
+        act(() => {
+            target.props.onResponderMove({}, gesture);
+            target.props.onResponderRelease({}, gesture);
+        });
+        expect(getRenderedText(tree)).toContain('Still visible');
+    });
+
+    it('keeps advancing the queue when dismissal repeats during the gap', () => {
+        let controls!: ToastControls;
+        let tree!: ReactTestRenderer;
+        act(() => {
+            tree = create(<ToastProvider><ToastHarness onReady={(value) => { controls = value; }} /></ToastProvider>);
+        });
+        act(() => {
+            controls.showToast({ message: 'First', durationMs: 10_000 });
+            controls.showToast({ message: 'Second', durationMs: 10_000 });
+        });
+        act(() => { controls.dismissToast(); });
+        act(() => { controls.dismissToast(); });
+        act(() => { vi.advanceTimersByTime(QUEUE_GAP_MS); });
+        expect(getRenderedText(tree)).not.toContain('First');
+        expect(getRenderedText(tree)).toContain('Second');
+        act(() => { controls.dismissToast(); });
+        expect(getRenderedText(tree)).not.toContain('Second');
+    });
+
+    it('keeps the Undo action usable inside an inline modal viewport', async () => {
+        let controls!: ToastControls;
+        let tree!: ReactTestRenderer;
+        const undo = vi.fn();
+        act(() => {
+            tree = create(
+                <ToastProvider>
+                    <ToastHarness onReady={(value) => { controls = value; }} />
+                    <ToastViewport inline />
+                </ToastProvider>
+            );
+        });
+        act(() => { controls.showToast({ message: 'Filed', actionLabel: 'Undo', onAction: undo }); });
+        const target = tree.root.findByProps({ testID: TOAST_SWIPE_TARGET_TEST_ID });
+        // Inline viewports occupy normal layout space instead of covering controls.
+        const flatten = (style: unknown) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
+        expect(flatten(target.parent!.props.style).position).not.toBe('absolute');
+        expect(flatten(target.parent!.parent!.props.style).position).not.toBe('absolute');
+        const action = target.findByProps({ accessibilityRole: 'button' });
+        await act(async () => { await action.props.onPress(); });
+        expect(undo).toHaveBeenCalledOnce();
+        expect(getRenderedText(tree)).not.toContain('Filed');
     });
 
     it('renders the toast in the topmost mounted viewport instead of the root overlay', () => {
