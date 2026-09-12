@@ -1,6 +1,6 @@
 # Plan 084: Derive iOS widget lists once per publication
 
-Status: TODO. Priority P2. Effort M. Risk MED. Confidence HIGH. Category performance / architecture. No dependencies. Planned against `43f40c2ea` on 2026-09-12; automatically selected by the review-improve loop. Root maintains plan status and integrates one implementation commit.
+Status: DONE. Priority P2. Effort M. Risk MED. Confidence HIGH. Category performance / architecture. No dependencies. Planned against `43f40c2ea` on 2026-09-12; automatically selected by the review-improve loop. Root maintains plan status and integrates one implementation commit.
 
 ## Why and current state
 
@@ -39,3 +39,7 @@ STOP and report if matching old serialized outputs requires recomputing selectio
 ## Worktree rules
 
 Use `/home/dd/worktrees/Mindwtr/widget-batch-20260912`; all dependencies/builds and substantial TMPDIR/BUN_TMPDIR stay under `/home/dd`, never `/tmp` or `/dev/shm`. RTK prefix shell commands; CodeGraph before structural discovery; apply_patch edits. You are not alone: preserve others' changes and never inspect crash logs. No worker commits, pushes, issue messages or further delegation. Root owns integration and one scoped commit for this finding.
+
+## Validation
+
+Real publication work-count regression failed with six selection passes, then passed with one. All 60 focused widget tests, mobile typecheck/lint and diff-check passed. An independent old-source differential probe checked 448 serialized outputs against 43f40c2ea across 65/5,000-task fixtures, four languages, two system themes, two Focus selections and seven caps. Every output was byte-identical after loading each isolated core's locale cache. Details and remaining native limits: `docs/performance/widget-publication-2026-09.md`. Final aggregate gates and independent review are recorded by the loop coordinator.

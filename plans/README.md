@@ -188,7 +188,7 @@ Reviewed against `43f40c2ea`, including explicit MCP validation, transports, dur
 
 | # | Plan | Priority | Effort | Status |
 |---|------|----------|--------|--------|
-| 084 | widget-publication-derivation | P2 | M | TODO |
+| 084 | widget-publication-derivation | P2 | M | DONE |
 
 Plan084 is the sole new Strong architecture candidate and one finding/commit. No dependencies. Shared native-command persistence recovery also deepens an existing duplicated rule, already handled in comprehensive remediation; it is not a second refactor plan. The complete selected plan set is committed before phase-two implementation.
 

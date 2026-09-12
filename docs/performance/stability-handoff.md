@@ -1,6 +1,6 @@
 # Performance and stability handoff
 
-Updated September 9, 2026. Engineering handoff for future desktop and mobile
+Updated September 12, 2026. Engineering handoff for future desktop and mobile
 sessions, not a claim that the performance audit is complete.
 
 Implementation baseline: `3d67289a9` on `perf/native-contention`, plus this
@@ -25,6 +25,12 @@ certify a later commit, release, or deployment.
    before merging/pushing; this handoff is not ongoing publication permission.
 
 ## Completed changes and strength of evidence
+
+September12 review addendum: iOS widget publication now performs one full
+selection pass instead of six, with448 byte-identical old-source comparisons.
+See [widget publication derivation](widget-publication-2026-09.md), Plan084.
+Native iOS latency and WidgetKit rendering remain unmeasured; prior platform
+work and open hypotheses below are unchanged.
 
 The figures below are historical observations under each report's conditions,
 not universal performance promises. Follow the links for raw samples, build
