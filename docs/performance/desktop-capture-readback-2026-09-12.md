@@ -135,7 +135,8 @@ initial snapshot. Personal app data and global monitor settings were untouched.
 No Android device was accessed.
 
 Desktop continuation: fresh unchanged A/A controls and a separate sampled cohort
-now pass. Use their retained profiles and matching source maps to choose the next
-bounded app change. The harness-only checks above remain scoped to this readback fix.
+now pass. The resulting bounded app change and matched comparison are recorded
+in [token timestamp derivation](desktop-token-timestamps-2026-09-12.md). The
+harness-only checks above remain scoped to this readback fix.
 Android next step: wait for the user's device connection, then verify the separate
 Benchmark package and synthetic state before its own performance work.

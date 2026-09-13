@@ -19,6 +19,7 @@ const RELEASE_CHECK_FIELD_NAMES = [
     'workspace', 'stage',
     // watcher-property-order reuses releaseCheck below.
     // storage-baseline-equality reuses releaseCheck below.
+    // derived-token-timestamps reuses releaseCheck below.
     // sqlite-snapshot-append reuses releaseCheck and count below.
     // sqlite-snapshot-statements reuses releaseCheck and count below.
     // ai-request-stop-once (desktop/mobile AI configuration adapters)
