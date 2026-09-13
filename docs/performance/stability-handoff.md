@@ -4,10 +4,10 @@ Updated September 13, 2026. Engineering handoff for future desktop and mobile
 sessions, not a claim that the performance audit is complete.
 
 Latest desktop control: `80dede27c78a4737d144bb4b81052cdc9b9a6406` on `main`.
-This handoff accompanies two accepted desktop commits: exact native capture
-readback (`0d6c2929a`) and shared token timestamp reuse. They were prepared in
-`perf/desktop-stability-20260912` for integration into `main`; the dated reports
-retain the pre-commit binary, source-map and runner identities. The earlier
+The accepted desktop commits are exact native capture readback (`0d6c2929a`)
+and shared token timestamp reuse (`992934a56`), now merged and pushed to `main`.
+The portability follow-up is `e22327cc2`; the dated reports retain the pre-commit
+binary, source-map and runner identities. The earlier
 `3d67289a9` / `perf/native-contention` work remains historical evidence below.
 At the next session, inspect current Git/CI state; local test results here do not
 certify a later commit, release, or deployment.
@@ -15,8 +15,11 @@ certify a later commit, release, or deployment.
 Publication follow-up: the first CI run (`34737920122`) passed the performance
 budgets but found a hard-coded lab path in the new SQLite test fixture. The test
 now uses the platform temporary directory and respects local `TMPDIR`. This
-test-only portability correction does not invalidate the native measurements;
-check its subsequent exact CI run before treating publication as verified.
+test-only portability correction does not invalidate the native measurements.
+Replacement [CI run 34738227281](https://github.com/dongdongbh/Mindwtr/actions/runs/34738227281)
+completed successfully on `e22327cc2`, with local/remote main SHA parity verified.
+[Native Platform CI 34737920115](https://github.com/dongdongbh/Mindwtr/actions/runs/34737920115)
+also passed on `992934a56`; the follow-up changed only tests/docs.
 
 ## Start here
 
@@ -36,6 +39,21 @@ check its subsequent exact CI run before treating publication as verified.
 
 ## Completed changes and strength of evidence
 
+September 13 Android continuation: the connected OnePlus device is available.
+The new runner requires the expected runner APK hash, coherent per-frame sample
+counts, a trace for every iteration, and exactly-one Inbox growth on capture-save.
+A real-device failure also replaced the obsolete Close/ViewGroup selector with a
+stable header test identifier.
+See [Android benchmark integrity](android-harness-integrity-2026-09-13.md) for the
+fresh fixture export, schema-5 control, validation and restored-device evidence.
+The completed native control retained 19 measured iterations/traces and passed
+60/60 visible-IME checks. Both cancellation batches preserved Inbox 234; save
+smoke grew it by the expected four tasks, then normal restore returned it to 234.
+Original APK hashes, Sync Off, and global device settings were verified after
+restoration. The accepted Android benchmark hardening establishes stronger
+measurement evidence, not an app speedup. The source commit retains the archived
+pre-commit binary and runner identities in the dated report.
+
 September 12 desktop continuation: the native capture runner now verifies the
 exact captured SQLite row through independent readback and retains structured
 reload evidence. See [capture readback validation](desktop-capture-readback-2026-09-12.md).
@@ -43,7 +61,7 @@ This is a harness correctness improvement; no app speedup is established. The
 fresh native control initially failed its viewport gate while the graphical
 session was locked. After unlocking, exact capture/readback/reload smoke passed;
 the report records one corrected virtualized-reload harness assumption. The new
-schema-2 timed readback boundary requires fresh cohorts. Android work awaits device connection.
+schema-2 timed readback boundary requires fresh cohorts. Android device work resumed September 13; see the current continuation below.
 
 The same continuation then removed duplicate context/tag timestamp parsing in
 the shared store derivation. See [desktop token timestamp derivation](desktop-token-timestamps-2026-09-12.md).
@@ -144,8 +162,11 @@ personal data, accounts, or additional hardware.
 
 ### P1 — Matched native interaction measurements on both platforms
 
-**Android:** build sampling-disabled control/candidate Benchmark APKs from exact
-sources with identical dependencies. Keep startup/compilation settings identical;
+**Android:** the September 13 schema-5/selector-capable native control is complete.
+First restore its exported fixture and set Newest before every preflight to remove
+the initial-sort difference between the descriptive capture batches. Establish a
+fully matched A/A series, then build sampling-disabled control/candidate Benchmark
+APKs from exact sources with identical dependencies. Keep startup/compilation settings identical;
 archive each APK and verify installed hashes. Use matched fixtures and an
 interleaved A/B/B/A protocol after the 20-check IME gate. Retain per-iteration
 frames, thermal/refresh conditions, and failures. Collect separate sampled traces
@@ -240,13 +261,15 @@ status of exact CI runs; do not call a running workflow green.
 
 ## Current local lab state and evidence
 
-At the last device session (not a promise of current state), only the separate
-Android Benchmark app was tested. Its synthetic Inbox contained 234 tasks;
-`mixed-v1-1000-cbfcca2e13cf76a5-plus34captures` is an operator label, not a newly
-exported full-content hash. Sync was Off. The normal app was untouched. The
-uninstrumented control APK was restored, hash checked, freshly launched to
-confirm the Inbox, then force-stopped. Reconfirm device availability, package,
-data, sync, thermal/refresh state, and identity before every new experiment.
+September 13 device restoration: only the separate Android Benchmark app and its
+runner were used. The saved export contains 1,034 live synthetic tasks plus one
+tombstone and 20 projects; Inbox is 234. The full export hash and original/restored
+APK hashes are in [Android benchmark integrity](android-harness-integrity-2026-09-13.md).
+Normal restore removed this session's four test captures. A fresh original-APK
+launch verified the prior rows, Inbox 234 and Newest sort; Sync was Off. Both test
+packages were stopped. Initial/final display, keyboard, animation, radio and power
+settings match. Synthetic backup/report artifacts and a recovery snapshot remain.
+The normal and Dev apps were untouched. Reconfirm state before the next experiment.
 
 Local evidence lives under `/home/dd/.cache/mindwtr-performance-tmp/`, especially
 `native-contention/`, `capture-storage-followup/`, `settings-first-open/`, and
