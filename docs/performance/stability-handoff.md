@@ -26,6 +26,15 @@ certify a later commit, release, or deployment.
 
 ## Completed changes and strength of evidence
 
+September 12 desktop continuation: the native capture runner now verifies the
+exact captured SQLite row through independent readback and retains structured
+reload evidence. See [capture readback validation](desktop-capture-readback-2026-09-12.md).
+This is a harness correctness improvement; no app speedup is established. The
+fresh native control initially failed its viewport gate while the graphical
+session was locked. After unlocking, exact capture/readback/reload smoke passed;
+the report records one corrected virtualized-reload harness assumption. The new
+schema-2 timed readback boundary requires fresh cohorts. Android work awaits device connection.
+
 September12 review addendum: iOS widget publication now performs one full
 selection pass instead of six, with448 byte-identical old-source comparisons.
 See [widget publication derivation](widget-publication-2026-09.md), Plan084.
