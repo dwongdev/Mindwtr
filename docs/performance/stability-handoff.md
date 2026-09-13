@@ -21,6 +21,15 @@ completed successfully on `e22327cc2`, with local/remote main SHA parity verifie
 [Native Platform CI 34737920115](https://github.com/dongdongbh/Mindwtr/actions/runs/34737920115)
 also passed on `992934a56`; the follow-up changed only tests/docs.
 
+Android benchmark hardening and its handoff are now merged and pushed to `main`
+as `e2234c4fa5461de2a1afb4f22e816a1d82b128ea`. All jobs in
+[CI 34740710185](https://github.com/dongdongbh/Mindwtr/actions/runs/34740710185)
+passed, and local/remote main SHA parity was verified. The subsequent Android
+document-provider write fix was validated on `perf/android-capture-cost-20260913`
+in `/home/dd/worktrees/Mindwtr/android-stability-20260913` before publication.
+Its dated report retains the pre-commit build identities and local/native checks;
+consult the source commit and its exact CI run for integration status.
+
 ## Start here
 
 1. Read this handoff, then the relevant investigation linked below. Historical
@@ -38,6 +47,23 @@ also passed on `992934a56`; the follow-up changed only tests/docs.
    before merging/pushing; this handoff is not ongoing publication permission.
 
 ## Completed changes and strength of evidence
+
+September 13 next Android pass: two matched control batches set Newest before
+each preflight, passed 40/40 visible-IME checks and retained ten measured traces.
+Identical-build frame-duration p95 varied from 14.27 to 16.98 ms. Separate trace
+attribution located native modal premount and window-relayout cost; no capture
+optimization or speedup is accepted. See
+[matched capture control and native cost](android-capture-cost-2026-09-13.md).
+
+The earlier direct-export failure was reproduced twice, then fixed by skipping
+filesystem-path preparation for Android document-provider write URIs. On the
+same Downloads provider, candidate JSON and CSV exports matched reference bytes;
+all 1,034 TaskNotes ZIP entries matched with valid CRCs and timestamp-only metadata
+differences. Focused tests, typecheck, lint and independent review passed. See
+[document-provider backup writes](android-document-write-2026-09-13.md) for the
+red regression, exact APK/map identities, diagnostic marker, native readback,
+limitations and restored-device evidence. The fix is accepted; source and CI
+provenance are described above.
 
 September 13 Android continuation: the connected OnePlus device is available.
 The new runner requires the expected runner APK hash, coherent per-frame sample
@@ -162,11 +188,14 @@ personal data, accounts, or additional hardware.
 
 ### P1 — Matched native interaction measurements on both platforms
 
-**Android:** the September 13 schema-5/selector-capable native control is complete.
-First restore its exported fixture and set Newest before every preflight to remove
-the initial-sort difference between the descriptive capture batches. Establish a
-fully matched A/A series, then build sampling-disabled control/candidate Benchmark
-APKs from exact sources with identical dependencies. Keep startup/compilation settings identical;
+**Android:** the schema-5 control and matched Newest-before-preflight A/A series
+are complete. Start from the retained trace attribution, not another harness
+rewrite or repetition of those batches. A possible bounded experiment is reducing
+nonessential descendants in the initial 52-item native mount batch, after identifying
+which can move without visible popping, missing controls, accessibility or focus
+changes. Do not infer that design from the traces alone. For an accepted proposal,
+build sampling-disabled control/candidate Benchmark APKs from exact sources with
+identical dependencies. Keep startup/compilation settings identical;
 archive each APK and verify installed hashes. Use matched fixtures and an
 interleaved A/B/B/A protocol after the 20-check IME gate. Retain per-iteration
 frames, thermal/refresh conditions, and failures. Collect separate sampled traces
@@ -261,15 +290,19 @@ status of exact CI runs; do not call a running workflow green.
 
 ## Current local lab state and evidence
 
-September 13 device restoration: only the separate Android Benchmark app and its
-runner were used. The saved export contains 1,034 live synthetic tasks plus one
-tombstone and 20 projects; Inbox is 234. The full export hash and original/restored
-APK hashes are in [Android benchmark integrity](android-harness-integrity-2026-09-13.md).
-Normal restore removed this session's four test captures. A fresh original-APK
-launch verified the prior rows, Inbox 234 and Newest sort; Sync was Off. Both test
-packages were stopped. Initial/final display, keyboard, animation, radio and power
-settings match. Synthetic backup/report artifacts and a recovery snapshot remain.
-The normal and Dev apps were untouched. Reconfirm state before the next experiment.
+September 13 latest device restoration: only the separate Android Benchmark app
+and its runner were used. The current full control/candidate JSON contains 1,034
+live synthetic tasks, five tombstones and 20 projects; Inbox is 234. The older seed
+export had one tombstone, and the previous session's normal restore added four
+for its removed test captures. Do not treat the seed hash as the current full
+snapshot hash. No task save, import or restore occurred in the latest continuation.
+The [document-write report](android-document-write-2026-09-13.md) records current
+export and original/restored APK hashes. A fresh original-app launch confirmed
+the prior rows, Inbox 234, Newest sort, Sync Off and debug logging false. Both test
+packages were stopped. Initial/final display, keyboard, animation, radio and
+low-power settings match. Synthetic successful/failed exports, diagnostics and
+the earlier recovery snapshot remain. Production and Dev apps were untouched.
+Reconfirm state before the next experiment.
 
 Local evidence lives under `/home/dd/.cache/mindwtr-performance-tmp/`, especially
 `native-contention/`, `capture-storage-followup/`, `settings-first-open/`, and
