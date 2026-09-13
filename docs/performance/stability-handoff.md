@@ -12,6 +12,12 @@ retain the pre-commit binary, source-map and runner identities. The earlier
 At the next session, inspect current Git/CI state; local test results here do not
 certify a later commit, release, or deployment.
 
+Publication follow-up: the first CI run (`34737920122`) passed the performance
+budgets but found a hard-coded lab path in the new SQLite test fixture. The test
+now uses the platform temporary directory and respects local `TMPDIR`. This
+test-only portability correction does not invalidate the native measurements;
+check its subsequent exact CI run before treating publication as verified.
+
 ## Start here
 
 1. Read this handoff, then the relevant investigation linked below. Historical

@@ -93,6 +93,13 @@ early-session version sentence in the baseline guide; that sentence was correcte
 The leader accepted the tooling correctness change with the native limitation
 retained. The subsequent unlocked native smoke passed, as described below.
 
+The first publication CI run on September 13 (`34737920122`) passed the large-store
+budgets but exposed a test portability defect: the SQLite fixture directory used
+the lab machine's hard-coded `/home/dd`. The test now uses the platform temporary
+directory, honoring `TMPDIR` for disk-backed local runs. This only changes the
+small disposable test database's location; native runner and application behavior
+and the measured build identities are unchanged.
+
 ## Unlocked native follow-up
 
 After the user unlocked the desktop, `LockedHint=no` and the existing fixed-window

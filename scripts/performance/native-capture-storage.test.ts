@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   isNativeCapturePersisted,
@@ -88,7 +89,7 @@ describe('native capture SQLite reader', () => {
   });
 
   it('reads one exact safely quoted title with the total from a synthetic database', () => {
-    const directory = mkdtempSync('/home/dd/mindwtr-native-capture-storage-');
+    const directory = mkdtempSync(join(tmpdir(), 'mindwtr-native-capture-storage-'));
     directories.push(directory);
     const database = join(directory, 'mindwtr.db');
     const title = "Native benchmark capture 0's quoted title";
